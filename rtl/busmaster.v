@@ -119,6 +119,10 @@ module	busmaster(i_clk, i_rst,
 			i_ram_dbg,
 		// The SD Card
 		o_sd_sck, o_sd_cmd, o_sd_data, i_sd_cmd, i_sd_data, i_sd_detect,
+		// Ethernet control (packets) lines
+		o_net_reset_n, i_net_rx_clk, i_net_col, i_net_crs, i_net_dv,
+			i_net_rxd, i_net_rxerr,
+		i_net_tx_clk, o_net_tx_en, o_net_txd,
 		// Ethernet control (MDIO) lines
 		o_mdclk, o_mdio, o_mdwe, i_mdio,
 		// OLED Control interface (roughly SPI)
@@ -182,6 +186,14 @@ module	busmaster(i_clk, i_rst,
 	input			i_sd_cmd;
 	input		[3:0]	i_sd_data;
 	input			i_sd_detect;
+	// Ethernet control
+	output	wire		o_net_reset_n;
+	input			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
+	input		[3:0]	i_net_rxd;
+	input			i_net_rxerr;
+	input			i_net_tx_clk;
+	output	wire		o_net_tx_en;
+	output	wire	[3:0]	o_net_txd;
 	// Ethernet control (MDIO)
 	output	wire		o_mdclk, o_mdio, o_mdwe;
 	input			i_mdio;
@@ -423,26 +435,24 @@ module	busmaster(i_clk, i_rst,
 	// line.
 	wire	io_ack, oled_ack,
 			rtc_ack, sdcard_ack, 
-			netp_ack, gps_ack, mio_ack, cfg_ack, netb_ack,
+			net_ack, gps_ack, mio_ack, cfg_ack,
 			mem_ack, flash_ack, ram_ack;
 	reg	many_ack, slow_many_ack;
 	reg	slow_ack, scop_ack;
-	wire	[5:0]	ack_list;
-	assign	ack_list = { ram_ack, flash_ack, mem_ack, netb_ack, netp_ack, slow_ack };
+	wire	[4:0]	ack_list;
+	assign	ack_list = { ram_ack, flash_ack, mem_ack, net_ack, slow_ack };
 	initial	many_ack = 1'b0;
 	always @(posedge i_clk)
-		many_ack <= ((ack_list != 6'h20)
-			&&(ack_list != 6'h10)
-			&&(ack_list != 6'h8)
-			&&(ack_list != 6'h4)
-			&&(ack_list != 6'h2)
-			&&(ack_list != 6'h1)
-			&&(ack_list != 6'h0));
+		many_ack <= ((ack_list != 5'h10)
+			&&(ack_list != 5'h8)
+			&&(ack_list != 5'h4)
+			&&(ack_list != 5'h2)
+			&&(ack_list != 5'h1)
+			&&(ack_list != 5'h0));
 	/*
 	assign	many_ack = ( 	{ 2'h0, ram_ack}
 				+{2'h0, flash_ack }
 				+{2'h0, mem_ack }
-				+{2'h0, netb_ack }
 				+{2'h0, slow_ack } > 3'h1 );
 	*/
 
@@ -471,7 +481,7 @@ module	busmaster(i_clk, i_rst,
 	//
 	wire	[31:0]	io_data, oled_data,
 			rtc_data, sdcard_data, 
-			netp_data, gps_data, mio_data, cfg_data, netb_data,
+			net_data, gps_data, mio_data, cfg_data,
 			mem_data, flash_data, ram_data;
 	reg	[31:0]	slow_data, scop_data;
 
@@ -479,10 +489,10 @@ module	busmaster(i_clk, i_rst,
 	always @(posedge i_clk)
 		if ((ram_ack)||(flash_ack))
 			wb_idata <= (ram_ack)?ram_data:flash_data;
-		else if ((mem_ack)||(netb_ack))
-			wb_idata <= (mem_ack)?mem_data:netb_data;
+		else if ((mem_ack)||(net_ack))
+			wb_idata <= (mem_ack)?mem_data:net_data;
 		else
-			wb_idata <= (netp_ack)?netp_data: slow_data;
+			wb_idata <= slow_data;
 
 	// 7 control lines, 8x32 data lines
 	always @(posedge i_clk)
@@ -503,7 +513,7 @@ module	busmaster(i_clk, i_rst,
 	//
 	wire	io_stall, scop_stall, oled_stall,
 			rtc_stall, sdcard_stall, 
-			netp_stall, gps_stall, mio_stall, cfg_stall, netb_stall,
+			net_stall, gps_stall, mio_stall, cfg_stall, netb_stall,
 			mem_stall, flash_stall, ram_stall,
 			many_stall;
 	assign	wb_stall = (wb_cyc)&&(
@@ -511,12 +521,12 @@ module	busmaster(i_clk, i_rst,
 			||((scop_sel)&&(scop_stall))	// Never stalls
 			||((rtc_sel)&&(rtc_stall))	// Never stalls
 			||((sdcard_sel)&&(sdcard_stall))// Never stalls
-			||((netp_sel)&&(netp_stall))
+			||((netp_sel)&&(net_stall))	// Never stalls
 			||((gps_sel)&&(gps_stall))	//(maybe? never stalls?)
 			||((oled_sel)&&(oled_stall))	// Never stalls
 			||((mio_sel)&&(mio_stall))
 			||((cfg_sel)&&(cfg_stall))
-			||((netb_sel)&&(netb_stall))	// Never stalls
+			||((netb_sel)&&(net_stall))	// Never stalls
 			||((mem_sel)&&(mem_stall))	// Never stalls
 			||((flash_sel|flctl_sel)&&(flash_stall))
 			||((ram_sel)&&(ram_stall)));
@@ -837,39 +847,29 @@ module	busmaster(i_clk, i_rst,
 	//	ETHERNET DEVICE ACCESS
 	//
 `ifdef	ETHERNET_ACCESS
-	reg	r_mio_ack, r_netb_ack, r_netp_ack;
-	always @(posedge i_clk)
-		r_mio_ack <= (wb_stb)&&(mio_sel);
-	always @(posedge i_clk)
-		r_netp_ack <= (wb_stb)&&(netp_sel);
-	assign	mio_ack = r_mio_ack;
-	assign	netp_ack = r_netp_ack;
-
-	assign	mio_data  = 32'h00;
-	assign	netp_data = 32'h00;
-	assign	mio_stall = 1'b0;
-	assign	netp_stall= 1'b0;
-	assign	enet_rx_int = 1'b0;
-	assign	enet_tx_int = 1'b0;
-
+	enetpackets	#(11)
+		netctrl(i_clk, i_rst, wb_cyc,(wb_stb)&&((netp_sel)||(netb_sel)),
+			wb_we, { (netb_sel), wb_addr[9:0] }, wb_data,
+				net_ack, net_stall, net_data,
+			o_net_reset_n,
+			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv, i_net_rxd,
+				i_net_rxerr,
+			i_net_tx_clk, o_net_tx_en, o_net_txd,
+			enet_rx_int, enet_tx_int);
+			
 	enetctrl #(2)
-		mdio(i_clk, i_rst, wb_cyc, (wb_stb)&&(netb_sel), wb_we,
-			wb_addr[4:0], wb_data[15:0],
-			netb_ack, netb_stall, netb_data,
+		mdio(i_clk, i_rst, wb_cyc, (wb_stb)&&(mio_sel), wb_we,
+				wb_addr[4:0], wb_data[15:0],
+			mio_ack, mio_stall, mio_data,
 			o_mdclk, o_mdio, i_mdio, o_mdwe);
 `else
-	reg	r_mio_ack, r_netb_ack, r_netp_ack;
+	reg	r_mio_ack;
 	always @(posedge i_clk)
 		r_mio_ack <= (wb_stb)&&(mio_sel);
-	always @(posedge i_clk)
-		r_netp_ack <= (wb_stb)&&(netp_sel);
 	assign	mio_ack = r_mio_ack;
-	assign	netp_ack = r_netp_ack;
 
 	assign	mio_data  = 32'h00;
-	assign	netp_data = 32'h00;
 	assign	mio_stall = 1'b0;
-	assign	netp_stall= 1'b0;
 	assign	enet_rx_int = 1'b0;
 	assign	enet_tx_int = 1'b0;
 
@@ -880,8 +880,8 @@ module	busmaster(i_clk, i_rst,
 	// consumes resources for us so we have an idea of what might be 
 	// available when we do have ETHERNET_ACCESS defined.
 	//
-	memdev #(11) enet_buffers(i_clk, wb_cyc, (wb_stb)&&(netb_sel), wb_we,
-		wb_addr[10:0], wb_data, netb_ack, netb_stall, netb_data);
+	memdev #(11) enet_buffers(i_clk, wb_cyc, (wb_stb)&&((netb_sel)||(netp_sel)), wb_we,
+		wb_addr[10:0], wb_data, net_ack, net_stall, net_data);
 	assign	o_mdclk = 1'b1;
 	assign	o_mdio = 1'b1;
 	assign	o_mdwe = 1'b1;

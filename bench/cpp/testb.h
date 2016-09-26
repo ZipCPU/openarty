@@ -50,6 +50,12 @@ public:
 	}
 
 	virtual	void	tick(void) {
+		// Make sure we have our evaluations straight before the top
+		// of the clock.  This is necessary since some of the 
+		// connection modules may have made changes, for which some
+		// logic depends.  This forces that logic to be recalculated
+		// before the top of the clock.
+		eval();
 		m_core->i_clk = 1;
 		eval();
 		m_core->i_clk = 0;

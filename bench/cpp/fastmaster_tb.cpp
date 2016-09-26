@@ -4,10 +4,12 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	This is a piped version of the testbench for the fastmaster
-//		verilog module.  The fastmaster code is designed to be a
-//	complete code set implementing all of the functionality of the Digilent
-//	Arty board.  If done well, the programs talking to this one should be
+// Purpose:	This is a piped version of the testbench for the wishbone
+//		master verilog module, whether it be fastmaster.v or
+//	busmaster.v.  Both fastmaster.v and busmaster.v are designed to be
+//	complete code sets implementing all of the functionality of the Digilent
+//	Arty board---save the hardware dependent features to include the DDR3
+//	memory.  If done well, the programs talking to this one should be
 //	able to talk to the board and apply the same tests to the board itself.
 //
 // Creator:	Dan Gisselquist, Ph.D.
@@ -44,45 +46,45 @@
 #include <ctype.h>
 
 #include "verilated.h"
+#ifdef	FASTCLK
 #include "Vfastmaster.h"
+#define	BASECLASS	Vfastmaster
+#error "This should never be incldued"
+#else
+#include "Vbusmaster.h"
+#define	BASECLASS	Vbusmaster
+#endif
 
 #include "testb.h"
 // #include "twoc.h"
 #include "pipecmdr.h"
 #include "eqspiflashsim.h"
-#ifdef	SDRAM_ACCESS
-#include "ddrsdramsim.h"
-#endif
 #include "sdspisim.h"
 #include "uartsim.h"
 #include "enetctrlsim.h"
+#include "memsim.h"
 
 #include "port.h"
 
 const int	LGMEMSIZE = 28;
 
 // No particular "parameters" need definition or redefinition here.
-class	FASTMASTER_TB : public PIPECMDR<Vfastmaster> {
+class	TESTBENCH : public PIPECMDR<BASECLASS> {
 public:
 	unsigned long	m_tx_busy_count;
 	EQSPIFLASHSIM	m_flash;
 	SDSPISIM	m_sdcard;
-#ifdef	SDRAM_ACCESS
-	DDRSDRAMSIM	m_sdram;
-#endif
 	ENETCTRLSIM	*m_mid;
 	UARTSIM		m_uart;
+	MEMSIM		m_ram;
 
 	unsigned	m_last_led, m_last_pic, m_last_tx_state;
 	time_t		m_start_time;
 	bool		m_last_writeout;
 	int		m_last_bus_owner, m_busy;
 
-	FASTMASTER_TB(void) : PIPECMDR(FPGAPORT),
-#ifdef	SDRAM_ACCESS
-			m_sdram(LGMEMSIZE),
-#endif
-			m_uart(FPGAPORT+1)
+	TESTBENCH(void) : PIPECMDR(FPGAPORT),
+			m_uart(FPGAPORT+1), m_ram(1<<26)
 			{
 		m_start_time = time(NULL);
 		m_mid = new ENETCTRLSIM;
@@ -115,25 +117,6 @@ public:
 				((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
-#ifdef	SDRAM_ACCESS
-		m_core->i_ddr_data = m_sdram(
-				m_core->o_ddr_reset_n,
-				m_core->o_ddr_cke,
-				m_core->o_ddr_cs_n,
-				m_core->o_ddr_ras_n,
-				m_core->o_ddr_cas_n,
-				m_core->o_ddr_we_n,
-				m_core->o_ddr_dqs,
-				m_core->o_ddr_dm,
-				m_core->o_ddr_odt,
-				m_core->o_ddr_bus_oe,
-				m_core->o_ddr_addr,
-				m_core->o_ddr_ba,
-				m_core->o_ddr_data);
-#else
-		m_core->i_ddr_data = 0;
-#endif
-
 		m_core->i_aux_rx = m_uart(m_core->o_aux_tx,
 				m_core->v__DOT__runio__DOT__aux_setup);
 
@@ -141,6 +124,11 @@ public:
 				m_core->o_sd_sck, m_core->o_sd_cmd);
 		m_core->i_sd_data &= 1;
 		m_core->i_sd_data |= (m_core->o_sd_data&0x0e);
+
+		m_ram.apply(m_core->o_ram_cyc, m_core->o_ram_stb,
+			m_core->o_ram_we, m_core->o_ram_addr,
+			m_core->o_ram_wdata, m_core->i_ram_ack,
+			m_core->i_ram_stall, m_core->i_ram_rdata);
 
 		PIPECMDR::tick();
 
@@ -246,7 +234,7 @@ public:
 	}
 };
 
-FASTMASTER_TB	*tb;
+TESTBENCH	*tb;
 
 void	fastmaster_kill(int v) {
 	tb->kill();
@@ -256,7 +244,7 @@ void	fastmaster_kill(int v) {
 
 int	main(int argc, char **argv) {
 	Verilated::commandArgs(argc, argv);
-	tb = new FASTMASTER_TB;
+	tb = new TESTBENCH;
 
 	// signal(SIGINT,  fastmaster_kill);
 

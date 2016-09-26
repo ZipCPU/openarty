@@ -1,14 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	llcomms.cpp
+// Filename: 	memsim.h
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	This is the C++ program on the command side that will interact
-//		with a UART on an FPGA, both sending and receiving characters.
-//		Any bus interaction will call routines from this lower level
-//		library to accomplish the actual connection to and
-//		transmission to/from the board.
+// Purpose:	This creates a memory like device to act on a WISHBONE bus.
+//		It doesn't exercise the bus thoroughly, but does give some
+//		exercise to the bus to see whether or not the bus master
+//		can control it.
+//
+//	This particular version differs from the memsim version within the
+//	ZipCPU project in that there is a variable delay from request to
+//	completion.
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -39,36 +43,32 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#ifndef	LLCOMMS_H
-#define	LLCOMMS_H
+#ifndef	MEMSIM_H
+#define	MEMSIM_H
 
-class	LLCOMMSI {
-protected:
-	int	m_fdw, m_fdr;
-	LLCOMMSI(void);
-public:
-	unsigned long	m_total_nread, m_total_nwrit;
+class	MEMSIM {
+public:	
+	typedef	unsigned int	BUSW;
+	typedef	unsigned char	uchar;
 
-	virtual	~LLCOMMSI(void) { close(); }
-	virtual	void	kill(void)  { this->close(); };
-	virtual	void	close(void);
-	virtual	void	write(char *buf, int len);
-	virtual int	read(char *buf, int len);
-	virtual	bool	poll(unsigned ms);
+	BUSW	*m_mem, m_len, m_mask, m_head, m_tail, m_delay_mask, m_delay;
+	int	*m_fifo_ack;
+	BUSW	*m_fifo_data;
+	
 
-	// Tests whether or not bytes are available to be read, returns a 
-	// count of the bytes that may be immediately read
-	virtual	int	available(void); // { return 0; };
-};
-
-class	TTYCOMMS : public LLCOMMSI {
-public:
-	TTYCOMMS(const char *dev);
-};
-
-class	NETCOMMS : public LLCOMMSI {
-public:
-	NETCOMMS(const char *dev, const int port);
+	MEMSIM(const unsigned int nwords, const unsigned int delay=27);
+	~MEMSIM(void);
+	void	load(const char *fname);
+	void	apply(const uchar wb_cyc, const uchar wb_stb,
+				const uchar wb_we,
+			const BUSW wb_addr, const BUSW wb_data, 
+			uchar &o_ack, uchar &o_stall, BUSW &o_data);
+	void	operator()(const uchar wb_cyc, const uchar wb_stb, const uchar wb_we,
+			const BUSW wb_addr, const BUSW wb_data, 
+			uchar &o_ack, uchar &o_stall, BUSW &o_data) {
+		apply(wb_cyc, wb_stb, wb_we, wb_addr, wb_data, o_ack, o_stall, o_data);
+	}
+	BUSW &operator[](const BUSW addr) { return m_mem[addr&m_mask]; }
 };
 
 #endif

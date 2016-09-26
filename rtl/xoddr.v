@@ -1,14 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	llcomms.cpp
+// Filename: 	xoddr.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	This is the C++ program on the command side that will interact
-//		with a UART on an FPGA, both sending and receiving characters.
-//		Any bus interaction will call routines from this lower level
-//		library to accomplish the actual connection to and
-//		transmission to/from the board.
+// Purpose:	For the DDR3 SDRAM, this handles the Xilinx specific portions
+//		of the output necessary to make this happen for one pin only.
+//	For the QSPI, this helps to make certain that as much of the logic
+//	delay as possible has been removed from the path--to get the full
+//	100MHz speed.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -39,36 +39,28 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#ifndef	LLCOMMS_H
-#define	LLCOMMS_H
+module	xoddr(i_clk, i_v, o_pin);
+	input		i_clk;
+	input	[1:0]	i_v;
+	output		o_pin;
 
-class	LLCOMMSI {
-protected:
-	int	m_fdw, m_fdr;
-	LLCOMMSI(void);
-public:
-	unsigned long	m_total_nread, m_total_nwrit;
+	wire	w_internal;
+	reg	last;
 
-	virtual	~LLCOMMSI(void) { close(); }
-	virtual	void	kill(void)  { this->close(); };
-	virtual	void	close(void);
-	virtual	void	write(char *buf, int len);
-	virtual int	read(char *buf, int len);
-	virtual	bool	poll(unsigned ms);
+	always @(posedge i_clk)
+		last <= i_v[1];
 
-	// Tests whether or not bytes are available to be read, returns a 
-	// count of the bytes that may be immediately read
-	virtual	int	available(void); // { return 0; };
-};
+	ODDR #(
+		.DDR_CLK_EDGE("SAME_EDGE"),
+		.INIT(1'b0),
+		.SRTYPE("SYNC")
+	) ODDRi(
+		.Q(o_pin),
+		.C(i_clk),
+		.CE(1'b1),
+		.D1(last),	// Negative clock edge (goes first)
+		.D2(i_v[0]),	// Positive clock edge
+		.R(1'b0),
+		.S(1'b0));
 
-class	TTYCOMMS : public LLCOMMSI {
-public:
-	TTYCOMMS(const char *dev);
-};
-
-class	NETCOMMS : public LLCOMMSI {
-public:
-	NETCOMMS(const char *dev, const int port);
-};
-
-#endif
+endmodule

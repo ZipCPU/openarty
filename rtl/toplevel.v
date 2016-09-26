@@ -54,7 +54,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 	i_uart_rx, o_uart_tx,
 	// Quad-SPI Flash control
 	o_qspi_sck, o_qspi_cs_n, io_qspi_dat,
-	// Missing: Ethernet
+	// Ethernet
+	o_eth_reset_n, o_eth_ref_clk,
+	i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv, i_eth_rxd, i_eth_rxerr,
+	i_eth_tx_clk, o_eth_tx_en, o_eth_txd,
+	// Ethernet (MDIO)
 	o_eth_mdclk, io_eth_mdio,
 	// Memory
 	ddr3_reset_n, ddr3_cke, ddr3_ck_p, ddr3_ck_n,
@@ -84,7 +88,14 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Quad SPI flash
 	output	wire		o_qspi_sck, o_qspi_cs_n;
 	inout	[3:0]		io_qspi_dat;
-	// Ethernet // Not yet implemented
+	// Ethernet
+	output	wire		o_eth_reset_n, o_eth_ref_clk;
+	input			i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv;
+	input	[3:0]		i_eth_rxd;
+	input			i_eth_rxerr;
+	input			i_eth_tx_clk;
+	output	wire		o_eth_tx_en;
+	output	[3:0]		o_eth_txd;
 	// Ethernet control (MDIO)
 	output	wire		o_eth_mdclk;
 	inout	wire		io_eth_mdio;
@@ -118,6 +129,8 @@ module toplevel(sys_clk_i, i_reset_btn,
 	input			i_aux_rx, i_aux_rts;
 	output	wire		o_aux_tx, o_aux_cts;
 
+`ifdef	VERILATOR
+`else
 	// Build our master clock
 	wire	s_clk, sys_clk, mem_clk_200mhz,
 		clk1_unused, clk2_unused, enet_clk, clk4_unnused,
@@ -170,6 +183,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	BUFH	feedback_buffer(.I(clk_feedback),.O(clk_feedback_bufd));
 	// BUFG	memref_buffer(.I(mem_clk_200mhz_nobuf),.O(mem_clk_200mhz));
 	IBUF	sysclk_buf(.I(sys_clk_i[0]), .O(sys_clk));
+`endif
 
 	//
 	//
@@ -286,6 +300,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 			ram_dbg,
 		// SD Card
 		o_sd_sck, w_sd_cmd, w_sd_data, io_sd_cmd, io_sd, i_sd_cs,
+		// Ethernet
+		o_eth_reset_n,
+		i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv,
+			i_eth_rxd, i_eth_rxerr,
+		i_eth_tx_clk, o_eth_tx_en, o_eth_txd,
 		// Ethernet control (MDIO) lines
 		o_eth_mdclk, w_mdio, w_mdwe, io_eth_mdio,
 		// OLEDRGB PMod wires
@@ -352,6 +371,13 @@ module toplevel(sys_clk_i, i_reset_btn,
 
 	//
 	//
+	// Generate a reference clock for the network
+	//
+	//
+	xoddr	e_ref_clk( enet_clk, { 1'b1,  1'b0 }, o_eth_ref_clk );
+
+	//
+	//
 	// Wires for setting up the SD Card Controller
 	//
 	//
@@ -375,7 +401,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Now, to set up our memory ...
 	//
 	//
-	migsdram rami(
+	migsdram #(.AXIDWIDTH(5)) rami(
 		.i_clk(mem_clk_nobuf), .i_clk_200mhz(mem_clk_200mhz_nobuf),
 		.o_sys_clk(s_clk), .i_rst(pwr_reset), .o_sys_reset(s_reset),
 		.i_wb_cyc(ram_cyc), .i_wb_stb(ram_stb), .i_wb_we(ram_we),

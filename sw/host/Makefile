@@ -44,7 +44,7 @@ OBJDIR := obj-pc
 BUSOBJS := $(OBJDIR)/ttybus.o $(OBJDIR)/llcomms.o $(OBJDIR)/regdefs.o
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp	\
 	ttybus.cpp llcomms.cpp dumpflash.cpp eqspiscope.cpp flashdrvr.cpp \
-	portbus.cpp regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp	\
+	regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp	\
 	cfgscope.cpp
 	# ziprun.cpp zipload.cpp
 HEADERS := llcomms.h ttybus.h devbus.h

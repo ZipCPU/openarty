@@ -56,7 +56,7 @@ JTAGBUS := wbufifo.v wbubus.v wbucompactlines.v				\
 	wbucompress.v wbudecompress.v wbudeword.v wbuexec.v		\
 	wbuidleint.v wbuinput.v wbuoutput.v wbureadcw.v wbusixchar.v	\
 	wbutohex.v
-PERIPHERALS:= enetctrl.v fastio.v rtcdate.v rtcgps.v		\
+PERIPHERALS:= enetctrl.v enetpackets.v fastio.v rtcdate.v rtcgps.v	\
 	rxuart.v txuart.v eqspiflash.v lleqspi.v flash_config.v		\
 	wbicapetwo.v sdspi.v gpsclock_tb.v gpsclock.v wboled.v lloled.v	\
 	wbscopc.v wbscope.v memdev.v wbddrsdram.v

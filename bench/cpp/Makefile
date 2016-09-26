@@ -41,11 +41,12 @@ FLAGS	:= -Wall -Og -g
 OBJDIR  := obj-pc
 RTLD	:= ../../rtl
 INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I/usr/share/verilator/include
-SOURCES := eqspiflashsim.cpp eqspiflash_tb.cpp
+SOURCES := eqspiflashsim.cpp eqspiflash_tb.cpp enetctrlsim.cpp	\
+	memsim.cpp sdspisim.cpp uartsim.cpp ddrsdramsim.cpp
 VOBJDR	:= $(RTLD)/obj_dir
 VLIB	:= /usr/share/verilator/include/verilated.cpp
 SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp	\
-	sdspisim.cpp uartsim.cpp
+	memsim.cpp sdspisim.cpp uartsim.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
 all:	$(OBJDIR)/ busmaster_tb eqspiflash_tb
@@ -62,12 +63,15 @@ eqspiflash_tb: eqspiflash_tb.cpp $(OBJDIR)/eqspiflashsim.o $(VOBJDR)/Veqspiflash
 enetctrl_tb: enetctrl_tb.cpp $(OBJDIR)/enetctrlsim.o $(VOBJDR)/Venetctrl__ALL.a
 	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Venetctrl__ALL.a $(VLIB) -o $@
 
-busmaster_tb:busmaster_tb.cpp $(SIMOBJS) $(VOBJDR)/Vbusmaster__ALL.a
+fastmaster_tb:fastmaster_tb.cpp $(SIMOBJS) $(VOBJDR)/Vfastmaster__ALL.a
+	$(CXX) -DFASTCLK $(FLAGS) $(INCS) $^ $(VOBJDR)/Vfastmaster__ALL.a $(VLIB) -o $@
+busmaster_tb:fastmaster_tb.cpp $(SIMOBJS) $(VOBJDR)/Vbusmaster__ALL.a
 	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(VLIB) -o $@
 
 .PHONY: clean
 clean:
 	rm ./eqspiflash_tb
 	rm ./enetctrl_tb
+	rm ./fastmaster_tb
 	rm ./busmaster_tb
 

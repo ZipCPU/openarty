@@ -82,19 +82,20 @@ typedef	struct	{
 typedef	struct	{
 	volatile unsigned	rxcmd, txcmd;
 	volatile long		mac;
-	volatile unsigned	rxpkt, rxmiss, rxcrc, txcol;
-#define	ENET_TXGO	0x10000
-#define	ENET_TXBUSY	0x10000
-#define	ENET_RXAVAIL	0x10000
-#define	ENET_RXBUSY	0x20000
-#define	ENET_RXCRC	0x40000
-#define	ENET_RXMISS	0x80000
-#define	ENET_RXLEN	rxcmd & 0x0ffff
+	volatile unsigned	rxmiss, rxerr, rxcrc, txcol;
+#define	ENET_TXGO	0x004000
+#define	ENET_TXBUSY	0x004000
 #define	ENET_TXCMD(LEN)	((LEN)|ENET_TXBIT)
-#define	ENET_TXCLR	0xe0000
-#define	ENET_TXCANCEL	0x00000
-#define	ENET_RXCLR	0x10000
-#define	ENET_RXCLRERR	0xe0000
+#define	ENET_TXCLR	0x038000
+#define	ENET_TXCANCEL	0x000000
+#define	ENET_RXAVAIL	0x004000
+#define	ENET_RXBUSY	0x008000
+#define	ENET_RXERR	0x010000
+#define	ENET_RXMISS	0x020000
+#define	ENET_RXCRC	0x040000
+#define	ENET_RXLEN	rxcmd & 0x0ffff
+#define	ENET_RXCLR	0x004000
+#define	ENET_RXCLRERR	0x078000
 #define	ENET_TXBUFLN(NET)	(1<<(NET.txcmd>>24))
 #define	ENET_RXBUFLN(NET)	(1<<(NET.rxcmd>>24))
 } ENETPACKET;
