@@ -104,7 +104,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	(* ASYNC_REG = "TRUE" *) reg	[(MAW+1):0]	rx_len;
 
 	reg	tx_busy, tx_cmd, tx_cancel, tx_complete;
-	(* ASYNC_REG = "TRUE" *) reg	config_use_crc, config_use_mac;
+	reg	config_use_crc, config_use_mac;
 	reg	rx_crcerr, rx_err, rx_miss, rx_clear, rx_busy, rx_valid;
 	reg	rx_wb_valid, pre_ack;
 	reg	[4:0]	caseaddr;
@@ -257,10 +257,10 @@ module	enetpackets(i_wb_clk, i_reset,
 
 	reg	[(MAW+2):0]	n_tx_addr;
 	reg	[31:0]		n_tx_data, n_next_tx_data;
-	(* ASYNC_REG = "TRUE" *) reg	[47:0]	n_next_preamble;
+	(* ASYNC_REG = "TRUE" *) reg	[31:0]	n_next_preamble;
 	(* ASYNC_REG = "TRUE" *) reg		n_tx_complete, n_tx_busy;
-	initial	n_tx_busy <= 1'b0;
-	initial	n_tx_complete <= 1'b0;
+	initial	n_tx_busy  = 1'b0;
+	initial	n_tx_complete  = 1'b0;
 	always @(posedge i_net_tx_clk)
 	begin
 		n_next_tx_data  <= txmem[rd_tx_addr[(MAW-1):0]];
@@ -317,7 +317,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	end
 
 	(* ASYNC_REG = "TRUE" *) reg	r_tx_busy, r_tx_complete;
-	initial	r_tx_busy <= 1'b0;
+	initial	r_tx_busy = 1'b0;
 	always @(posedge i_wb_clk)
 	begin
 		r_tx_busy <= n_tx_busy;
@@ -331,6 +331,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	reg	[31:0]	n_rx_data;
 	(* ASYNC_REG = "TRUE" *) reg	r_rx_clear, n_rx_err, n_rx_miss;
 	reg	n_rx_inpacket, n_rx_clear;
+	reg	[2:0]	n_wrong_mac;
 	initial	r_rx_clear = 1'b0;
 	initial	n_rx_clear = 1'b0;
 	initial	n_rx_err   = 1'b0;
@@ -343,8 +344,26 @@ module	enetpackets(i_wb_clk, i_reset,
 
 		if (!i_net_dv)
 			n_rx_addr <= 0;
+		//else if ((n_config_use_mac)&&(!n_have_mac)
+		//		&&(n_rx_addr== {{(MAW+2-4){1'b0}},4'hb}))
+		//	n_rx_addr <= 0;
+		// else if ((!n_config_use_mac)
+		// 		&&(n_rx_addr == {{(MAW+2-4){1'b0}},4'ha}))
+		//	n_rx_addr <= n_rx_addr + 3'h5;
+		else if (n_rx_addr == {{(MAW+3-4){1'b0}},4'ha})
+			n_rx_addr <= n_rx_addr + {{(MAW+3-3){1'b0}}, 3'h5};
 		else
 			n_rx_addr <= n_rx_addr + 1'b1;
+
+		n_wrong_mac[0] <= (n_rx_addr == {{(MAW+3-5){1'b0}},5'h4})
+				&&(n_rx_data[15:0] != hw_mac[47:32]);
+		n_wrong_mac[1] <= (n_rx_addr == {{(MAW+3-5){1'b0}},5'h8})
+				&&(n_rx_data[15:0] != hw_mac[31:16]);
+		n_wrong_mac[2] <= (n_rx_addr == {{(MAW+3-5){1'b0}},5'h10})
+				&&(n_rx_data[15:0] != hw_mac[15:0]);
+
+		n_rx_inpacket <= (n_rx_inpacket)&&((!n_config_use_mac)
+				||(n_wrong_mac == 3'h0));
 
 		if (!i_net_dv)
 		begin
@@ -357,11 +376,18 @@ module	enetpackets(i_wb_clk, i_reset,
 				n_rx_miss <= 1'b1;
 			n_rx_data <= 32'h00;
 			n_rx_err  <= 1'b0;
+			// n_have_mac<= 1'b0;
 		end else if (n_rx_inpacket)
 		begin
 			n_rx_data <= { n_rx_data[27:0], i_net_rxd };
 			rxmem[n_rx_addr[(MAW+2):3]] <= { n_rx_data[27:0], i_net_rxd };
+			// rxmem[] <= { n_rx_data[ 3:0], i_net_rxd, 24'h00 };
+			// rxmem[] <= { n_rx_data[11:0], i_net_rxd, 16'h00 };
+			// rxmem[] <= { n_rx_data[19:0], i_net_rxd, 8'h00 };
+			// rxmem[] <= { n_rx_data[27:0], i_net_rxd };
 			n_rx_err   <= (n_rx_err)||(i_net_rxerr);
+			// n_have_mac <= (n_rx_addr == {{(MAW+2){1'b0}},4'hb});
+
 		end
 	end
 
