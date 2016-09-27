@@ -213,6 +213,23 @@ set_property -dict { PACKAGE_PIN J14   IOSTANDARD LVCMOS33 } [get_ports { o_eth_
 set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[2] }]; #IO_L17N_T2_A25_15 Sch=eth_txd[2]
 set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[3] }]; #IO_L18P_T2_A24_15 Sch=eth_txd[3]
 
+# Ethernet generated clocks from the chip
+create_clock -period 40.000 -name eth_tx_pin -add [get_ports {i_eth_tx_clk}]
+create_clock -period 40.000 -name eth_rx_pin -add [get_ports {i_eth_rx_clk}]
+
+# And crossing clocks from ethernet clocks to master clock
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/r_*}] -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}] -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_len*}] -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_len*}] -to [get_cells -hier -filter {NAME =~ *netctrl/rx_le*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/config_*}] -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/preambl*}] -to [get_cells -hier -filter {NAME =~ *netctrl/n_next_pr*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rx_cl*}] -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clea*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cm*}] -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cm*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_can*}] -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_can*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_miss*}] -to [get_cells -hier -filter {NAME =~ *netctrl/rx_miss_st*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_err*}] -to [get_cells -hier -filter {NAME =~ *netctrl/rx_err_st*}] 12.3;
+
 ##Quad SPI Flash
 
 set_property -dict { PACKAGE_PIN L13 IOSTANDARD LVCMOS33 } [get_ports o_qspi_cs_n]

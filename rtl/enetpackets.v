@@ -52,7 +52,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-module	enetpackets(i_clk, i_reset,
+module	enetpackets(i_wb_clk, i_reset,
 	i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
 		o_wb_ack, o_wb_stall, o_wb_data,
 	//
@@ -65,7 +65,7 @@ module	enetpackets(i_clk, i_reset,
 	parameter	MEMORY_ADDRESS_WIDTH = 14; // Log_2 octet width:11..14
 	localparam	MAW =((MEMORY_ADDRESS_WIDTH>14)? 14:
 			((MEMORY_ADDRESS_WIDTH<11)? 11:MEMORY_ADDRESS_WIDTH))-2;
-	input			i_clk, i_reset;
+	input			i_wb_clk, i_reset;
 	//
 	input			i_wb_cyc, i_wb_stb, i_wb_we;
 	input	[(MAW+1):0]	i_wb_addr; // 1-bit for ctrl/data, 1 for tx/rx
@@ -87,28 +87,45 @@ module	enetpackets(i_clk, i_reset,
 	//
 	output	wire		o_rx_int, o_tx_int;
 
+	reg	wr_ctrl;
+	reg	[2:0]	wr_addr;
+	reg	[31:0]	wr_data;
+	always @(posedge i_wb_clk)
+	begin
+		wr_ctrl<=((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00));
+		wr_addr <= i_wb_addr[2:0];
+		wr_data <= i_wb_data;
+	end
 
 	reg	[31:0]	txmem	[0:((1<<MAW)-1)];
 	reg	[31:0]	rxmem	[0:((1<<MAW)-1)];
 
-	reg	[(MAW+1):0]	tx_len, rx_len;
+	reg	[(MAW+1):0]	tx_len;
+	(* ASYNC_REG = "TRUE" *) reg	[(MAW+1):0]	rx_len;
 
 	reg	tx_busy, tx_cmd, tx_cancel, tx_complete;
-	reg	config_use_crc, config_use_mac;
+	(* ASYNC_REG = "TRUE" *) reg	config_use_crc, config_use_mac;
 	reg	rx_crcerr, rx_err, rx_miss, rx_clear, rx_busy, rx_valid;
 	reg	rx_wb_valid, pre_ack;
 	reg	[4:0]	caseaddr;
 	reg	[31:0]	rx_wb_data, tx_wb_data;
-	reg	[47:0]	hw_mac;
+	(* ASYNC_REG = "TRUE" *) reg	[47:0]	hw_mac;
 
 	// We only need eleven of these values.  We allocate 16 in order to
 	// round up to the nearest power of two.
-	reg	[15:0]	preamble	[0:15];
+	(* ASYNC_REG = "TRUE" *) reg	[15:0]	preamble	[0:15];
 
-	initial	preamble[0] = 16'h5555;
-	initial	preamble[1] = 16'h5555;
-	initial	preamble[2] = 16'h5555;
-	initial	preamble[3] = 16'h55d5;
+	initial	preamble[ 0] = 16'h5555;
+	initial	preamble[ 1] = 16'h5555;
+	initial	preamble[ 2] = 16'h5555;
+	initial	preamble[ 3] = 16'h55d5;
+	// The following values are never used, but must be defined and
+	// initialized anyway.
+	initial	preamble[11] = 16'h0000;
+	initial	preamble[12] = 16'h0000;
+	initial	preamble[13] = 16'h0000;
+	initial	preamble[14] = 16'h0000;
+	initial	preamble[15] = 16'h0000;
 
 	initial	config_use_crc = 0;
 	initial	config_use_mac = 0;
@@ -119,7 +136,7 @@ module	enetpackets(i_clk, i_reset,
 	initial	rx_err    = 1'b0;
 	initial	rx_miss   = 1'b0;
 	initial	rx_clear  = 1'b0;
-	always @(posedge i_clk)
+	always @(posedge i_wb_clk)
 	begin
 		// if (i_wb_addr[(MAW+1):MAW] == 2'b10)
 			// Writes to rx memory not allowed here
@@ -138,13 +155,13 @@ module	enetpackets(i_clk, i_reset,
 			preamble[10] <= i_wb_data[15:0];
 		end
 
-		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00)&&(i_wb_addr[2:0]==3'b000))
+		if ((wr_ctrl)&&(wr_addr==3'b000))
 		begin // RX command register
-			rx_crcerr<= (!i_wb_data[18])&&(!rx_crcerr);
-			rx_err   <= (!i_wb_data[17])&&(!rx_err);
-			rx_miss  <= (!i_wb_data[16])&&(!rx_miss);
+			rx_crcerr<= (!wr_data[18])&&(!rx_crcerr);
+			rx_err   <= (!wr_data[17])&&(!rx_err);
+			rx_miss  <= (!wr_data[16])&&(!rx_miss);
 			// busy bit cannot be written to
-			rx_clear <= rx_clear || (!i_wb_data[14]);
+			rx_clear <= rx_clear || (!wr_data[14]);
 			// Length bits are cleared when invalid
 		end
 
@@ -152,29 +169,33 @@ module	enetpackets(i_clk, i_reset,
 			tx_cmd <= 1'b0;
 		if (!tx_busy)
 			tx_cancel <= 1'b0;
-		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00)&&(i_wb_addr[2:0]==3'b001))
+		if ((wr_ctrl)&&(wr_addr==3'b001))
 		begin // TX command register
 
 			// Reset bit must be held down to be valid
-			o_net_reset_n <= (!i_wb_data[17]);
-			config_use_crc <= (!i_wb_data[16]);
-			config_use_mac <= (!i_wb_data[15]);
-			tx_cmd <= (i_wb_data[14]);
-			tx_cancel <= (tx_busy)&&(!i_wb_data[14]);
+			o_net_reset_n <= (!wr_data[17]);
+			config_use_crc <= (!wr_data[16]);
+			config_use_mac <= (!wr_data[15]);
+			tx_cmd <= (wr_data[14]);
+			tx_cancel <= (tx_busy)&&(!wr_data[14]);
 //		14'h0	| SW-CRCn |NET-RST|BUSY/CMD | 14 bit length(in octets)|
-			tx_len <= i_wb_data[(MAW+1):0];
+			tx_len <= wr_data[(MAW+1):0];
 		end
+		if (!o_net_reset_n)
+			tx_cancel <= 1'b1;
+		if (!o_net_reset_n)
+			tx_cmd <= 1'b0;
 
-		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00)&&(i_wb_addr[2:0]==3'b010))
+		if ((wr_ctrl)&&(wr_addr==3'b010))
 		begin
-			hw_mac[47:32] <= i_wb_data[15:0];
-			preamble[7] <= i_wb_data[15:0];
+			hw_mac[47:32] <= wr_data[15:0];
+			preamble[7] <= wr_data[15:0];
 		end
-		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00)&&(i_wb_addr[2:0]==3'b011))
+		if ((wr_ctrl)&&(wr_addr==3'b011))
 		begin
-			hw_mac[31:0] <= i_wb_data[31:0];
-			preamble[8]  <= i_wb_data[31:16];
-			preamble[9] <= i_wb_data[15:0];
+			hw_mac[31:0] <= wr_data[31:0];
+			preamble[8]  <= wr_data[31:16];
+			preamble[9]  <= wr_data[15:0];
 		end
 	end
 
@@ -197,7 +218,7 @@ module	enetpackets(i_clk, i_reset,
 	initial	counter_rx_crc  = 32'h00;
 
 	// Reads from the bus ... always done, regardless of i_wb_we
-	always @(posedge i_clk)
+	always @(posedge i_wb_clk)
 	begin
 		rx_wb_data  <= rxmem[i_wb_addr[(MAW-1):0]];
 		rx_wb_valid <= (i_wb_addr[(MAW-1):0] <= { rx_len[(MAW+1):2] });
@@ -220,8 +241,9 @@ module	enetpackets(i_clk, i_reset,
 		o_wb_ack <= pre_ack;
 	end
 
-	reg	r_tx_cmd, n_tx_cmd, r_tx_cancel, n_tx_cancel;
-	always @(posedge i_clk)
+	(* ASYNC_REG = "TRUE" *) reg	r_tx_cmd, r_tx_cancel, n_config_use_mac;
+	reg	n_tx_cmd, n_tx_cancel;
+	always @(posedge i_net_tx_clk)
 	begin // Clock transfer
 		r_tx_cmd <= tx_cmd;
 		n_tx_cmd <= r_tx_cmd;
@@ -234,8 +256,11 @@ module	enetpackets(i_clk, i_reset,
 	assign	rd_tx_addr = n_tx_addr - 22;
 
 	reg	[(MAW+2):0]	n_tx_addr;
-	reg	[31:0]		n_tx_data, n_next_tx_data, n_next_preamble;
-	reg	n_tx_busy, n_tx_complete;
+	reg	[31:0]		n_tx_data, n_next_tx_data;
+	(* ASYNC_REG = "TRUE" *) reg	[47:0]	n_next_preamble;
+	(* ASYNC_REG = "TRUE" *) reg		n_tx_complete, n_tx_busy;
+	initial	n_tx_busy <= 1'b0;
+	initial	n_tx_complete <= 1'b0;
 	always @(posedge i_net_tx_clk)
 	begin
 		n_next_tx_data  <= txmem[rd_tx_addr[(MAW-1):0]];
@@ -252,9 +277,10 @@ module	enetpackets(i_clk, i_reset,
 				n_tx_busy <= 1'b0;
 			o_net_tx_en <= 1'b0;
 			o_net_txd   <= 4'h0;
+			n_config_use_mac <= config_use_mac;
 		end else begin
 			o_net_txd <= n_tx_data[31:28];
-			if ((config_use_mac)&&(n_tx_addr < {{(MAW+3-6){1'b0}},6'h2c}))
+			if ((n_config_use_mac)&&(n_tx_addr < {{(MAW+3-6){1'b0}},6'h2c}))
 			begin
 				if (n_tx_addr[1:0]==2'b11)
 					n_tx_data <= n_next_preamble;
@@ -277,7 +303,7 @@ module	enetpackets(i_clk, i_reset,
 				//	5/40: Ethernet PORT (16'bits ignored)
 				// and jump midway though the fifth word
 			end
-			if ((!config_use_mac)&&(n_tx_addr == { {(MAW+3-6){1'b0}}, 6'd40}))
+			if ((!n_config_use_mac)&&(n_tx_addr == { {(MAW+3-6){1'b0}}, 6'd40}))
 				n_tx_addr <= n_tx_addr + { {(MAW+3-5){1'b0}}, 5'h4};
 			else
 				n_tx_addr <= n_tx_addr + 1'b1;
@@ -290,7 +316,123 @@ module	enetpackets(i_clk, i_reset,
 		end
 	end
 
+	(* ASYNC_REG = "TRUE" *) reg	r_tx_busy, r_tx_complete;
+	initial	r_tx_busy <= 1'b0;
+	always @(posedge i_wb_clk)
+	begin
+		r_tx_busy <= n_tx_busy;
+		tx_busy <= r_tx_busy;
+
+		r_tx_complete <= n_tx_complete;
+		tx_complete <= r_tx_complete;
+	end
+
+	reg	[(MAW+2):0]	n_rx_addr;
+	reg	[31:0]	n_rx_data;
+	(* ASYNC_REG = "TRUE" *) reg	r_rx_clear, n_rx_err, n_rx_miss;
+	reg	n_rx_inpacket, n_rx_clear;
+	initial	r_rx_clear = 1'b0;
+	initial	n_rx_clear = 1'b0;
+	initial	n_rx_err   = 1'b0;
+	initial	n_rx_inpacket = 1'b0;
+	initial	n_rx_miss  = 1'b0;
+	always @(posedge i_net_rx_clk)
+	begin
+		r_rx_clear <= rx_clear;
+		n_rx_clear <= r_rx_clear;
+
+		if (!i_net_dv)
+			n_rx_addr <= 0;
+		else
+			n_rx_addr <= n_rx_addr + 1'b1;
+
+		if (!i_net_dv)
+		begin
+			n_rx_addr <= 0;
+			n_rx_inpacket <= 1'b0;
+			n_rx_miss <= 1'b1;
+			if ((n_rx_clear)||(!n_rx_valid))
+				n_rx_inpacket <= 1'b1;
+			else
+				n_rx_miss <= 1'b1;
+			n_rx_data <= 32'h00;
+			n_rx_err  <= 1'b0;
+		end else if (n_rx_inpacket)
+		begin
+			n_rx_data <= { n_rx_data[27:0], i_net_rxd };
+			rxmem[n_rx_addr[(MAW+2):3]] <= { n_rx_data[27:0], i_net_rxd };
+			n_rx_err   <= (n_rx_err)||(i_net_rxerr);
+		end
+	end
+
+	reg	n_rx_valid, n_rx_busy, rx_err_stb, rx_miss_stb, n_rx_complete;
+	(* ASYNC_REG = "TRUE" *) reg	[11:0]	n_rx_toggle;
+	reg	[(MAW+1):0]	n_rx_len;
+	initial	n_rx_busy = 1'b0;
+	initial	n_rx_toggle = 12'h0f0;
+	initial	n_rx_valid  = 1'b0;
+	initial	n_rx_complete = 1'b0;
+	always @(posedge i_net_tx_clk)
+	begin
+		n_rx_toggle <= { n_rx_toggle[10:0], n_rx_addr[1] };
+		n_rx_complete<=((n_rx_toggle == 12'h00)||(n_rx_toggle == 12'hfff));
+		if (n_rx_complete)
+		begin
+			n_rx_busy <= 1'b1;
+			n_rx_len <= n_rx_addr[(MAW+2):1];
+			n_rx_valid <= 1'b0;
+		end else begin
+			n_rx_busy <= 1'b0;
+			n_rx_valid <= (n_rx_inpacket)&&(!n_rx_err);
+		end
+	end
+
+
+	(* ASYNC_REG = "TRUE" *) reg	r_rx_valid, r_rx_busy;
+	always @(posedge i_wb_clk)
+	begin
+		r_rx_valid <= n_rx_valid;
+		rx_valid <= r_rx_valid;
+
+		r_rx_busy <= n_rx_busy;
+		rx_busy <= r_rx_busy;
+
+		rx_len <= n_rx_len;
+
+		rx_err_stb <= ((rx_busy)&&(!r_rx_busy)&&(n_rx_err));
+		rx_miss_stb<= ((rx_busy)&&(!r_rx_busy)&&(n_rx_miss));
+	end
+
+	always @(posedge i_wb_clk)
+		if (o_net_reset_n)
+			counter_rx_miss <= 32'h0;
+		else if (rx_miss_stb)
+			counter_rx_miss <= counter_rx_miss + 32'h1;
+	always @(posedge i_wb_clk)
+		if (o_net_reset_n)
+			counter_rx_err <= 32'h0;
+		else if (rx_miss_stb)
+			counter_rx_err <= counter_rx_err + 32'h1;
+
 	assign	o_tx_int = !tx_busy;
 	assign	o_rx_int = (rx_valid)&&(!rx_clear);
 	assign	o_wb_stall = 1'b0;
+
+	/*
+	wire	[31:0]	rxdbg;
+	assign	rxdbg = { {(32-MAW-3-12){1'b0}}, n_rx_addr[(MAW+2):0],
+		n_rx_clear, n_rx_err, n_rx_miss, n_rx_inpacket,
+		n_rx_valid, n_rx_busy, i_rx_crs, i_rx_dv,
+		i_rxd };
+	*/
+
+	/*
+	wire	[31:0]	txdbg;
+	assign	txdbg = {
+			n_tx_addr[(MAW+2):0],
+		3'h0, n_tx_cancel,
+		n_tx_cmd, n_tx_complete, n_tx_busy, o_net_tx_en,
+		o_net_txd
+		};
+	*/
 endmodule

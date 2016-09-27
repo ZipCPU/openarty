@@ -55,7 +55,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Quad-SPI Flash control
 	o_qspi_sck, o_qspi_cs_n, io_qspi_dat,
 	// Ethernet
-	o_eth_reset_n, o_eth_ref_clk,
+	o_eth_rstn, o_eth_ref_clk,
 	i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv, i_eth_rxd, i_eth_rxerr,
 	i_eth_tx_clk, o_eth_tx_en, o_eth_txd,
 	// Ethernet (MDIO)
@@ -89,7 +89,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	output	wire		o_qspi_sck, o_qspi_cs_n;
 	inout	[3:0]		io_qspi_dat;
 	// Ethernet
-	output	wire		o_eth_reset_n, o_eth_ref_clk;
+	output	wire		o_eth_rstn, o_eth_ref_clk;
 	input			i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv;
 	input	[3:0]		i_eth_rxd;
 	input			i_eth_rxerr;
@@ -183,6 +183,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 	BUFH	feedback_buffer(.I(clk_feedback),.O(clk_feedback_bufd));
 	// BUFG	memref_buffer(.I(mem_clk_200mhz_nobuf),.O(mem_clk_200mhz));
 	IBUF	sysclk_buf(.I(sys_clk_i[0]), .O(sys_clk));
+
+	wire	eth_tx_clk, eth_rx_clk;
+	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
+	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));
 `endif
 
 	//
@@ -301,10 +305,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 		// SD Card
 		o_sd_sck, w_sd_cmd, w_sd_data, io_sd_cmd, io_sd, i_sd_cs,
 		// Ethernet
-		o_eth_reset_n,
-		i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv,
+		o_eth_rstn,
+		eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv,
 			i_eth_rxd, i_eth_rxerr,
-		i_eth_tx_clk, o_eth_tx_en, o_eth_txd,
+		eth_tx_clk, o_eth_tx_en, o_eth_txd,
 		// Ethernet control (MDIO) lines
 		o_eth_mdclk, w_mdio, w_mdwe, io_eth_mdio,
 		// OLEDRGB PMod wires
