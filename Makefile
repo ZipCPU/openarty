@@ -52,7 +52,7 @@ YYMMDD:=`date +%Y%m%d`
 
 .PHONY: datestamp
 datestamp:
-	@bash -c 'if [ ! -e $(YYMMDD)-build.v ]; then rm 20??????-build.v; perl mkdatev.pl > $(YYMMDD)-build.v; rm -f rtl/builddate.v; fi'
+	@bash -c 'if [ ! -e $(YYMMDD)-build.v ]; then rm -f 20??????-build.v; perl mkdatev.pl > $(YYMMDD)-build.v; rm -f rtl/builddate.v; fi'
 	@bash -c 'if [ ! -e rtl/builddate.v ]; then cd rtl; cp ../$(YYMMDD)-build.v builddate.v; fi'
 
 .PHONY: archive
@@ -60,7 +60,7 @@ archive:
 	tar --transform s,^,$(YYMMDD)-arty/, -chjf $(YYMMDD)-arty.tjz $(BENCH) $(SW) $(RTL) $(NOTES) $(PROJ) $(BIN) $(CONSTRAINTS)
 
 .PHONY: verilated
-verilated:
+verilated: datestamp
 	cd rtl ; $(MAKE) --no-print-directory
 
 .PHONY: rtl
