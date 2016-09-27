@@ -46,8 +46,8 @@ test: $(VDIRFB)/Venetctrl__ALL.a
 test: $(VDIRFB)/Vbusmaster__ALL.a
 
 CPUDR := cpu
-CPUSOURCESnD := zipcpu.v fastops.v pfcache.v pipemem.v		\
-			pfcache.v ifastdec.v wbpriarbiter.v zipbones.v	\
+CPUSOURCESnD := zipcpu.v cpuops.v pfcache.v pipemem.v		\
+			pfcache.v idecode.v wbpriarbiter.v zipbones.v	\
 	zipsystem.v zipcounter.v zipjiffies.v ziptimer.v		\
 		wbdmac.v icontrol.v wbwatchdog.v
 CPUSOURCES := $(addprefix $(CPUDR)/,$(CPUSOURCESnD))
