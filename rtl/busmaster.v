@@ -74,7 +74,7 @@
 // SCOPE POSITION ZERO
 //
 `ifdef	FLASH_ACCESS
-`define	FLASH_SCOPE	// Position zero
+// `define	FLASH_SCOPE	// Position zero
 `else
 `ifdef ZIPCPU
 // `define	CPU_SCOPE	// Position zero
@@ -93,7 +93,12 @@
 `ifdef	SDRAM_ACCESS
 `define	SDRAM_SCOPE		// Position two
 `endif
-// `define	ENET_SCOPE
+//
+// SCOPE POSITION THREE
+//
+`ifdef	ETHERNET_ACCESS
+`define	ENET_SCOPE
+`endif
 //
 //
 module	busmaster(i_clk, i_rst,
@@ -847,6 +852,10 @@ module	busmaster(i_clk, i_rst,
 	//	ETHERNET DEVICE ACCESS
 	//
 `ifdef	ETHERNET_ACCESS
+`ifdef	ENET_SCOPE
+	wire	[31:0]	txnet_data;
+`endif
+
 	enetpackets	#(11)
 		netctrl(i_clk, i_rst, wb_cyc,(wb_stb)&&((netp_sel)||(netb_sel)),
 			wb_we, { (netb_sel), wb_addr[9:0] }, wb_data,
@@ -855,13 +864,19 @@ module	busmaster(i_clk, i_rst,
 			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv, i_net_rxd,
 				i_net_rxerr,
 			i_net_tx_clk, o_net_tx_en, o_net_txd,
-			enet_rx_int, enet_tx_int);
-			
+			enet_rx_int, enet_tx_int
+`ifdef	ENET_SCOPE
+			, txnet_data
+`endif
+			);
+
+	wire	[31:0]	mdio_debug;
 	enetctrl #(2)
 		mdio(i_clk, i_rst, wb_cyc, (wb_stb)&&(mio_sel), wb_we,
 				wb_addr[4:0], wb_data[15:0],
 			mio_ack, mio_stall, mio_data,
-			o_mdclk, o_mdio, i_mdio, o_mdwe);
+			o_mdclk, o_mdio, i_mdio, o_mdwe,
+			mdio_debug);
 `else
 	reg	r_mio_ack;
 	always @(posedge i_clk)
@@ -921,9 +936,9 @@ module	busmaster(i_clk, i_rst,
 	//	FLASH MEMORY ACCESS
 	//
 `ifdef	FLASH_ACCESS
-`ifdef	FLASH_SCOPE
+// `ifdef	FLASH_SCOPE
 	wire	[31:0]	flash_debug;
-`endif
+// `endif
 	wire	w_ignore_cmd_accepted;
 	eqspiflash	flashmem(i_clk, i_rst,
 		wb_cyc,(wb_stb)&&(flash_sel),(wb_stb)&&(flctl_sel),wb_we,
@@ -931,9 +946,9 @@ module	busmaster(i_clk, i_rst,
 		flash_ack, flash_stall, flash_data,
 		o_qspi_sck, o_qspi_cs_n, o_qspi_mod, o_qspi_dat, i_qspi_dat,
 		flash_int, w_ignore_cmd_accepted
-`ifdef	FLASH_SCOPE
+// `ifdef	FLASH_SCOPE
 		, flash_debug
-`endif
+// `endif
 		);
 `else
 	assign	o_qspi_sck = 1'b1;
@@ -1173,7 +1188,34 @@ module	busmaster(i_clk, i_rst,
 	wire	[31:0]	scop_d_data;
 	wire	scop_d_ack, scop_d_stall, scop_d_interrupt;
 	//
-//`else
+`ifdef	ENET_SCOPE
+	wire	[31:0]	scop_net_data;
+	wire		scop_net_ack, scop_net_stall, scop_net_interrupt;
+
+	/*
+	wbscope	#(5'd8,32,1)
+		net_scope(i_clk, 1'b1, !mdio_debug[1], mdio_debug,
+		// Wishbone interface
+		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b11)),
+			wb_we, wb_addr[0], wb_data,
+			scop_net_ack, scop_net_stall, scop_net_data,
+		scop_net_interrupt);
+	*/
+
+	wbscope	#(5'd13,32,0)
+		net_scope(i_net_tx_clk, 1'b1, txnet_data[31], txnet_data,
+		// Wishbone interface
+		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b11)),
+			wb_we, wb_addr[0], wb_data,
+			scop_net_ack, scop_net_stall, scop_net_data,
+		scop_net_interrupt);
+
+	assign	scop_d_ack       = scop_net_ack;
+	assign	scop_d_stall     = scop_net_stall;
+	assign	scop_d_data      = scop_net_data;
+	assign	scop_d_interrupt = scop_net_interrupt;
+	
+`else
 	assign	scop_d_data = 32'h00;
 	assign	scop_d_stall = 1'b0;
 	assign	scop_d_interrupt = 1'b0;
@@ -1182,7 +1224,7 @@ module	busmaster(i_clk, i_rst,
 	always @(posedge i_clk)
 		r_scop_d_ack <= (wb_stb)&&(scop_sel)&&(wb_addr[2:1] == 2'b11);
 	assign	scop_d_ack = r_scop_d_ack;
-//`endif
+`endif
 
 	reg	all_scope_interrupts;
 	always @(posedge i_clk)

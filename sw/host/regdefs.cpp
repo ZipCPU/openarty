@@ -146,7 +146,16 @@ const	REGNAME	raw_bregs[] = {
 	{ R_GPSTB_COUNTLO,	"CNTLO"		},
 	{ R_GPSTB_STEPHI,	"STEPHI"	},
 	{ R_GPSTB_STEPLO,	"STEPLO"	},
-	//
+	// Ethernet, packet control registers
+	{ R_NET_RXCMD, 		"RXCMD"		},
+	{ R_NET_RXCMD, 		"NETRX"		},
+	{ R_NET_TXCMD, 		"TXCMD"		},
+	{ R_NET_TXCMD, 		"NETTX"		},
+	{ R_NET_MACHI, 		"MACHI"		},
+	{ R_NET_MACLO, 		"MACLO"		},
+	{ R_NET_RXMISS, 	"NETMISS"	},
+	{ R_NET_RXERR, 		"NETERR"	},
+	{ R_NET_RXCRC, 		"NETXCRC"	},
 	// Ethernet  MDIO registers
 	{ R_MDIO_BMCR,		"BMCR"		},
 	{ R_MDIO_BMSR,		"BMSR"		},

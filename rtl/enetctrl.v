@@ -47,7 +47,8 @@
 module	enetctrl(i_clk, i_rst,
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
 			o_wb_ack, o_wb_stall, o_wb_data,
-		o_mdclk, o_mdio, i_mdio, o_mdwe);
+		o_mdclk, o_mdio, i_mdio, o_mdwe,
+		o_debug);
 	parameter	CLKBITS=3; // = 3 for 200MHz source clock, 2 for 100 MHz
 	input	i_clk, i_rst;
 	input			i_wb_cyc, i_wb_stb, i_wb_we;
@@ -59,6 +60,8 @@ module	enetctrl(i_clk, i_rst,
 	input			i_mdio;
 	output	wire		o_mdclk;
 	output	reg		o_mdio, o_mdwe;
+	//
+	output	wire	[31:0]	o_debug;
 	//
 	parameter	PHYADDR = 5'h01;
 
@@ -83,13 +86,14 @@ module	enetctrl(i_clk, i_rst,
 	reg	rclk, zclk;
 	initial	zclk = 0;
 	always @(posedge i_clk)
-		zclk <= &clk_counter;
+		zclk <= (&clk_counter[(CLKBITS-1):1])&&(!clk_counter[0]);
 	initial	rclk = 0;
 	always @(posedge i_clk)
 		rclk <= (~clk_counter[(CLKBITS-1)])&&(&clk_counter[(CLKBITS-2):0]);
 
 	// Step 3: Read from our input port
 	// 	Note: I read on the falling edge, he changes on the rising edge
+	reg	in_idle;
 	always @(posedge i_clk)
 		if (zclk)
 			read_reg <= { read_reg[14:0], i_mdio };
@@ -107,7 +111,6 @@ module	enetctrl(i_clk, i_rst,
 		if (zclk)
 			o_mdio <= write_reg[15];
 
-	reg	in_idle;
 	initial	in_idle = 1'b0;
 	always @(posedge i_clk)
 		in_idle <= (ctrl_state == `ECTRL_IDLE);
@@ -145,7 +148,7 @@ module	enetctrl(i_clk, i_rst,
 	always @(posedge i_clk)
 	begin
 		o_wb_ack <= 1'b0;
-		if ((zclk)&&(~zreg_pos))
+		if ((zclk)&&(!zreg_pos))
 			reg_pos <= reg_pos - 1;
 		if (zclk)
 			write_reg <= { write_reg[14:0], 1'b1 };
@@ -168,9 +171,11 @@ module	enetctrl(i_clk, i_rst,
 				write_reg[15:12] <= { 4'h5 };
 			else if (read_pending)
 				write_reg[15:12] <= { 4'h6 };
-			if (read_pending || write_pending)
+			if (!zclk)
+				write_reg[15] <= 1'b1;
+			reg_pos <= 6'h0f;
+			if ((zclk)&&(read_pending || write_pending))
 			begin
-				reg_pos <= 6'h0f;
 				ctrl_state <= `ECTRL_ADDRESS;
 			end end
 		`ECTRL_ADDRESS: begin
@@ -205,5 +210,14 @@ module	enetctrl(i_clk, i_rst,
 			end
 		endcase
 	end
+
+	wire	[31:0]	o_debug;
+	assign	o_debug = {
+			o_wb_stall,i_wb_stb,i_wb_we, i_wb_addr,	// 8 bits
+			o_wb_ack, rclk, o_wb_data[5:0],		// 8 bits
+			zreg_pos, zclk, reg_pos,		// 8 bits
+			read_pending, ctrl_state,		// 4 bits
+			o_mdclk, o_mdwe, o_mdio, i_mdio		// 4 bits
+		};
 
 endmodule

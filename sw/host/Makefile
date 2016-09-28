@@ -37,15 +37,15 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram eqspiscope
+PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram eqspiscope etxscope netsetup manping
 all: $(PROGRAMS)
 CXX := g++
 OBJDIR := obj-pc
 BUSOBJS := $(OBJDIR)/ttybus.o $(OBJDIR)/llcomms.o $(OBJDIR)/regdefs.o
-SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp	\
+SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 	ttybus.cpp llcomms.cpp dumpflash.cpp eqspiscope.cpp flashdrvr.cpp \
-	regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp	\
-	cfgscope.cpp
+	regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp		\
+	cfgscope.cpp etxscope.cpp netsetup.cpp mdioscope.cpp manping.cpp
 	# ziprun.cpp zipload.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
@@ -73,7 +73,11 @@ wbsettime: $(OBJDIR)/wbsettime.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 mtest: $(OBJDIR)/mtest.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
+manping: $(OBJDIR)/manping.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
 wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+netsetup: $(OBJDIR)/netsetup.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
@@ -82,6 +86,10 @@ eqspiscope: $(OBJDIR)/eqspiscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 cfgscope: $(OBJDIR)/cfgscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+etxscope: $(OBJDIR)/etxscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+mdioscope: $(OBJDIR)/mdioscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 wbprogram: $(OBJDIR)/wbprogram.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@

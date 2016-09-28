@@ -129,7 +129,14 @@ module toplevel(sys_clk_i, i_reset_btn,
 	input			i_aux_rx, i_aux_rts;
 	output	wire		o_aux_tx, o_aux_cts;
 
+	wire	eth_tx_clk, eth_rx_clk;
 `ifdef	VERILATOR
+	wire	s_clk, s_reset;
+	assign	s_clk = sys_clk_i;
+
+	assign	eth_tx_clk = i_eth_tx_clk;
+	assign	eth_rx_clk = i_eth_rx_clk;
+
 `else
 	// Build our master clock
 	wire	s_clk, sys_clk, mem_clk_200mhz,
@@ -143,8 +150,8 @@ module toplevel(sys_clk_i, i_reset_btn,
 		.CLKFBOUT_MULT(8),	// Multiply value for all CLKOUT (2-64)
 		.CLKOUT0_DIVIDE(8),	// 100 MHz	(Clock for MIG)
 		.CLKOUT1_DIVIDE(4),	// 200 MHz	(MIG Reference clock)
-		.CLKOUT2_DIVIDE(32),	//  50 MHz	(Unused)
-		.CLKOUT3_DIVIDE(64),	//  25 MHz	(Unused/Ethernet clock)
+		.CLKOUT2_DIVIDE(16),	//  50 MHz	(Unused)
+		.CLKOUT3_DIVIDE(32),	//  25 MHz	(Ethernet reference clk)
 		.CLKOUT4_DIVIDE(32),	//  50 MHz	(Unused clock?)
 		.CLKOUT5_DIVIDE(24),	//  66 MHz
 		// CLKOUT0_DUTY_CYCLE -- Duty cycle for each CLKOUT
@@ -184,7 +191,6 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// BUFG	memref_buffer(.I(mem_clk_200mhz_nobuf),.O(mem_clk_200mhz));
 	IBUF	sysclk_buf(.I(sys_clk_i[0]), .O(sys_clk));
 
-	wire	eth_tx_clk, eth_rx_clk;
 	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
 	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));
 `endif
@@ -212,6 +218,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// logic fashion, we synchronize this wire by registering it first
 	// to pre_reset, and then to pwr_reset (the actual reset wire).
 	//
+	wire		s_reset;		// Ultimate system reset wire
 	reg	[7:0]	pre_reset;
 	reg		pwr_reset;
 	// Since all our stuff is synchronous to the clock that comes out of 
@@ -231,10 +238,14 @@ module toplevel(sys_clk_i, i_reset_btn,
 	initial	pwr_reset = 1'b0;
 	always @(posedge sys_clk)
 		pwr_reset <= pre_reset[7];
+`ifdef	VERILATOR
+	assign	s_reset = pwr_reset;
+`else
 	//
 	// Of course, this only goes into the memory controller.  The true
 	// device reset comes out of that memory controller, synchronized to
 	// our memory generator provided clock(s)
+`endif
 
 	wire	w_ck_uart, w_uart_tx;
 	rxuart	rcv(s_clk, s_reset, bus_uart_setup, i_uart_rx,
@@ -345,6 +356,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	wire	[3:0]	i_qspi_pedge, i_qspi_nedge;
 
+`ifdef	VERILATOR
+	assign	o_qspi_sck  = w_qspi_sck;
+	assign	o_qspi_cs_n = w_qspi_cs_n;
+`else
 	xoddr	xqspi_sck( s_clk, { w_qspi_sck,  w_qspi_sck }, o_qspi_sck);
 	xoddr	xqspi_csn( s_clk, { w_qspi_cs_n, w_qspi_cs_n },o_qspi_cs_n);
 	//
@@ -360,6 +375,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	xioddr	xqspi_d3(  s_clk, (qspi_bmod!=2'b11),
 		(qspi_bmod[1])?{ qspi_dat[3], qspi_dat[3] }:2'b11,
 		{ i_qspi_pedge[3], i_qspi_nedge[3] }, io_qspi_dat[3]);
+`endif
 
 	assign	i_qspi_dat = i_qspi_pedge;
 	//
@@ -378,7 +394,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Generate a reference clock for the network
 	//
 	//
+`ifdef	VERILATOR
+	assign	o_eth_ref_clk = i_eth_tx_clk;
+`else
 	xoddr	e_ref_clk( enet_clk, { 1'b1,  1'b0 }, o_eth_ref_clk );
+`endif
 
 	//
 	//

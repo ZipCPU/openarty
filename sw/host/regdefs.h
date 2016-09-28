@@ -166,6 +166,9 @@
 #define	R_CFG_BOOTSTS	0x000001f6
 #define	R_CFG_CTL1	0x000001f8
 #define	R_CFG_BSPI	0x000001ff
+// Network buffer space
+#define	R_NET_RXBUF	0x00000800
+#define	R_NET_TXBUF	0x00000c00
 // Block RAM memory space
 #define	MEMBASE		0x00008000
 #define	MEMWORDS	0x00008000
