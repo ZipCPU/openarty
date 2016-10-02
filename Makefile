@@ -33,7 +33,7 @@
 ##
 ##
 .PHONY: all
-all:	archive datestamp rtl bench
+all:	archive datestamp rtl bench sw
 # all:	verilated sw bench bit
 #
 # Could also depend upon load, if desired, but not necessary
@@ -72,7 +72,7 @@ bench: rtl
 
 .PHONY: sw
 sw:
-	cd sw ; $(MAKE) --no-print-directory
+	cd sw/host ; $(MAKE) --no-print-directory
 
 # .PHONY: bit
 # bit:

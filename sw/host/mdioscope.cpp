@@ -57,11 +57,11 @@ void	closeup(int v) {
 	exit(0);
 }
 
-class	CFGSCOPE : public SCOPE {
+class	MDIOSCOPE : public SCOPE {
 public:
-	CFGSCOPE(FPGA *fpga, unsigned addr, bool vecread)
+	MDIOSCOPE(FPGA *fpga, unsigned addr, bool vecread)
 		: SCOPE(fpga, addr, false, false) {};
-	~CFGSCOPE(void) {}
+	~MDIOSCOPE(void) {}
 	virtual	void	decode(DEVBUS::BUSW val) const {
 		int	wbstall, wbstb, wbwe, wbaddr,
 			wback, rclk, zclk, zreg, wbdata, regpos, ctstate, rpend,
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 	signal(SIGSTOP, closeup);
 	signal(SIGHUP, closeup);
 
-	CFGSCOPE *scope = new CFGSCOPE(m_fpga, WBSCOPE, false);
+	MDIOSCOPE *scope = new MDIOSCOPE(m_fpga, WBSCOPE, false);
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
