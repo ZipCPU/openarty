@@ -59,11 +59,11 @@ void	closeup(int v) {
 	exit(0);
 }
 
-class	CFGSCOPE : public SCOPE {
+class	ETXSCOPE : public SCOPE {
 public:
-	CFGSCOPE(FPGA *fpga, unsigned addr, bool vecread)
-		: SCOPE(fpga, addr, false, false) {};
-	~CFGSCOPE(void) {}
+	ETXSCOPE(FPGA *fpga, unsigned addr, bool vecread = true)
+		: SCOPE(fpga, addr, false, vecread) {};
+	~ETXSCOPE(void) {}
 	virtual	void	decode(DEVBUS::BUSW val) const {
 		int	trigger, addr, cancel, cmd, complete, busy, en, txd;
 		int	lrxclk, ltxclk, txstb;
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 	signal(SIGSTOP, closeup);
 	signal(SIGHUP, closeup);
 
-	CFGSCOPE *scope = new CFGSCOPE(m_fpga, WBSCOPE, false);
+	ETXSCOPE *scope = new ETXSCOPE(m_fpga, WBSCOPE);
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
