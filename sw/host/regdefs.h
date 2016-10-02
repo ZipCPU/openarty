@@ -63,6 +63,8 @@
 #define	R_GPSCOPED	0x00000123	//	and data
 #define	R_CFGSCOPE	0x00000122	// ICAPE2 configuration scop control
 #define	R_CFGSCOPED	0x00000123	//	and data
+#define	R_BUSSCOPE	0x00000122	// WBUBUS scope control
+#define	R_BUSSCOPED	0x00000123	//	and data
 #define	R_RAMSCOPE	0x00000124	// DDR3 SDRAM Scope
 #define	R_RAMSCOPED	0x00000125	//
 #define	R_NETSCOPE	0x00000126	// Ethernet debug scope

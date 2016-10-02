@@ -98,6 +98,8 @@ const	REGNAME	raw_bregs[] = {
 	{ R_CFGSCOPE,	"CFGSCOP"		},
 	{ R_CFGSCOPED,	"CFGSCDATA"		},
 	{ R_CFGSCOPED,	"CFGSCD"		},
+	{ R_BUSSCOPE,	"BUSSCOPE"		},	// Scope one
+	{ R_BUSSCOPED,	"BUSSCOPD"		},
 	{ R_RAMSCOPE,	"RAMSCOPE"		},	// Scope two
 	{ R_RAMSCOPE,	"RAMSCOP"		},
 	{ R_RAMSCOPED,	"RAMSCOPD"		},
