@@ -62,7 +62,7 @@ public:
 	void	tick(void) {
 		m_core->i_clk = 1;
 
-		m_core->i_mdio = (*m_sim)(m_core->o_mdclk,
+		m_core->i_mdio = (*m_sim)(0, m_core->o_mdclk,
 			((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
@@ -287,15 +287,21 @@ public:
 int main(int  argc, char **argv) {
 	Verilated::commandArgs(argc, argv);
 	ENETCTRL_TB	*tb = new ENETCTRL_TB;
-	// unsigned	rdv;
+	unsigned	v;
 	// unsigned	*rdbuf;
 
 	tb->wb_tick();
 	tb->wb_write(0, 0x7f82);
+	if ((*tb)[0] != 0x7f82) {
+		printf("Somehow wrote a %04x, rather than 0x7f82\n", (*tb)[0]);
+		goto test_failure;
+	}
 
 	tb->wb_tick();
-	if (tb->wb_read(0)!=0x7f82)
+	if ((v=tb->wb_read(0))!=0x7f82) {
+		printf("READ A %08x FROM THE CORE, NOT 0x7f82\n", v);
 		goto test_failure;
+	}
 
 	// 
 	tb->wb_tick();

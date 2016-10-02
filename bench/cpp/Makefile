@@ -49,7 +49,7 @@ SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
-all:	$(OBJDIR)/ busmaster_tb eqspiflash_tb
+all:	$(OBJDIR)/ busmaster_tb eqspiflash_tb enetctrl_tb
 
 $(OBJDIR)/:
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
@@ -70,8 +70,8 @@ busmaster_tb:fastmaster_tb.cpp $(SIMOBJS) $(VOBJDR)/Vbusmaster__ALL.a
 
 .PHONY: clean
 clean:
-	rm ./eqspiflash_tb
-	rm ./enetctrl_tb
-	rm ./fastmaster_tb
-	rm ./busmaster_tb
+	rm -f ./eqspiflash_tb
+	rm -f ./enetctrl_tb
+	rm -f ./fastmaster_tb
+	rm -f ./busmaster_tb
 

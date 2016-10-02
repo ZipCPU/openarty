@@ -59,7 +59,7 @@ JTAGBUS := wbufifo.v wbubus.v wbucompactlines.v				\
 PERIPHERALS:= enetctrl.v enetpackets.v fastio.v rtcdate.v rtcgps.v	\
 	rxuart.v txuart.v eqspiflash.v lleqspi.v flash_config.v		\
 	wbicapetwo.v sdspi.v gpsclock_tb.v gpsclock.v wboled.v lloled.v	\
-	wbscopc.v wbscope.v memdev.v
+	wbscopc.v wbscope.v memdev.v addepreamble.v addemac.v addecrc.v
 BIGMATH:= bigadd.v bigsmpy.v bigsub.v
 SOURCES := fastmaster.v builddate.v					\
 	$(CPUSOURCES) $(JTAGBUS) $(PERIPHERALS) $(BIGMATH)

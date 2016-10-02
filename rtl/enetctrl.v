@@ -168,8 +168,10 @@ module	enetctrl(i_clk, i_rst,
 			o_mdwe <= 1'b1; // Write
 			write_reg <= { 4'he, PHYADDR, r_addr, 2'b11 };
 			if (write_pending)
+			begin
 				write_reg[15:12] <= { 4'h5 };
-			else if (read_pending)
+				write_reg[0] <= 1'b0;
+			end else if (read_pending)
 				write_reg[15:12] <= { 4'h6 };
 			if (!zclk)
 				write_reg[15] <= 1'b1;
@@ -211,7 +213,6 @@ module	enetctrl(i_clk, i_rst,
 		endcase
 	end
 
-	wire	[31:0]	o_debug;
 	assign	o_debug = {
 			o_wb_stall,i_wb_stb,i_wb_we, i_wb_addr,	// 8 bits
 			o_wb_ack, rclk, o_wb_data[5:0],		// 8 bits

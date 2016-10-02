@@ -78,7 +78,7 @@ public:
 	UARTSIM		m_uart;
 	MEMSIM		m_ram;
 
-	unsigned	m_last_led, m_last_pic, m_last_tx_state;
+	unsigned	m_last_led, m_last_pic, m_last_tx_state, m_net_ticks;
 	time_t		m_start_time;
 	bool		m_last_writeout;
 	int		m_last_bus_owner, m_busy;
@@ -113,9 +113,18 @@ public:
 		m_core->i_qspi_dat = m_flash(m_core->o_qspi_cs_n,
 				m_core->o_qspi_sck, m_core->o_qspi_dat);
 
-		m_core->i_mdio = (*m_mid)(m_core->o_mdclk,
-				((m_core->o_mdwe)&(m_core->o_mdio))
-				|((m_core->o_mdwe)?0:1));
+		m_core->i_mdio = (*m_mid)((m_core->o_net_reset_n==0)?1:0, m_core->o_mdclk,
+				((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1);
+
+		/*
+		printf("MDIO: %d %d %d %d/%d -> %d\n",
+			m_core->o_net_reset_n,
+			m_core->o_mdclk,
+			m_core->o_mdwe,
+			m_core->o_mdio,
+			((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1,
+			m_core->i_mdio);
+		*/
 
 		m_core->i_aux_rx = m_uart(m_core->o_aux_tx,
 				m_core->v__DOT__runio__DOT__aux_setup);
@@ -125,6 +134,21 @@ public:
 		m_core->i_sd_data &= 1;
 		m_core->i_sd_data |= (m_core->o_sd_data&0x0e);
 
+		// Turn the network into a simple loopback device.
+		if (++m_net_ticks>5)
+			m_net_ticks = 0;
+		m_core->i_net_rx_clk = (m_net_ticks >= 2)&&(m_net_ticks < 5);
+		m_core->i_net_tx_clk = (m_net_ticks >= 0)&&(m_net_ticks < 3);
+		if (!m_core->i_net_rx_clk) {
+			m_core->i_net_dv    = m_core->o_net_tx_en;
+			m_core->i_net_rxd   = m_core->o_net_txd;
+			m_core->i_net_crs   = m_core->o_net_tx_en;
+		} m_core->i_net_rxerr = 0;
+		if (!m_core->o_net_reset_n) {
+			m_core->i_net_dv = 0;
+			m_core->i_net_crs= 0;
+		}
+
 		m_ram.apply(m_core->o_ram_cyc, m_core->o_ram_stb,
 			m_core->o_ram_we, m_core->o_ram_addr,
 			m_core->o_ram_wdata, m_core->i_ram_ack,
@@ -132,8 +156,15 @@ public:
 
 		PIPECMDR::tick();
 
-// #define	DEBUGGING_OUTPUT
+#define	DEBUGGING_OUTPUT
 		bool	writeout = false;
+
+		if (m_core->o_net_tx_en)
+			writeout = true;
+
+		if (m_core->v__DOT__netctrl__DOT__n_rx_valid)
+			writeout = true;
+
 		/*
 		*/
 		if ((writeout)||(m_last_writeout)) {
@@ -228,9 +259,55 @@ public:
 			}
 			*/
 
+			printf("ETH[TX:%s%s%x%s]",
+				(m_core->i_net_tx_clk)?"CK":"  ",
+				(m_core->o_net_tx_en)?" ":"(",
+				m_core->o_net_txd,
+				(m_core->o_net_tx_en)?" ":")");
+			printf("/%s(%04x,%08x[%08x])",
+				(m_core->v__DOT__netctrl__DOT__n_tx_busy)?"BSY":"   ",
+				m_core->v__DOT__netctrl__DOT__n_tx_addr,
+				m_core->v__DOT__netctrl__DOT__n_next_tx_data,
+				m_core->v__DOT__netctrl__DOT__n_tx_data);
+			printf("[RX:%s%s%s%s%x%s]",
+				(m_core->i_net_rx_clk)?"CK":"  ",
+				(m_core->i_net_crs)?"CR":"  ",
+				(m_core->i_net_rxerr)?"ER":"  ",
+				(m_core->i_net_dv)?" ":"(",
+				m_core->i_net_rxd,
+				(m_core->i_net_dv)?" ":")");
+			printf("%s%s",
+				(m_core->v__DOT__netctrl__DOT__n_rx_valid)?"V":" ",
+				(m_core->v__DOT__netctrl__DOT__n_rx_clear)?"C":" ");
+			printf("/%s%s(%04x,%s%08x@%04x)%08x",
+				(m_core->v__DOT__netctrl__DOT__n_rx_busy)?"BSY":"   ",
+				(m_core->v__DOT__netctrl__DOT__n_rx_inpacket)?"IN":"  ",
+				m_core->v__DOT__netctrl__DOT__n_rx_addr,
+				(m_core->v__DOT__netctrl__DOT__n_rx_wr)?"W":" ",
+				m_core->v__DOT__netctrl__DOT__n_rx_wdat,
+				m_core->v__DOT__netctrl__DOT__n_rx_wad,
+				m_core->v__DOT__netctrl__DOT__n_rx_toggle);
+
+			printf(" TXMAC %x%s -> %2x -> %x%s",
+				m_core->v__DOT__netctrl__DOT__r_txd,
+				(m_core->v__DOT__netctrl__DOT__r_txd_en)?"!":" ",
+				(m_core->v__DOT__netctrl__DOT__txmaci__DOT__r_pos),
+				m_core->v__DOT__netctrl__DOT__w_macd,
+				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
+			printf(" TXCRC %x%s ->%2x/0x%08x -> %x%s",
+				m_core->v__DOT__netctrl__DOT__w_macd,
+				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ",
+				m_core->v__DOT__netctrl__DOT__txcrci__DOT__r_p,
+				m_core->v__DOT__netctrl__DOT__txcrci__DOT__r_crc,
+				m_core->v__DOT__netctrl__DOT__w_macd,
+				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
+				
+
 
 			printf("\n"); fflush(stdout);
-		} m_last_writeout = writeout;
+		} // m_last_writeout = writeout;
+
+		m_last_writeout = (writeout)||(m_last_writeout)||(m_core->o_net_tx_en);
 	}
 };
 

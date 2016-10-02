@@ -100,6 +100,7 @@ void	MEMSIM::apply(const unsigned char wb_cyc,
 			const BUSW wb_addr, const BUSW wb_data, 
 			unsigned char &o_ack, unsigned char &o_stall, BUSW &o_data) {
 	m_head++; m_tail = (m_head - m_delay)&m_delay_mask;
+	m_head&=m_delay_mask;
 	o_ack = m_fifo_ack[m_tail];
 	o_data= m_fifo_data[m_tail];
 

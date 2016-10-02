@@ -1,17 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	enetsim.h
+// Filename: 	addepreamble.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	To add the ethernet preamble to a stream of values (i.e., to
+//		an ethernet packet ...)
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2016, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -35,25 +36,52 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#ifndef	ENETCTRLSIM_H
-#define	ENETCTRLSIM_H
+module addepreamble(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
+	input			i_clk, i_ce, i_en, i_cancel;
+	input			i_v;	// Valid
+	input		[3:0]	i_d;	// Data nibble
+	output	wire		o_v;
+	output	wire	[3:0]	o_d;
 
-#define	ENET_MEMWORDS	32
-class	ENETCTRLSIM	{
-	int	m_consecutive_clocks, m_lastout,
-		m_tickcount, m_ticks_per_clock, m_lastclk;
-	int	TICKS_PER_CLOCK, PHY_ADDR;
-	int	m_mem[ENET_MEMWORDS];
+	reg	[84:0]	shiftreg;
+	reg		r_v;
+	reg	[3:0]	r_d;
 
-public:
-	bool	m_synched;
-	int	m_datareg, m_halfword, m_outreg;
-	ENETCTRLSIM(void);
-	~ENETCTRLSIM(void) {}
+	always @(posedge i_clk)
+	if (i_ce)
+	begin
+		shiftreg <= { shiftreg[79:0], { i_v, i_d }};
+		r_v <= shiftreg[84];
+		r_d <= shiftreg[83:80];
+		if (((!i_v)&&(!o_v))||(i_cancel))
+		begin
+			shiftreg <= { 5'h00, 5'h15, 5'h15, 5'h15, 5'h15,
+				5'h15, 5'h15, 5'h15, 5'h15,
+				5'h15, 5'h15, 5'h15, 5'h15,
+				5'h15, 5'h15, 5'h1d, 5'h15 };
+			if (!i_en)
+			begin
+				shiftreg[ 4] <= 1'b0;
+				shiftreg[ 9] <= 1'b0;
+				shiftreg[14] <= 1'b0;
+				shiftreg[19] <= 1'b0;
+				shiftreg[24] <= 1'b0;
+				shiftreg[29] <= 1'b0;
+				shiftreg[34] <= 1'b0;
+				shiftreg[39] <= 1'b0;
+				shiftreg[44] <= 1'b0;
+				shiftreg[49] <= 1'b0;
+				shiftreg[54] <= 1'b0;
+				shiftreg[59] <= 1'b0;
+				shiftreg[64] <= 1'b0;
+				shiftreg[69] <= 1'b0;
+				shiftreg[74] <= 1'b0;
+				shiftreg[79] <= 1'b0;
+			end
+		end
+	end
 
-	int	operator()(int inreset, int clk, int data);
-	int	operator[](int index) const;
-};
+	assign	o_v = r_v;
+	assign	o_d = r_d;
 
-#endif	// ENETCTRLSIM_H
-
+endmodule

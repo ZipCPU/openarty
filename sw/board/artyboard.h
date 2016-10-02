@@ -85,8 +85,8 @@ typedef	struct	{
 	volatile unsigned	rxmiss, rxerr, rxcrc, txcol;
 #define	ENET_TXGO	0x004000
 #define	ENET_TXBUSY	0x004000
-#define	ENET_HWCRC	0x008000
-#define	ENET_HWMAC	0x010000
+#define	ENET_NOHWCRC	0x008000
+#define	ENET_NOHWMAC	0x010000
 #define	ENET_RESET	0x020000
 #define	ENET_TXCMD(LEN)	((LEN)|ENET_TXBIT)
 #define	ENET_TXCLR	0x038000

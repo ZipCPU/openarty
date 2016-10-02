@@ -74,7 +74,7 @@
 // SCOPE POSITION ZERO
 //
 `ifdef	FLASH_ACCESS
-// `define	FLASH_SCOPE	// Position zero
+`define	FLASH_SCOPE	// Position zero
 `else
 `ifdef ZIPCPU
 // `define	CPU_SCOPE	// Position zero
@@ -84,9 +84,10 @@
 // SCOPE POSITION ONE
 //
 // `define	GPS_SCOPE	// Position one
-`ifdef ICAPE_ACCESS
-`define	CFG_SCOPE	// Position one
-`endif
+// `ifdef ICAPE_ACCESS
+// `define	CFG_SCOPE	// Position one
+// `endif
+`define	WBU_SCOPE
 //
 // SCOPE POSITION TWO
 //
@@ -243,6 +244,9 @@ module	busmaster(i_clk, i_rst,
 	// Oh, and the debug control for the ZIP CPU
 	wire		wbu_zip_sel, zip_dbg_ack, zip_dbg_stall;
 	wire	[31:0]	zip_dbg_data;
+`ifdef	WBU_SCOPE
+	wire	[31:0]	wbu_debug;
+`endif
 	wbubus	genbus(i_clk, i_rx_stb, i_rx_data,
 			wbu_cyc, wbu_stb, wbu_we, wbu_addr, wbu_data,
 			(wbu_zip_sel)?zip_dbg_ack:wbu_ack,
@@ -250,9 +254,18 @@ module	busmaster(i_clk, i_rst,
 				wbu_err,
 				(wbu_zip_sel)?zip_dbg_data:wbu_idata,
 			w_interrupt,
-			o_tx_stb, o_tx_data, i_tx_busy);
+			o_tx_stb, o_tx_data, i_tx_busy
+// `ifdef	WBU_SCOPE
+			// , wbu_debug
+// `endif
+			);
 
 	// assign	o_dbg = (wbu_ack)&&(wbu_cyc);
+	assign	wbu_debug = { wbu_cyc, wbu_stb, wbu_we, wbu_ack, wbu_stall,
+				wbu_err, wbu_zip_sel,
+				wbu_addr[8:0],
+				wbu_data[7:0],
+				wbu_idata[7:0] };
 
 	wire	zip_cpu_int; // True if the CPU suddenly halts
 `ifdef	ZIPCPU
@@ -281,7 +294,8 @@ module	busmaster(i_clk, i_rst,
 			gpsrx_int, rtc_pps
 		};
 
-	zipsystem #(	.RESET_ADDRESS(24'h0480000),
+	zipsystem #(	//.RESET_ADDRESS(24'h0480000),
+			.RESET_ADDRESS(24'h0008000),
 			.ADDRESS_WIDTH(ZA),
 			.LGICACHE(10),
 			.START_HALTED(1),
@@ -856,9 +870,9 @@ module	busmaster(i_clk, i_rst,
 	wire	[31:0]	txnet_data;
 `endif
 
-	enetpackets	#(11)
+	enetpackets	#(12)
 		netctrl(i_clk, i_rst, wb_cyc,(wb_stb)&&((netp_sel)||(netb_sel)),
-			wb_we, { (netb_sel), wb_addr[9:0] }, wb_data,
+			wb_we, { (netb_sel), wb_addr[10:0] }, wb_data,
 				net_ack, net_stall, net_data,
 			o_net_reset_n,
 			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv, i_net_rxd,
@@ -1064,7 +1078,7 @@ module	busmaster(i_clk, i_rst,
 	wire	scop_flash_trigger;
 	// assign	scop_cpu_trigger = zip_scope_data[30];
 	assign	scop_flash_trigger = (wb_stb)&&((flash_sel)||(flctl_sel));
-	wbscope #(5'd13) flashscope(i_clk, 1'b1,
+	wbscope #(5'd11) flashscope(i_clk, 1'b1,
 			(scop_flash_trigger), flash_debug,
 		// Wishbone interface
 		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b00)),
@@ -1135,6 +1149,22 @@ module	busmaster(i_clk, i_rst,
 	assign	scop_b_ack = scop_cfg_ack;
 	assign	scop_b_interrupt = scop_cfg_interrupt;
 `else
+`ifdef	WBU_SCOPE
+	wire	[31:0]	scop_wbu_data;
+	wire		scop_wbu_ack, scop_wbu_stall, scop_wbu_interrupt;
+	wbscope	#(5'd10,32,1) wbuscope(i_clk, 1'b1, (flash_sel)&&(wb_stb),
+			wbu_debug,
+		// Wishbone interface
+		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b01)),
+			wb_we, wb_addr[0], wb_data,
+			scop_wbu_ack, scop_wbu_stall, scop_wbu_data,
+		scop_wbu_interrupt);
+
+	assign	scop_b_data = scop_wbu_data;
+	assign	scop_b_stall = scop_wbu_stall;
+	assign	scop_b_ack = scop_wbu_ack;
+	assign	scop_b_interrupt = scop_wbu_interrupt;
+`else
 	assign	scop_b_data = 32'h00;
 	assign	scop_b_stall = 1'b0;
 	assign	scop_b_interrupt = 1'b0;
@@ -1143,6 +1173,7 @@ module	busmaster(i_clk, i_rst,
 	always @(posedge i_clk)
 		r_scop_b_ack <= (wb_stb)&&(scop_sel)&&(wb_addr[2:1] == 2'b01);
 	assign	scop_b_ack  = r_scop_b_ack;
+`endif
 `endif
 `endif
 
@@ -1160,7 +1191,7 @@ module	busmaster(i_clk, i_rst,
 	assign	sdram_trigger = (ram_sel)&&(wb_stb);
 	assign	sdram_debug= i_ram_dbg;
 
-	wbscope	#(5'd10,32,1) ramscope(i_clk, 1'b1, sdram_trigger, sdram_debug,
+	wbscope	#(5'd9,32,1) ramscope(i_clk, 1'b1, sdram_trigger, sdram_debug,
 		// Wishbone interface
 		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b10)),
 			wb_we, wb_addr[0], wb_data,
@@ -1202,7 +1233,7 @@ module	busmaster(i_clk, i_rst,
 		scop_net_interrupt);
 	*/
 
-	wbscope	#(5'd13,32,0)
+	wbscope	#(5'd8,32,0)
 		net_scope(i_net_tx_clk, 1'b1, txnet_data[31], txnet_data,
 		// Wishbone interface
 		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b11)),

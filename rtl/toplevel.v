@@ -191,8 +191,12 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// BUFG	memref_buffer(.I(mem_clk_200mhz_nobuf),.O(mem_clk_200mhz));
 	IBUF	sysclk_buf(.I(sys_clk_i[0]), .O(sys_clk));
 
-	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
+	// BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
+	assign	eth_rx_clk = i_eth_rx_clk;
+
+
 	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));
+	// assign	eth_tx_clk = i_eth_tx_clk;
 `endif
 
 	//
@@ -359,6 +363,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 `ifdef	VERILATOR
 	assign	o_qspi_sck  = w_qspi_sck;
 	assign	o_qspi_cs_n = w_qspi_cs_n;
+;
+();
+[*];
 `else
 	xoddr	xqspi_sck( s_clk, { w_qspi_sck,  w_qspi_sck }, o_qspi_sck);
 	xoddr	xqspi_csn( s_clk, { w_qspi_cs_n, w_qspi_cs_n },o_qspi_cs_n);
@@ -376,8 +383,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 		(qspi_bmod[1])?{ qspi_dat[3], qspi_dat[3] }:2'b11,
 		{ i_qspi_pedge[3], i_qspi_nedge[3] }, io_qspi_dat[3]);
 `endif
+	reg	[3:0]	r_qspi_dat;
+	always @(posedge s_clk)
+		r_qspi_dat <= i_qspi_pedge;
+	assign	i_qspi_dat = r_qspi_dat;
 
-	assign	i_qspi_dat = i_qspi_pedge;
 	//
 	// Proposed QSPI mode select, to allow dual I/O mode
 	//	000	Normal SPI mode

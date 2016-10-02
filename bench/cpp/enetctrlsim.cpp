@@ -36,6 +36,7 @@
 //
 //
 #include <stdio.h>
+#include <assert.h>
 #include "enetctrlsim.h"
 
 ENETCTRLSIM::ENETCTRLSIM(void) {
@@ -48,19 +49,30 @@ ENETCTRLSIM::ENETCTRLSIM(void) {
 	m_halfword = 0;
 	m_datareg = -1;
 	PHY_ADDR = 1;
-	TICKS_PER_CLOCK = 8;
+	TICKS_PER_CLOCK = 4;
 	for(int i=0; i<ENET_MEMWORDS; i++)
 		m_mem[i] = 0;
 	m_outreg = -1;
 }
 
-int	ENETCTRLSIM::operator()(int clk, int data) {
+int	ENETCTRLSIM::operator()(int in_reset, int clk, int data) {
 	int	posedge, negedge, output = 1;
 
 	posedge = ((clk)&&(!m_lastclk));
 	negedge = ((!clk)&&(m_lastclk));
 
 	m_tickcount++;
+
+	if (in_reset) {
+		m_consecutive_clocks = 0;
+		m_synched = false;
+		m_lastout = 1;
+		m_datareg = -1;
+
+		m_lastclk = clk;
+
+		return 1;
+	}
 
 	if (posedge) {
 		if ((data)&&(m_consecutive_clocks < 128))
@@ -80,6 +92,7 @@ int	ENETCTRLSIM::operator()(int clk, int data) {
 		m_synched = true;
 		m_lastout = 1;
 		m_halfword = 0;
+		m_datareg = -1;
 	}
 
 	if ((posedge)&&(m_synched)) {
@@ -112,6 +125,10 @@ int	ENETCTRLSIM::operator()(int clk, int data) {
 				printf("ENETCTRL: Unknown PHY, %d, expecting %d\n", phy, PHY_ADDR);
 			if ((cmd==5)&&(phy==PHY_ADDR)) {
 				int	addr;
+
+				if (m_datareg & 0x010000)
+					printf("ERR: ENETCTRL, write command and bit 16 is active!\n");
+				assert((m_datareg & 0x010000)==0);
 				addr = (m_datareg>>18)&0x1f;
 				m_mem[addr] = m_datareg & 0x0ffff;
 				printf("ENETCTRL: Setting MEM[%01x] = %04x\n",
@@ -121,7 +138,7 @@ int	ENETCTRLSIM::operator()(int clk, int data) {
 		}
 	} else if (negedge) {
 		m_outreg = (m_outreg<<1)|1;
-	} output = (m_outreg&0x80000000)?1:0;
+	} output = (m_outreg&0x40000000)?1:0;
 
 
 	m_lastclk = clk;
