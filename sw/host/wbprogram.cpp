@@ -67,6 +67,11 @@ unsigned byteswap(unsigned x) {
 	return r;
 }
 
+void	usage(void) {
+	printf("USAGE: wbprogram [@<Address>] file.bit\n");
+	printf("\tYou can also use a .bin file in place of the file.bit.\n");
+}
+
 int main(int argc, char **argv) {
 	FILE	*fp;
 	const int	BUFLN = (1<<20); // 4MB Flash
@@ -100,12 +105,14 @@ int main(int argc, char **argv) {
 
 	argn = 1;
 	if (argc <= argn) {
-		printf("BAD USAGE: program [@<Address>] file.bin\n");
+		usage();
 		exit(-1);
 	} else if (argv[argn][0] == '@') {
 		addr = strtoul(&argv[argn][1], NULL, 0);
 		if ((addr < EQSPIFLASH)||(addr > EQSPIFLASH*2)) {
 			printf("BAD ADDRESS: 0x%08x (from %s)\n", addr, argv[argn]);
+			printf("The address you've selected, 0x%08x, is outside the range", addr);
+			printf("from 0x%08x to 0x%08x\n", EQSPIFLASH, EQSPIFLASH*2);
 			exit(-1);
 		} argn++;
 	}
@@ -120,7 +127,15 @@ int main(int argc, char **argv) {
 
 	flash = new FLASHDRVR(m_fpga);
 
+	if ((strcmp(&argv[argn][strlen(argv[argn])-4],".bit")!=0)
+		&&(strcmp(&argv[argn][strlen(argv[argn])-4],".bin")!=0)) {
+		printf("I'm expecting a '.bit' or \'.bin\' file extension\n");
+		exit(-1);
+	}
+
 	fp = fopen(argv[argn], "r");
+	if (strcmp(&argv[argn][strlen(argv[argn])-4],".bit")!=0)
+		fseek(fp, 0x5dl, SEEK_SET);
 	sz = fread(buf, sizeof(buf[0]), BUFLN, fp);
 	fclose(fp);
 
@@ -143,6 +158,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+	printf("ALL-DONE\n");
 	if (m_fpga->poll())
 		printf("FPGA was interrupted\n");
 	delete	m_fpga;
