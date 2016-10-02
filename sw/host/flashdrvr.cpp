@@ -190,8 +190,10 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 
 	if (!verify_config()) {
 		set_config();
-		if (!verify_config())
+		if (!verify_config()) {
+			printf("Invalid configuration, cannot program flash\n");
 			return false;
+		}
 	}
 
 	// Work through this one sector at a time.
@@ -223,6 +225,7 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 			m_fpga->readi(base, ln, sbuf);
 
 			dp = &data[base-addr];
+			SETSCOPE;
 			for(unsigned i=0; i<ln; i++) {
 				if ((sbuf[i]&dp[i]) != dp[i]) {
 					printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
