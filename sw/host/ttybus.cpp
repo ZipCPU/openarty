@@ -49,9 +49,11 @@ const	unsigned TTYBUS::MAXRDLEN = 1024;
 const	unsigned TTYBUS::MAXWRLEN = 32;
 
 // #define	DBGPRINTF	printf
-#define	DBGPRINTF	filedump
+// #define	DBGPRINTF	filedump
 #ifndef	DBGPRINTF
 #define	DBGPRINTF	null
+#else
+#warning "TTYBUS DEBUG IS TURNED ON"
 #endif
 
 void	null(...) {}
