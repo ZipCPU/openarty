@@ -48,6 +48,12 @@
 #include "port.h"
 #include "regdefs.h"
 
+//
+// Define DONT_INVERT for debugging only, as it will break the interface
+// test
+//
+// #define	DONT_INVERT
+
 FPGA	*m_fpga;
 void	closeup(int v) {
 	m_fpga->kill();
@@ -114,8 +120,13 @@ void	strtoinetaddr(char *s, unsigned char *addr) {
 
 unsigned	calccrc(const int bytelen, const unsigned *buf) {
 	const unsigned int	taps = 0xedb88320u;
-	unsigned int	crc = 0xffffff; // initial value
+#ifdef	DONT_INVERT
+	unsigned int	crc = 0;
+#else
+	unsigned int	crc = 0xffffffff; // initial value
+#endif
 	int	bidx;
+	int	bp = 0;
 
 	for(bidx = 0; bidx<bytelen; bidx++) {
 		if (bidx == 14)
@@ -130,13 +141,27 @@ unsigned	calccrc(const int bytelen, const unsigned *buf) {
 				crc ^= taps;
 			} else
 				crc >>= 1;
-		}
-	} return crc ^ 0xffffffff;
+		} bp++;
+	}
+#ifndef	DONT_INVERT
+	crc ^= 0xffffffff;
+#endif
+	// Now, we need to reverse these bytes
+	// ABCD
+	unsigned a,b,c,d;
+	a = (crc>>24); // &0x0ff;
+	b = (crc>>16)&0x0ff;
+	c = (crc>> 8)&0x0ff;
+	d = crc; // (crc    )&0x0ff;
+	crc = (d<<24)|(c<<16)|(b<<8)|a;
+
+	printf("%d bytes processed\n", bp);
+	return crc;
 }
 
 int main(int argc, char **argv) {
 	int	skp=0, port = FPGAPORT;
-	bool	config_hw_mac = true;
+	bool	config_hw_mac = true, config_hw_crc = true;
 	FPGA::BUSW	txstat;
 	int	argn;
 	unsigned	checksum, scopev;
@@ -189,6 +214,7 @@ int main(int argc, char **argv) {
 		dmac[0], dmac[1], dmac[2], dmac[3], dmac[4], dmac[5]);
 
 	if (config_hw_mac) {
+		int ln = 9;
 		m_fpga->writeio(R_NET_MACHI, (smac[0]<<8)|(smac[1]));
 		m_fpga->writeio(R_NET_MACLO, (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]));
 			
@@ -230,17 +256,18 @@ int main(int argc, char **argv) {
 		packet[ 6] = packet[8];
 		packet[ 7] = packet[9];
 
+		ln = (config_hw_crc)?7:8;
 		printf("Packet:\n");
 		for(int i=0; i<8; i++)
 			printf("\t%2d: 0x%08x\n", i, packet[i]);
 
-		m_fpga->writei(R_NET_TXBUF, 8, packet);
+		m_fpga->writei(R_NET_TXBUF, ln, packet);
 
 		printf("Verilfying:\n");
 		printf("MAC: 0x%04x:0x%08x\n",
 			m_fpga->readio(R_NET_MACHI),
 			m_fpga->readio(R_NET_MACLO));
-		for(int i=0; i<8; i++)
+		for(int i=0; i<ln; i++)
 			printf("\t%2d: 0x%08x\n", i, (unsigned)m_fpga->readio(R_NET_TXBUF+i));
 
 		scopev = m_fpga->readio(R_NETSCOPE);
@@ -249,46 +276,49 @@ int main(int argc, char **argv) {
 		printf("Max delay is thus %d (0x%08x)\n", (1<<(delay)), (1<<(delay)));
 		delay = (1<<(delay))-32;
 		m_fpga->writeio(R_NETSCOPE, (delay)|0x80000000);
-		m_fpga->writeio(R_NET_TXCMD, 0x0c000|(8<<2));
+		m_fpga->writeio(R_NET_TXCMD, 0x04000|((ln)<<2)|((config_hw_crc)?0:0x8000));
 
 	} else {
-		packet[ 0] = 0x55555555; // 0x12345678;
-		packet[ 1] = 0x555555d5;
-		packet[ 2] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
-		packet[ 3] = (dmac[4]<<24)|(dmac[5]<<16)|(smac[0]<<8)|(smac[1]);
-		packet[ 4] = (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]);
-		packet[ 5] = 0x80008000;
-		packet[ 6] = 0x45000014; // IPv4, 20byte header, type of service = 0
-		packet[ 7] = 0x00000000; // 20 byte length total, ID = 0
-		packet[ 8] = 0x04010000; // no flags, fragment offset=0, ttl=0, proto=1
-		packet[ 9] = (sip[0]<<24)|(sip[1]<<16)|(sip[2]<<8)|(sip[3]);
-		packet[10] = (dip[0]<<24)|(dip[1]<<16)|(dip[2]<<8)|(dip[3]);
+		int	ln;
+		packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
+		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|(smac[0]<<8)|(smac[1]);
+		packet[ 2] = (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]);
+		packet[ 3] = 0x80008000;
+		packet[ 4] = 0x45000014; // IPv4, 20byte header, type of service = 0
+		packet[ 5] = 0x00000000; // 20 byte length total, ID = 0
+		packet[ 6] = 0x04010000; // no flags, fragment offset=0, ttl=0, proto=1
+		packet[ 7] = (sip[0]<<24)|(sip[1]<<16)|(sip[2]<<8)|(sip[3]);
+		packet[ 8] = (dip[0]<<24)|(dip[1]<<16)|(dip[2]<<8)|(dip[3]);
 
-		checksum  = packet[ 6] & 0x0ffff;
+		checksum  = packet[ 4] & 0x0ffff;
+		checksum += packet[ 5] & 0x0ffff;
+		checksum += packet[ 6] & 0x0ffff;
 		checksum += packet[ 7] & 0x0ffff;
 		checksum += packet[ 8] & 0x0ffff;
-		checksum += packet[ 9] & 0x0ffff;
-		checksum += packet[10] & 0x0ffff;
+		checksum +=(packet[ 4]>>16) & 0x0ffff;
+		checksum +=(packet[ 5]>>16) & 0x0ffff;
 		checksum +=(packet[ 6]>>16) & 0x0ffff;
 		checksum +=(packet[ 7]>>16) & 0x0ffff;
 		checksum +=(packet[ 8]>>16) & 0x0ffff;
-		checksum +=(packet[ 9]>>16) & 0x0ffff;
-		checksum +=(packet[10]>>16) & 0x0ffff;
 
 		checksum = (checksum & 0x0ffff) + (checksum >> 16);
 
-		packet[ 8] = (checksum&0x0ffff)|(packet[8]&0xffff0000);
+		packet[ 6] = (checksum&0x0ffff)|(packet[8]&0xffff0000);
 
-		packet[11] = calccrc(36, &packet[2]);
+		// for(int i=0; i<9; i++)
+			// packet[i] = 0;
+		// packet[8] = 0x80;
+		packet[9] = calccrc(36, packet);
 
+		ln = (config_hw_crc)?9:10;
 		printf("Packet:\n");
-		for(int i=0; i<12; i++)
+		for(int i=0; i<10; i++)
 			printf("\t%2d: 0x%08x\n", i, packet[i]);
 
-		m_fpga->writei(R_NET_TXBUF, 12, packet);
+		m_fpga->writei(R_NET_TXBUF, ln, packet);
 
 		printf("Verilfying:\n");
-		for(int i=0; i<12; i++)
+		for(int i=0; i<ln; i++)
 			printf("\t%2d: 0x%08x\n", i, (unsigned)m_fpga->readio(R_NET_TXBUF+i));
 
 		scopev = m_fpga->readio(R_NETSCOPE);
@@ -297,9 +327,10 @@ int main(int argc, char **argv) {
 		printf("Max delay is thus %d (0x%08x)\n", (1<<(delay)), (1<<(delay)));
 		printf("Scope set to %08x\n", ((1<<(delay))-32)|0x80000000);
 		m_fpga->writeio(R_NETSCOPE, ((1<<(delay))-32)|0x80000000);
-		m_fpga->writeio(R_NET_TXCMD, 0x1c000|((11<<2) + 4));
+		m_fpga->writeio(R_NET_TXCMD, 0x14000|(ln<<2)|((config_hw_crc)?0:0x8000));
 	}
 
+/*
 	printf("\nLooking for a response ...\n");
 	unsigned rxstat;
 	int	errcount = 0;
@@ -320,6 +351,7 @@ int main(int argc, char **argv) {
 
 	if ((rxstat & 0x08000)&&(!(rxstat & 0x04000)))
 		printf("Final Rx Status = %08x\n", rxstat);
+*/
 	
 	delete	m_fpga;
 }
