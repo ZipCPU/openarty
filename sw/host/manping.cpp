@@ -255,8 +255,6 @@ int main(int argc, char **argv) {
 	unsigned char	smac[6], dmac[6];
 	unsigned char	sip[4],  dip[4];
 
-#define	MYNET
-#ifdef	MYNET
 	// I know the ethernet MAC of the computer I wish to test with
 	dmac[0] = 0xc8; dmac[1] = 0x3a; dmac[2] = 0x35;
 	dmac[3] = 0xd2; dmac[4] = 0x07; dmac[5] = 0xb1;
@@ -268,47 +266,6 @@ int main(int argc, char **argv) {
 	dip[0] = 192; dip[1] = 168; dip[2] = 10; dip[3] = 1;
 	// and let's pick a source IP just ... somewhere on that network
 	sip[0] = 192; sip[1] = 168; sip[2] = 10; sip[3] = 22;
-#else
-	dmac[0] = 0x00; dmac[1] = 0x0a; dmac[2] = 0xe6;
-	dmac[3] = 0xf0; dmac[4] = 0x05; dmac[5] = 0xa3;
-	smac[0] = 0x00; smac[1] = 0x12; smac[2] = 0x34;
-	smac[3] = 0x56; smac[4] = 0x78; smac[5] = 0x90;
-
-	packet[ 0] = 0x000ae6f0; packet[0] = 0xc83a35d2;
-	packet[ 1] = 0x05a30012; packet[1] = 0x07b1d2d8;
-	packet[ 2] = 0x34567890; packet[2] = 0x28e8b096;
-	packet[ 3] = 0x08000800;
-	packet[ 4] = 0x4500001c;
-	packet[ 5] = 0xb3fe0000;
-	packet[ 6] = 0x800172ba;
-	packet[ 7] = 0x0a000003; packet[7] = 0xc0a80a16;
-	packet[ 8] = 0x0a000002; packet[8] = 0xc0a80a01;
-	packet[ 9] = 0x08000400;
-	packet[10] = 0x001c894d;
-	packet[11] = 0x00010203;
-	packet[12] = 0x04050607;
-	packet[13] = 0x08090a0b;
-	packet[14] = 0x0c0d0e0f;
-	packet[15] = 0x10111213;
-	
-	ipchecksum(&packet[4]);
-	// packet[16] = calccrc(64, packet);
-
-	for(int i=0; i<16; i++)
-		printf("PKT[%02d] = 0x%08x\n", i, packet[i]);
-
-	m_fpga->writei(R_NET_TXBUF, 14, packet);
-
-		/*
-		printf("Verilfying:\n");
-		for(int i=0; i<ln; i++)
-			printf("\t%2d: 0x%08x\n", i, (unsigned)m_fpga->readio(R_NET_TXBUF+i));
-		*/
-
-	m_fpga->writeio(R_NET_TXCMD, NOHWMAC|TXGO|(16<<2)); // Use the H/W CRC
-	
-	exit(EXIT_SUCCESS);
-#endif
 
 	clear_scope(m_fpga);
 
@@ -354,41 +311,56 @@ int main(int argc, char **argv) {
 		dip[0], dip[1], dip[2], dip[3],
 		dmac[0], dmac[1], dmac[2], dmac[3], dmac[4], dmac[5]);
 
+
+	// Let's build ourselves a ping packet
+	packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
+	packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|(smac[0]<<8)|(smac[1]);
+	packet[ 2] = (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]);
+	packet[ 3] = 0x08000800;
+	packet[ 4] = 0x4500001c; // IPv4, 20byte header, type of service = 0
+	packet[ 5] = (urand[nu++]&0xffff0000); // Packet ID
+	packet[ 6] = 0x80010000; // no flags, fragment offset=0, ttl=0, proto=1
+	packet[ 7] = (sip[0]<<24)|(sip[1]<<16)|(sip[2]<<8)|(sip[3]);
+	packet[ 8] = (dip[0]<<24)|(dip[1]<<16)|(dip[2]<<8)|(dip[3]);
+	// Ping payload: type = 0x08 (PING, the response will be zero)
+	//	CODE = 0
+	//	Checksum will be filled in later
+	packet[ 9] = 0x08000000;
+	// This is the PING identifier and sequence number.  For now, we'll
+	// just feed it random information--doesn't really matter what
+	packet[10] = urand[nu++];
+	// Now, the minimum ethernet packet is 16 words.  So, let's flush
+	// ourselves out to that minimum length.
+	packet[11] = 0;
+	packet[12] = 0;
+	packet[13] = 0;
+	packet[14] = 0;
+
+	// Calculate the IP header checksum
+	ipchecksum(&packet[4]);
+
+	// Calculate the PING payload checksum
+	checksum  =  packet[ 9] & 0x0ffff;
+	checksum += (packet[ 9]>>16)&0x0ffff;
+	checksum +=  packet[10] & 0x0ffff;
+	checksum += (packet[10]>>16)&0x0ffff;
+	checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
+	checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
+	packet[ 9] = ((packet[9] & 0xffff0000)|(checksum))^0x0ffff;
+
+	// Calculate the CRC--assuming we'll use it.
+	packet[15] = calccrc(15*4, packet);
+
 	if (config_hw_mac) {
-		int ln = 9;
+		int ln;
+
 		m_fpga->writeio(R_NET_MACHI, (smac[0]<<8)|(smac[1]));
 		m_fpga->writeio(R_NET_MACLO, (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]));
 			
-		packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
-		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|(smac[0]<<8)|(smac[1]);
-		packet[ 2] = (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]);
-		packet[ 3] = 0x08000800;
-		packet[ 4] = 0x4500001c; // IPv4, 20byte header, type of service = 0
-		packet[ 5] = (urand[nu++]&0xffff0000); // Packet ID
-		packet[ 6] = 0x80010000; // no flags, fragment offset=0, ttl=0, proto=1
-		packet[ 7] = (sip[0]<<24)|(sip[1]<<16)|(sip[2]<<8)|(sip[3]);
-		packet[ 8] = (dip[0]<<24)|(dip[1]<<16)|(dip[2]<<8)|(dip[3]);
-		packet[ 9] = 0x08000000;
-		packet[10] = urand[nu++];
-		packet[11] = 0;
-		packet[12] = 0;
-		packet[13] = 0;
-		packet[14] = 0;
-
-		ipchecksum(&packet[4]);
-
-		checksum  =  packet[ 9] & 0x0ffff;
-		checksum += (packet[ 9]>>16)&0x0ffff;
-		checksum +=  packet[10] & 0x0ffff;
-		checksum += (packet[10]>>16)&0x0ffff;
-		checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
-		checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
-		packet[ 9] = ((packet[9] & 0xffff0000)|(checksum))^0x0ffff;
-
-		packet[15] = calccrc(15*4, packet);
-
 		// Now, let's rebuild our packet for the non-hw-mac option,
-		// now that we know the CRC.
+		// now that we know the CRC.  In general, we're just going
+		// to copy the packet we created earlier, but we need to
+		// shift things as we do so.
 		packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
 		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|0x8000;
 		packet[ 2] = packet[ 4];
@@ -409,49 +381,14 @@ int main(int argc, char **argv) {
 		for(int i=0; i<14; i++)
 			printf("\t%2d: 0x%08x\n", i, packet[i]);
 
+		// Load the packet into the hardware buffer
 		m_fpga->writei(R_NET_TXBUF, ln, packet);
 
-		/*
-		printf("Verilfying:\n");
-		printf("MAC: 0x%04x:0x%08x\n",
-			m_fpga->readio(R_NET_MACHI),
-			m_fpga->readio(R_NET_MACLO));
-		for(int i=0; i<ln; i++)
-			printf("\t%2d: 0x%08x\n", i, (unsigned)m_fpga->readio(R_NET_TXBUF+i));
-		*/
-
+		// And give it the transmit command.
 		m_fpga->writeio(R_NET_TXCMD, TXGO|(ln<<2)|((config_hw_crc)?0:NOHWCRC));
 
 	} else {
 		int	ln;
-		packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
-		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|(smac[0]<<8)|(smac[1]);
-		packet[ 2] = (smac[2]<<24)|(smac[3]<<16)|(smac[4]<<8)|(smac[5]);
-		packet[ 3] = 0x08000800;
-		packet[ 4] = 0x4500001c; // IPv4, 20byte header, type of service = 0
-		packet[ 5] = (urand[nu++]&0xffff0000); // Packet ID
-		packet[ 6] = 0x80010000; // no flags, fragment offset=0, ttl=0, proto=1
-		packet[ 7] = (sip[0]<<24)|(sip[1]<<16)|(sip[2]<<8)|(sip[3]);
-		packet[ 8] = (dip[0]<<24)|(dip[1]<<16)|(dip[2]<<8)|(dip[3]);
-		packet[ 9] = 0x08000000;
-		packet[10] = urand[nu++];
-		packet[11] = 0;
-		packet[12] = 0;
-		packet[13] = 0;
-		packet[14] = 0;
-
-		ipchecksum(&packet[4]);
-
-		checksum  =  packet[ 9] & 0x0ffff;
-		checksum += (packet[ 9]>>16)&0x0ffff;
-		checksum +=  packet[10] & 0x0ffff;
-		checksum += (packet[10]>>16)&0x0ffff;
-		checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
-		checksum  = ((checksum >> 16)&0x0ffff) + (checksum & 0x0ffff);
-		packet[ 9] = ((packet[9] & 0xffff0000)|(checksum))^0x0ffff;
-
-
-		packet[15] = calccrc(15*4, packet);
 
 		ln = (config_hw_crc)?11:12;
 		printf("Packet:\n");
@@ -459,12 +396,21 @@ int main(int argc, char **argv) {
 			printf("\t%3d: 0x%08x\n", i, packet[i]);
 		printf("\tCRC: 0x%08x\n", packet[15]);
 
+		// Load the packet into the hardware buffer
 		m_fpga->writei(R_NET_TXBUF, ln, packet);
 
+		// And give it the transmit command
 		m_fpga->writeio(R_NET_TXCMD, TXGO|NOHWMAC|(ln<<2)|((config_hw_crc)?0:NOHWCRC));
 	}
 
 /*
+	// Receive code isn't ... working yet.
+	//
+
+	// First, we need to look for any ARP requests, and we'll need to
+	// respond to them.  If during this time we get a ping response
+	// packet, we're done.
+
 	printf("\nLooking for a response ...\n");
 	unsigned rxstat;
 	int	errcount = 0;

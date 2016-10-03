@@ -9,6 +9,87 @@
 //	packets via the Ethernet interface.
 //
 //
+//	Using this interface requires four registers to be properly configured.
+//	These are the receive and transmit control registers, as well as the
+//	hardware MAC register(s).
+//
+//
+//	To use the interface, after the system has been alive for a full
+//	second, drop the reset line.  Do this by writing to the transmit
+//	register a value with zero length, zero command, and the RESET bit as
+//	zero.
+//
+//	This interface is big endian.  Therefore, the most significant byte
+//	in each word will be transmitted first.  If the interface references
+//	a number of octets less than a multiple of four, the least significant
+//	octets in the last word will not be transmitted/were not received.
+//
+//	To transmit,
+//		1. set the source MAC address in the two mac registers.  These
+//			are persistent across packets, so once set (whether for
+//			transmit or receive) they need not be set again.
+//		2. Fill the packet buffer with your packet.  In general, the
+//			first 32-bit word must contain the hardware MAC address
+//			of your destination, spilling into the 16-bits of the
+//			next word.  The bottom 16-bits of that second word
+//			must also contain the EtherType (0x0800 for IP,
+//			0x0806 for ARP, etc.)  The third word will begin your
+//			user data.
+//		3. Write a 0x4000 plus the number of bytes in your buffer to
+//			the transmit command register.  If your packet is less
+//			than 64 bytes, it will automatically be paddedd to 64
+//			bytes before being sent.
+//		4. Once complete, the controller will raise an interrupt
+//			line to note that the interface is idle.
+//	OPTIONS:
+//		You can turn off the internal insertion of the hardware source
+//		MAC by turning the respective bit on in the transmit command
+//		register.  If you do this, half of the second word and all the
+//		third word must contain the hardware MAC.  The third word must
+//		contain the EtherType, both in the top and bottom sixteen bits.
+//		The Fourth word will begin user data.
+//
+//		You can also turn off the automatic insertion of the FCS, or
+//		ethernet CRC.  Doing this means that you will need to both 
+//		guarantee for yourself that the packet has a minimum of 64
+//		bytes in length, and that the last four bytes contain the
+//		CRC.
+//
+//	To Receive: 
+//		The receiver is always on.  Receiving is really just a matter
+//		of pulling the received packet from the interface, and resetting
+//		the interface for the next packet.
+//
+//		If the VALID bit is set, the receive interface has a valid
+//		packet within it.  Write a zero to this bit to reset the
+//		interface to accept the next packet.
+//
+//		If a packet with a CRC error is received, the CRC error bit
+//		will be set.  Likewise if a packet has been missed, usually 
+//		because the buffer was full when it started, the miss bit
+//		will be set.  Finally, if an error occurrs while receiving
+//		a packet, the error bit will be set.  These bits may be cleared
+//		by writing a one to each of them--something that may be done
+//		when clearing the interface for the next packet.
+//	OPTIONS:
+//		The same options that apply to the transmitter apply to the
+//		receiver:
+//
+//		HWMAC.  If the hardware MAC is turned on, the receiver will
+//		only accept packets to either 1) our network address, or 2)
+//		a broadcast address.  Further, the first two words will be
+//		adjusted to contain the source MAC and the EtherType, so that
+//		the user information begins on the third word.  If this feature
+//		is turned off, all packets will be received, and the first
+//		three words will contain the destination and then source
+//		MAC.  The fourth word will contain the EtherType in the lowest,
+//		16 bits, meaning user data will begin on the fifth word.
+//
+//		HWCRC.  If the HWCRC is turned on, the receiver will only
+//		detect packets that pass their CRC check.  Further, the packet
+//		length (always in octets) will not include the CRC.  However,
+//		the CRC will still be left/written to packet memory either way.
+//
 // Registers:
 //	0	Receiver control
 //		13'h0	|CRCerr|MISS|ERR|BUSY|VALID |14-bit length (in octets)|
@@ -388,8 +469,8 @@ module	enetpackets(i_wb_clk, i_reset,
 	wire	n_tx_config_hw_preamble;
 	assign	n_tx_config_hw_preamble = 1'b1;
 
-	wire		w_macen, w_crcen;
-	wire	[3:0]	w_macd, w_crcd;
+	wire		w_macen, w_paden, w_crcen;
+	wire	[3:0]	w_macd,  w_padd,  w_crcd;
 
 `ifndef	TX_BYPASS_HW_MAC
 	addemac	txmaci(`TXCLK, tx_clk_stb, n_tx_config_hw_mac, n_tx_cancel,
@@ -399,9 +480,17 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	w_macd  = r_txd;
 `endif
 
+`ifndef	TX_BYPASS_PADDING
+	addepad	txpadi(`TXCLK, tx_clk_stb, 1'b1, n_tx_cancel,
+				w_macen, w_macd, w_paden, w_padd);
+`else
+	assign	w_paden = w_macen;
+	assign	w_padd  = w_macd;
+`endif
+
 `ifndef	TX_BYPASS_HW_CRC
 	addecrc	txcrci(`TXCLK, tx_clk_stb, n_tx_config_hw_crc, n_tx_cancel,
-				w_macen, w_macd, w_crcen, w_crcd);
+				w_paden, w_padd, w_crcen, w_crcd);
 `else
 	assign	w_crcen = w_macen;
 	assign	w_crcd  = w_macd;
@@ -417,7 +506,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	(* ASYNC_REG = "TRUE" *) reg	r_tx_busy, r_tx_complete;
 	always @(posedge i_wb_clk)
 	begin
-		r_tx_busy <= (n_tx_busy || o_net_tx_en);
+		r_tx_busy <= (n_tx_busy || o_net_tx_en || w_crcen || w_macen || w_paden);
 		tx_busy <= r_tx_busy;
 
 		r_tx_complete <= n_tx_complete;

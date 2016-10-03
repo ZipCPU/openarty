@@ -1233,6 +1233,9 @@ module	busmaster(i_clk, i_rst,
 		scop_net_interrupt);
 	*/
 
+	// 5'd8 is sufficient for small packets, and indeed the minimum for
+	// watching any packets--as the minimum packet size is 64 bytes, or
+	// 128 nibbles.
 	wbscope	#(5'd8,32,0)
 		net_scope(i_net_tx_clk, 1'b1, txnet_data[31], txnet_data,
 		// Wishbone interface

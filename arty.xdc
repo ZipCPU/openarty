@@ -233,6 +233,11 @@ set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/txmaci/r_hw*}] 12.3;
 # set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/last_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem_reg*}] 12.3;
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem_reg*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txmaci/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
 
 # and for the scope ... if we have that configured
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config_reg*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;

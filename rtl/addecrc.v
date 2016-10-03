@@ -52,6 +52,7 @@ module addecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
 	assign	lownibble = r_crc[3:0] ^ i_d;
 	assign	shifted_crc = { 4'h0, r_crc[31:4] };
 
+	initial	o_v = 1'b0;
 	always @(posedge i_clk)
 	if (i_ce)
 	begin

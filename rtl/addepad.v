@@ -1,11 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	addepreamble.v
+// Filename: 	addepad.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	To add the ethernet preamble to a stream of values (i.e., to
-//		an ethernet packet ...)
+// Purpose:	To force the minimum packet size of an ethernet frame to be
+//		a minimum of 64 bytes.  This assumes that the CRC will be
+//	adding 32-bits to the packet after us, so instead of padding to
+//	64 bytes, we'll pad to 60 bytes instead.  If the user is providing
+//	their own CRC, they'll need to adjust the padding themselves.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -36,53 +39,39 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-module addepreamble(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
+module addepad(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
 	input			i_clk, i_ce, i_en, i_cancel;
 	input			i_v;	// Valid
 	input		[3:0]	i_d;	// Data nibble
-	output	wire		o_v;
-	output	wire	[3:0]	o_d;
+	output	reg		o_v;
+	output	reg	[3:0]	o_d;
 
-	reg	[84:0]	shiftreg;
-	reg		r_v;
-	reg	[3:0]	r_d;
+	// 60 bytes translates to 120 nibbles, so let's keep track of our
+	// minimum number of nibbles to transmit
+	reg	[119:0]	r_v;
 
-	initial	r_v = 1'b0;
+	initial	r_v = 120'hff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
+	initial	o_v = 1'b0;
 	always @(posedge i_clk)
 	if (i_ce)
 	begin
-		shiftreg <= { shiftreg[79:0], { i_v, i_d }};
-		r_v <= shiftreg[84];
-		r_d <= shiftreg[83:80];
 		if (((!i_v)&&(!o_v))||(i_cancel))
 		begin
-			shiftreg <= { 5'h00, 5'h15, 5'h15, 5'h15, 5'h15,
-				5'h15, 5'h15, 5'h15, 5'h15,
-				5'h15, 5'h15, 5'h15, 5'h15,
-				5'h15, 5'h15, 5'h15, 5'h1d };
-			if (!i_en)
-			begin
-				shiftreg[ 4] <= 1'b0;
-				shiftreg[ 9] <= 1'b0;
-				shiftreg[14] <= 1'b0;
-				shiftreg[19] <= 1'b0;
-				shiftreg[24] <= 1'b0;
-				shiftreg[29] <= 1'b0;
-				shiftreg[34] <= 1'b0;
-				shiftreg[39] <= 1'b0;
-				shiftreg[44] <= 1'b0;
-				shiftreg[49] <= 1'b0;
-				shiftreg[54] <= 1'b0;
-				shiftreg[59] <= 1'b0;
-				shiftreg[64] <= 1'b0;
-				shiftreg[69] <= 1'b0;
-				shiftreg[74] <= 1'b0;
-				shiftreg[79] <= 1'b0;
-			end
+			r_v <= 120'hff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
+			o_v <= 1'b0;
+		end else if (i_v)
+		begin
+			o_v <= i_v;
+			r_v <= { r_v[118:0], 1'b0 };
+		end else begin
+			o_v <= r_v[119];
+			r_v <= { r_v[118:0], 1'b0 };
 		end
-	end
 
-	assign	o_v = r_v;
-	assign	o_d = r_d;
+		if (i_v)
+			o_d <= i_d;
+		else
+			o_d <= 4'h0;
+	end
 
 endmodule
