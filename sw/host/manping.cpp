@@ -218,7 +218,7 @@ void	clear_scope(FPGA *fpga) {
 
 int main(int argc, char **argv) {
 	int	skp=0, port = FPGAPORT;
-	bool	config_hw_mac = false, config_hw_crc = true;
+	bool	config_hw_mac = true, config_hw_crc = true;
 	FPGA::BUSW	txstat;
 	int	argn;
 	unsigned	checksum;
@@ -351,6 +351,8 @@ int main(int argc, char **argv) {
 	// Calculate the CRC--assuming we'll use it.
 	packet[15] = calccrc(15*4, packet);
 
+	// Clear any/all pending receiving errors or packets
+	m_fpga->writeio(R_NET_RXCMD, 0x0fffff);
 	if (config_hw_mac) {
 		int ln;
 
@@ -362,7 +364,7 @@ int main(int argc, char **argv) {
 		// to copy the packet we created earlier, but we need to
 		// shift things as we do so.
 		packet[ 0] = (dmac[0]<<24)|(dmac[1]<<16)|(dmac[2]<<8)|(dmac[3]);
-		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|0x8000;
+		packet[ 1] = (dmac[4]<<24)|(dmac[5]<<16)|0x0800;
 		packet[ 2] = packet[ 4];
 		packet[ 3] = packet[ 5];
 		packet[ 4] = packet[ 6];
@@ -403,10 +405,6 @@ int main(int argc, char **argv) {
 		m_fpga->writeio(R_NET_TXCMD, TXGO|NOHWMAC|(ln<<2)|((config_hw_crc)?0:NOHWCRC));
 	}
 
-/*
-	// Receive code isn't ... working yet.
-	//
-
 	// First, we need to look for any ARP requests, and we'll need to
 	// respond to them.  If during this time we get a ping response
 	// packet, we're done.
@@ -419,19 +417,21 @@ int main(int argc, char **argv) {
 		if (rxstat & 0x04000) {
 			int	rxlen;
 			unsigned *buf;
-			rxlen = rxstat & 0x03fff;
+			printf("RX Status = %08x\n", rxstat);
+			rxlen = ((rxstat & 0x03fff)+3)>>2;
 			buf = new unsigned[rxlen];
 			m_fpga->readi(R_NET_RXBUF, rxlen, buf);
 			for(int i=0; i<rxlen; i++)
-				printf("\t0x%08x\n", buf[i]);
+				printf("\tRX[%2d]: 0x%08x\n", i, buf[i]);
 			delete[] buf;
+			m_fpga->writeio(R_NET_RXCMD, 0xffffff);
 			break;
 		}
-	} while((rxstat & 0x08000)&&(errcount++ < 50));
+	} while(((rxstat & 0x04000)==0)&&(errcount++ < 50));
 
-	if ((rxstat & 0x08000)&&(!(rxstat & 0x04000)))
-		printf("Final Rx Status = %08x\n", rxstat);
-*/
+	rxstat = m_fpga->readio(R_NET_RXCMD);
+	printf("Final Rx Status = %08x\n", rxstat);
+
 	
 	delete	m_fpga;
 }

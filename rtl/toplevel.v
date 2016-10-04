@@ -191,8 +191,8 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// BUFG	memref_buffer(.I(mem_clk_200mhz_nobuf),.O(mem_clk_200mhz));
 	IBUF	sysclk_buf(.I(sys_clk_i[0]), .O(sys_clk));
 
-	// BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
-	assign	eth_rx_clk = i_eth_rx_clk;
+	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
+	// assign	eth_rx_clk = i_eth_rx_clk;
 
 
 	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));

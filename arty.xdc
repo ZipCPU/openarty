@@ -229,7 +229,6 @@ set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_can*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_can*}] 12.3;
 # set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_miss*}] -to [get_cells -hier -filter {NAME =~ *netctrl/rx_miss_st*}] 12.3;
 # set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_err*}]  -to [get_cells -hier -filter {NAME =~ *netctrl/rx_err_st*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/n_wrong_mac*}] 12.3;
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/txmaci/r_hw*}] 12.3;
 # set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/last_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem_reg*}] 12.3;
 set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem_reg*}] 12.3;
