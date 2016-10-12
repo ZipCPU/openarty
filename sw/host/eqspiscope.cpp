@@ -69,7 +69,7 @@ class	EQSPISCOPE : public SCOPE {
 	// int	m_oword[2], m_iword[2], m_p;
 public:
 	EQSPISCOPE(FPGA *fpga, unsigned addr, bool vecread)
-		: SCOPE(fpga, addr, false, false) {};
+		: SCOPE(fpga, addr, false, vecread) {};
 	~EQSPISCOPE(void) {}
 	virtual	void	decode(DEVBUS::BUSW val) const {
 		int	cyc, cstb, dstb, ack, back, accepted, valid, word,
