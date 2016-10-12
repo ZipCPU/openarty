@@ -1,0 +1,470 @@
+\documentclass{gqtekspec}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Filename: 	spec.tex
+%%
+%% Project:	OpenArty, an entirely open SoC based upon the Arty platform
+%%
+%% Purpose:	
+%%
+%% Creator:	Dan Gisselquist, Ph.D.
+%%		Gisselquist Technology, LLC
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Copyright (C) 2015-2016, Gisselquist Technology, LLC
+%%
+%% This program is free software (firmware): you can redistribute it and/or
+%% modify it under the terms of  the GNU General Public License as published
+%% by the Free Software Foundation, either version 3 of the License, or (at
+%% your option) any later version.
+%%
+%% This program is distributed in the hope that it will be useful, but WITHOUT
+%% ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+%% for more details.
+%%
+%% You should have received a copy of the GNU General Public License along
+%% with this program.  (It's in the $(ROOT)/doc directory, run make with no
+%% target there if the PDF file isn't present.)  If not, see
+%% <http://www.gnu.org/licenses/> for a copy.
+%%
+%% License:	GPL, v3, as defined and found on www.gnu.org,
+%%		http://www.gnu.org/licenses/gpl.html
+%%
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%
+\usepackage{import}
+\usepackage{bytefield}
+\project{OpenArty}
+\title{Specification}
+\author{Dan Gisselquist, Ph.D.}
+\email{dgisselq (at) opencores.org}
+\revision{Rev.~0.0}
+\begin{document}
+\pagestyle{gqtekspecplain}
+\titlepage
+\begin{license}
+Copyright (C) \theyear\today, Gisselquist Technology, LLC
+
+This project is free software (firmware): you can redistribute it and/or
+modify it under the terms of  the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program.  If not, see \texttt{http://www.gnu.org/licenses/} for a copy.
+\end{license}
+\begin{revisionhistory}
+0.0 & 6/20/2016 & Gisselquist & First Draft \\\hline
+\end{revisionhistory}
+% Revision History
+% Table of Contents, named Contents
+\tableofcontents
+\listoffigures
+\listoftables
+\begin{preface}
+\end{preface}
+
+\chapter{Introduction}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% What is old
+%	Arty, XuLA
+% What does the old lack?
+%	Arty lacks open interfaces, instead using MIG and CoreGen w/ AXI bus
+% What is new
+%	OpenArty has its own memory interface controller, and runs everything
+%	off of an open Wishbone bus structure.
+% What does the new have that the old lacks
+%
+% What performance gain can be expected?
+%
+
+The goals of this project include:
+\begin{enumerate}
+\item Use entirely open interfaces
+
+	This means not using the Memory Interface Generator (MIG), the
+	Xilinx CoreGen IP, etc.  Further, I wish to use all of Arty's on--board
+	hardware: Flash, DDR3-SDRAM, Ethernet, and everything else at their
+	full and fastest speed(s).  For example, the flash will need to be
+	clocked at 82~MHz, not the 50~MHz I've clocked it at before.  The
+	memory should also be able to support pipelined 32--bit interactions
+	over the Wishbone bus at a 162~MHz clock.  Finally, the Ethernet
+	controller should be supported by a DMA capable interface that can
+	drive the ethernet at its full 100Mbps rate.
+
+\item Run using a 162.5~MHz clock, if for no other reason than to gain the
+	experience of building logic that can run that fast.\footnote{The
+	original goal was to run at 200~MHz.  However, the memory controller
+	cannot run faster than 83~MHz.  If we run it at 81.25~MHz and double
+	that clock to get our logic clock, that now places us at 162.5~MHz.
+	200~MHz is \ldots too fast for DDR3 transfers using the Artix--7 chip
+	on the Arty.}
+
+\item Modify the ZipCPU to support an MMU and a data cache, and perhaps even
+	a floating point unit.
+
+\item The default configuration will also include three Pmods: a USBUART,
+	an SDCard, and the GPS Pmod.
+\end{enumerate}
+
+I intend to demonstrate this project with a couple programs:
+\begin{enumerate}
+\item A very simple program that runs automatically upon startup that can be
+	used to select from among multiple configurations.
+\item NTP Server
+\item A ZipOS that can actually load and run programs from the SD Card
+\end{enumerate}
+
+\chapter{Architecture}
+
+
+\chapter{Software}
+\section{Directory Structure}
+\section{Zip CPU Tool Chain}
+\section{Bench Test Software}
+\section{Host Software}
+\begin{itemize}
+\item {\tt readflash}: As I am loathe to remove anything from
+	a device that came factory installed, the
+	{\tt readflash} program reads the original installed
+	configuration from the flash and dumps it to a file.
+
+\item {\tt wbregs}: This program offers a capability very similar to the 
+	PEEK and POKE capability Apple user's may remember from before the
+	days of Macintosh.  {\tt wbregs <address>} will read from the
+	Wishbone bus the value at the given address.  Likewise
+	{\tt wbregs <address> <value>} will write the given value into the
+	given address.  While both address and value have the semantics of
+	numbers acceptable to {\tt strtoul()}, the address can also be a named
+	address.  Supported names can be found in {\tt regdefs.cpp}, and their
+	register mapping in {\tt regdefs.h}.
+\item {\tt ziprun}:
+\item {\tt zipload}:
+\end{itemize}
+
+\section{Zip CPU Programs}
+\begin{itemize}
+\item {\tt ntpserver}:
+\item {\tt goldenstart}:
+\end{itemize}
+\section{ZipOS}
+\subsection{System Calls}
+\begin{itemize}
+\item {\tt int wait(unsigned event\_mask, int timeout)}
+\item {\tt int clear(unsigned event\_mask, int timeout)}
+\item {\tt void post(unsigned event\_mask)}
+\item {\tt void yield(void) }
+\item {\tt int read(int fid, void *buf, int len)}
+\item {\tt int write(int fid, void *buf, int len)}
+\item {\tt unsigned time(void) }
+% \item SEMGET
+% \item SEMPUT
+\item {\tt void *malloc(void)}
+\item {\tt void free(void *buf)}
+% \item FORK
+% \item opendir
+% \item EXEC
+% \item OPEN
+\end{itemize}
+\subsection{Scheduler}
+
+\chapter{Operation}
+
+\chapter{Registers}
+There are several address regions on the S6~SoC, as shown in
+Tbl.~\ref{tbl:memregions}.
+\begin{table}[htbp]
+\begin{center}\begin{tabular}{|p{2.25in}|p{0.6in}|p{0.45in}|p{2.0in}|}\hline
+\rowcolor[gray]{0.85} Binary Address & Base & Size(W) & Purpose \\\hline\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 000x xxxx} & \scalebox{0.9}{\tt 0x00000100} & \hfill 32 & Peripheral I/O Control \\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 0yyx} & \scalebox{0.9}{\tt 0x00000120} & \hfill 8 & Debug scope control\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 10xx} & \scalebox{0.9}{\tt 0x00000128} & \hfill 4 & RTC control\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 11xx} & \scalebox{0.9}{\tt 0x0000012c} & \hfill 4 & SDCard controller\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 00xx} & \scalebox{0.9}{\tt 0x00000130} & \hfill 4 & GPS Clock loop control\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 01xx} & \scalebox{0.9}{\tt 0x00000134} & \hfill 4 & OLEDrgb control\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 1xxx} & \scalebox{0.9}{\tt 0x00000138} & \hfill 8 & Network packet interface\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0100 0xxx} & \scalebox{0.9}{\tt 0x00000140} & \hfill 8 & GPS Testbench\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0100 1xxx} & \scalebox{0.9}{\tt 0x00000148} & \hfill  8 & {\em Unused}\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0101 xxxx} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 011x xxxx} & \scalebox{0.9}{\tt 0x00000160} & \hfill 32 & {\em Unused}\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 100x xxxx} & \scalebox{0.9}{\tt 0x00000180} & \hfill 32 & {\em Unused}\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 101x xxxx} & \scalebox{0.9}{\tt 0x000001a0} & \hfill 32 & Ethernet configuration registers\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 110x xxxx} & \scalebox{0.9}{\tt 0x000001c0} & \hfill 32 & Extended Flash Control Port\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 111x xxxx} & \scalebox{0.9}{\tt 0x000001e0} & \hfill 32 & ICAPE2 Configuration Port\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 10xx xxxx xxxx} & \scalebox{0.9}{\tt 0x00000800} & \hfill 1k & Ethernet RX Buffer\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 0000 11xx xxxx xxxx} & \scalebox{0.9}{\tt 0x00000c00} & \hfill 1k & Ethernet TX Buffer\\\hline
+\scalebox{0.9}{\tt 0000 0000 0000 1xxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00008000} & \hfill 32k & On-chip Block RAM\\\hline
+\scalebox{0.9}{\tt 0000 01xx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00400000} & \hfill 4M & QuadSPI Flash\\\hline
+\scalebox{0.9}{\tt 0100 0000 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x0400000} & & Configuration Start\\\hline
+\scalebox{0.9}{\tt 0100 1000 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x0480000} & & CPU Reset Address\\\hline
+\scalebox{0.9}{\tt 01xx xxxx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x04000000} & \hfill 64M & DDR3 SDRAM\\\hline
+\scalebox{0.9}{\tt 1000 0000 0000 0000 0000 0000 000x} & \scalebox{0.9}{\tt 0x08000000} & \hfill 2 & ZipCPU debug control port---only visible to debug WB master\\\hline
+\end{tabular}
+\caption{Address Regions}\label{tbl:memregions}
+\end{center}\end{table}
+
+\begin{table}[htbp]
+\begin{center}\begin{tabular}{|p{0.9in}|p{0.45in}|p{3.5in}|}\hline
+\rowcolor[gray]{0.85} Base & Size(W) & Purpose \\\hline\hline
+\scalebox{0.9}{\tt 0x0c0000000} & 1 & Primary Zip PIC\\\hline
+\scalebox{0.9}{\tt 0x0c0000001} & 1 & Watchdog Timer\\\hline
+\scalebox{0.9}{\tt 0x0c0000002} & 1 & Bus Watchdog Timer\\\hline
+\scalebox{0.9}{\tt 0x0c0000003} & 1 & Alternate Zip PIC\\\hline
+\scalebox{0.9}{\tt 0x0c0000004} & 1 & ZipTimer-A\\\hline
+\scalebox{0.9}{\tt 0x0c0000005} & 1 & ZipTimer-B\\\hline
+\scalebox{0.9}{\tt 0x0c0000006} & 1 & ZipTimer-C\\\hline
+\scalebox{0.9}{\tt 0x0c0000007} & 1 & ZipJiffies\\\hline
+\scalebox{0.9}{\tt 0x0c0000008} & 1 & Master task counter\\\hline
+\scalebox{0.9}{\tt 0x0c0000009} & 1 & Master prefetch stall counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000a} & 1 & Master memory stall counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000b} & 1 & Master instruction counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000c} & 1 & User task counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000d} & 1 & User prefetch stall counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000e} & 1 & User memory stall counter\\\hline
+\scalebox{0.9}{\tt 0x0c000000f} & 1 & User instruction counter\\\hline
+\scalebox{0.9}{\tt 0x0c0000010} & 1 & DMA command register\\\hline
+\scalebox{0.9}{\tt 0x0c0000011} & 1 & DMA length\\\hline
+\scalebox{0.9}{\tt 0x0c0000012} & 1 & DMA source address\\\hline
+\scalebox{0.9}{\tt 0x0c0000013} & 1 & DMA destination address\\\hline
+\scalebox{0.9}{\tt 0x0c0000040} & 1 & {\em Reserved for MMU context register}\\\hline
+\scalebox{0.9}{\tt 0x0c0000080} & 32 & {\em Reserved for MMU TLB}\\\hline
+\end{tabular}
+\caption{ZipSystem Addresses}\label{tbl:zipio}
+\end{center}\end{table}
+
+\section{Peripheral I/O Control}
+Tbl.~\ref{tbl:ioregs}
+\begin{table}[htbp]
+\begin{center}\begin{reglist}
+VERSION  &\scalebox{0.8}{\tt 0x0100} & 32 & R & Build date\\\hline
+PIC      &\scalebox{0.8}{\tt 0x0101} & 32 & R/W & Bus Interrupt Controller \\\hline
+BUSERR   &\scalebox{0.8}{\tt 0x0102} & 32 & R & Last Bus Error Address\\\hline
+PWRCOUNT &\scalebox{0.8}{\tt 0x0103} & 32 & R & Ticks since startup\\\hline
+BTNSW    &\scalebox{0.8}{\tt 0x0104} & 32 & R/W & Button/Switch controller\\\hline
+LEDCTRL  &\scalebox{0.8}{\tt 0x0105} & 32 & R/W & LED Controller \\\hline
+AUXSETUP &\scalebox{0.8}{\tt 0x0106} & 29 & R/W & Auxilliary UART config\\\hline
+GPSSETUP &\scalebox{0.8}{\tt 0x0107} & 29 & R/W & GPS UART config\\\hline
+CLR-LEDx &\scalebox{0.8}{\tt 0x0108-b} & 32 & R/W & Color LED controller\\\hline
+RTCDATE  &\scalebox{0.8}{\tt 0x010c} & 32 & R/W & BCD Calendar Date\\\hline
+GPIO     &\scalebox{0.8}{\tt 0x010d} & 32 & R/W & GPIO controller\\\hline
+UARTRX   &\scalebox{0.8}{\tt 0x010e} & 32 & R/W & Aux UART receive byte\\\hline
+UARTTX   &\scalebox{0.8}{\tt 0x010f} & 32 & R/W & Aux UART transmit byte\\\hline
+GPSRX    &\scalebox{0.8}{\tt 0x0110} & 32 & R/W & GPS UART receive byte\\\hline
+GPSTX    &\scalebox{0.8}{\tt 0x0111} & 32 & R/W & GPS UART transmit byte\\\hline
+% 0x010c-0x010f
+\end{reglist}
+\caption{I/O Peripheral Registers}\label{tbl:ioregs}
+\end{center}\end{table}
+shows the addresses of various I/O peripherals included as part of the SoC.
+We'll walk through each of these peripherals in turn, describing how they work.
+
+\subsection{Interrupt Controller}
+The OpenArty design maintains three interrupt controllers.  Two of them
+are found within the ZipSystem, and the third is located on the bus
+itself.  Of these, the primary interrupt controller is located in the ZipSystem.
+This interrupt controller accepts, as interrupt inputs, the outputs of both
+the auxilliary interrupt controller as well as the bus interrupt controller.
+Hence, even though the CPU only supports a single interrupt line, by using
+these three interrupt controllers many more interrupts can be supported.
+
+The primary interrupt controller handles interrupts from the sources listed
+in Tbl.~\ref{tbl:sys-ints}.  These interrupts are listed together with the
+mask that would need to be used when referencing them to the interrupt
+controller.  In a similar fashion, the auxilliary interrupt controller accepts
+inputs from the sources listed in Tbl.~\ref{tbl:aux-ints}.  Finally, the
+bus interrupt controller handles the interrupts from the sources listed in
+Tbl.~\ref{tbl:bus-ints}.
+
+\begin{table}[htbp]
+\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{0.75in}|p{3.00in}|}\hline
+\rowcolor[gray]{0.85} Name & Bit Mask & DMAC ID &Description \\\hline\hline
+SYS\_DMAC  & 0x0001 && The DMA controller is idle.\\\hline
+SYS\_JIF   & 0x0002 & 1 & A Jiffies timer has expired.\\\hline
+SYS\_TMC   & 0x0004 & 2 & Timer C has timed out.\\\hline
+SYS\_TMB   & 0x0008 & 3 & Timer C has timed out.\\\hline
+SYS\_TMA   & 0x0010 & 4 & Timer C has timed out.\\\hline
+SYS\_AUX   & 0x0020 & 5 & The auxilliary interrupt controller sends an interrupt\\\hline
+SYS\_EXT   & 0x0040 & 6 & A Bus interrupt has tripped. \\\hline
+SYS\_PPS   & 0x0080 & 7 & An interrupt marking the top of the second\\\hline
+SYS\_GPSRX & 0x0100 & 8& A character has been received via GPS\\\hline
+SYS\_NETRX & 0x0200 & 9 & A packet has been received via the network\\\hline
+SYS\_NETTX & 0x0400 & 10 & The network controller is idle, having sent its
+			last packet\\\hline
+SYS\_UARTRX & 0x0800 & 11 & A character has been received via the UART\\\hline
+SYS\_UARTTX & 0x1000 & 12 & The transmit UART is idle, and ready for its next
+		character.\\\hline
+SYS\_SDCARD & 0x2000 & 13 & The SD-Card controller has become idle\\\hline
+SYS\_BUTTON & 0x4000 & 14 & A Button has been pressed. \\\hline
+\end{tabular}
+\caption{Primary System Interrupts}\label{tbl:sys-ints}
+\end{center}\end{table}
+%%%%%%%%%%%%%
+\begin{table}[htbp]
+\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{0.75in}|p{3.00in}|}\hline
+\rowcolor[gray]{0.85} Name & Bit Mask & DMAC ID &Description \\\hline\hline
+AUX\_UIC & 0x0001 & 16 & The user instruction counter has overflowed.\\\hline
+AUX\_UPC & 0x0002 & 17 & The user prefetch stall counter has overflowed.\\\hline
+AUX\_UOC & 0x0004 & 18 & The user ops stall counter has overflowed.\\\hline
+AUX\_UTC & 0x0008 & 19 & The user clock tick counter has overflowed.\\\hline
+AUX\_MIC & 0x0010 & 20 & The supervisor instruction counter has overflowed.\\\hline
+AUX\_MPC & 0x0020 & 21 & The supervisor prefetch stall counter has overflowed.\\\hline
+AUX\_MOC & 0x0040 & 22 & The supervisor ops stall counter has overflowed.\\\hline
+AUX\_MTC & 0x0080 & 23 & The supervisor clock tick counter has overflowed.\\\hline
+AUX\_SWITCH & 0x0100 & 24 & A switch has changed state\\\hline
+AUX\_FLASH  & 0x0200 & 25 & The flash controller has completed a write/erase cycle\\\hline
+AUX\_SCOPE & 0x0400 & 26 & The Scope has completed its collection\\\hline
+AUX\_RTC    & 0x0800 & 27& An alarm or timer has taken place (assuming the RTC
+		is installed, and includes both alarm or timer)\\\hline
+AUX\_GPIO   & 0x1000 & 28 & The GPIO input lines have changed values.\\\hline
+AUX\_OLED   & 0x2000 & 29 & The OLED driver is idle\\\hline
+\end{tabular}
+\caption{Auxilliary System Interrupts}\label{tbl:aux-ints}
+\end{center}\end{table}
+
+\begin{table}[htbp]
+\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{3.75in}|}\hline
+\rowcolor[gray]{0.85} Name & Bit Mask & Description \\\hline\hline
+BUS\_BUTTON & 0x0001 & A Button has been pressed. \\\hline
+BUS\_SWITCH & 0x0002 & The Scope has completed its collection\\\hline
+BUS\_PPS    & 0x0004 & Top of the second\\\hline
+BUS\_RTC    & 0x0008 & An alarm or timer has taken place (assuming the RTC
+		is installed, and includes both alarm or timer)\\\hline
+BUS\_NETRX & 0x0010 & A packet has been received via the network\\\hline
+BUS\_NETTX & 0x0020 & The network controller is idle, having sent its
+			last packet\\\hline
+BUS\_UARTRX & 0x0040 & A character has been received via the UART\\\hline
+BUS\_UARTTX & 0x0080 & The transmit UART is idle, and ready for its next
+		character.\\\hline
+BUS\_GPIO   & 0x0100 & The GPIO input lines have changed values.\\\hline
+BUS\_FLASH  & 0x0200 & The flash device has finished either its erase or
+		write cycle, and is ready for its next command. (Alternate
+	config only.)\\\hline
+BUS\_SCOPE  & 0x0400 & A scope has completed collecting.\\\hline
+BUS\_GPSRX  & 0x0800 & A character has been received via GPS\\\hline
+BUS\_SDCARD & 0x1000 & The SD-Card controller has become idle\\\hline
+BUS\_OLED   & 0x2000 & The OLED interface has become idle\\\hline
+BUS\_ZIP    & 0x4000 & True if the ZipCPU has come to a halt\\\hline
+\end{tabular}
+\caption{Bus Interrupts}\label{tbl:bus-ints}
+\end{center}\end{table}
+
+\subsection{Last Bus Error Address}
+\subsection{General Purpose I/O}
+\subsection{UART Data Register}
+\section{Debugging Scopes}
+\section{Internal Configuration Access Port}
+\section{Real--Time Clock}
+\section{On-Chip Block RAM}
+\section{Flash Memory}
+\begin{table}
+\begin{center}\begin{reglist}
+ewreg  &\scalebox{0.8}{\tt 0x0180} & 32 & R & Erase/write control and status\\\hline
+status      &\scalebox{0.8}{\tt 0x0181} & 8 & R/W & Bus Interrupt Controller \\\hline
+nvconf   &\scalebox{0.8}{\tt 0x0182} & 16 & R & Last Bus Error Address\\\hline
+vconf &\scalebox{0.8}{\tt 0x0183} & 8 & R & Ticks since startup\\\hline
+evonc    &\scalebox{0.8}{\tt 0x0184} & 8 & R/W & Button/Switch controller\\\hline
+lock  &\scalebox{0.8}{\tt 0x0185} & 8 & R/W & LED Controller \\\hline
+flagstatus&\scalebox{0.8}{\tt 0x0186} & 8 & R/W & Auxilliary UART config\\\hline
+clear	&\scalebox{0.8}{\tt 0x0187} & 8 & R/W & Clear status on write\\\hline
+Device ID &\scalebox{0.8}{\tt 0x0188-}\hfill & 5x32 & R & Device ID\\
+	&\scalebox{0.8}{\tt -0x018c}\hfill & & & \\\hline
+% asyncID &\scalebox{0.8}{\tt 0x018d} & 32 & R/W & Asynch Read ID.  Write starts the ASynch read, 0xff returned until complete\\\hline
+asyncOTP  &\scalebox{0.8}{\tt 0x18e} & 32 & W & Asynch Read OTP.  Write starts the ASynch read, 0xff returned until complete\\\hline
+OTP     &\scalebox{0.8}{\tt 0x0190-}\hfill &16x32 & R/W & OTP Memory\\
+	&\scalebox{0.8}{\hfill\tt -0x19f} & & & \\\hline
+% 0x010c-0x010f
+\end{reglist}
+\caption{Flash control registers}\label{tbl:flctl}
+\end{center}\end{table}
+
+\chapter{Wishbone Datasheet}\label{ch:wishbone}
+
+The master and slave interfaces have been simplified with the following
+requirement: the {\tt STB} line is not allowed to be high unless the {\tt CYC}
+line is high.  In this fashion, a slave may often be able to ignore {\tt CYC}
+and only act on the presence of {\tt STB}, knowing that {\tt CYC} must be
+active at the same time.
+
+\chapter{Clocks}\label{ch:clocks}
+\begin{table}\begin{center}
+\begin{clocklist}
+{\tt i\_clk\_100mhz} & Ext & \multicolumn{2}{c|}{100} &
+	100~MHz Crystal Oscillator \\\hline
+{\em Future }{\tt s\_clk} & PLL & 152 & 166 & Internal Logic, Wishbone Clock \\\hline
+{\tt s\_clk} & PLL & 83.33 & 75.76& DDR3 SDRAM Controller Clock \\\hline
+\multicolumn{2}{|c|}{\tt mem\_clk\_200mhz} & 200~MHz & & MIG Reference clock for PHASERs\\\hline
+{\tt ddr3\_ck\_}$x$ & DDR & 166.67 & 303 & DDR3 Command Clock\\\hline
+{\tt o\_qspi\_sck} & DDR & 95 & & QSPI Flash clock \\\hline
+{\tt o\_sd\_clk} & Logic & 50 & 0.100 & SD--Card clock \\\hline
+{\tt o\_oled\_sck} & Logic & 166 & & OLED SPI clock \\\hline
+{\tt o\_eth\_mdclk} & Logic & 25 & 2.5 & Ethernet MDIO controller clock\\\hline
+\end{clocklist}
+\caption{OpenArty clocks}\label{tbl:clocks}
+\end{center}\end{table}
+
+\chapter{I/O Ports}
+
+Table.~\ref{tbl:ioports}
+\begin{table}[htbp]
+\begin{center}
+\begin{portlist}
+i\_clk\_100mhz & 1 & Input & Clock\\\hline
+o\_qspi\_cs\_n & 1 & Output & Quad SPI Flash chip select\\\hline
+o\_qspi\_sck & 1 & Output & Quad SPI Flash clock\\\hline
+io\_qspi\_dat & 4 & Input/Output & Four-wire SPI flash data bus\\\hline
+i\_btn & 4 & Input  & Inputs from the two on-board push-buttons\\\hline
+i\_sw  & 4 & Input  & Inputs from the two on-board push-buttons\\\hline
+o\_led & 4 & Output & Outputs controlling the four on-board LED's\\\hline
+o\_clr\_led0 & 3 & Output & \\\hline
+o\_clr\_led1 & 3 & Output & \\\hline
+o\_clr\_led2 & 3 & Output & \\\hline
+o\_clr\_led3 & 3 & Output & \\\hline
+i\_uart\_rx & 1 & Input &  UART receive input\\\hline
+o\_uart\_tx & 1 & Output & UART transmit output\\\hline\hline
+i\_aux\_rx & 1 & Input &  Auxiliary/Pmod UART receive input\\\hline
+o\_aux\_tx & 1 & Output & Auxiliary/Pmod UART transmit output\\\hline
+i\_aux\_rts & 1 & Input &  Auxiliary/Pmod UART receive input\\\hline
+o\_aux\_cts & 1 & Output & Auxiliary/Pmod UART transmit output\\\hline\hline
+i\_gps\_rx & 1 & Input &  GPS/Pmod UART receive input\\\hline
+o\_gps\_tx & 1 & Output & GPS/Pmod UART transmit output\\\hline
+i\_gps\_pps & 1 & Input & GPS Part-per-second (PPS) signal\\\hline
+i\_gps\_3df & 1 & Input & GPS\\\hline\hline
+o\_oled\_cs\_n & 1 & Output & \\\hline
+o\_oled\_sck & 1 & Output & \\\hline
+o\_oled\_mosi & 1 & Output & \\\hline
+i\_oled\_miso & 1 & Input & \\\hline
+o\_oled\_reset & 1 & Output & \\\hline
+o\_oled\_dc & 1 & Output & \\\hline
+o\_oled\_en & 1 & Output & \\\hline
+o\_oled\_pmen & 1 & Output & \\\hline\hline
+o\_sd\_sck & 1 & Output & SD Clock\\\hline
+i\_sd\_cd & 1 & Input & Card Detect\\\hline
+i\_sd\_wp & 1 & Input & Write Protect\\\hline
+io\_cmd & 1 & In/Output & SD Bi-directional command wire\\\hline
+io\_sd & 4 & In/Output & SD Bi-directional data lines\\\hline\hline
+o\_cls\_cs\_n & 1 & Output & CLS Display chip select\\\hline
+o\_cls\_sck & 1 & Output & CLS Display clock\\\hline
+o\_cls\_mosi & 1 & Output & CLS Display MOSI\\\hline
+i\_cls\_miso & 1 & Input & CLS Display MISO\\\hline\hline
+\end{portlist}
+\caption{List of IO ports}\label{tbl:ioports}
+\end{center}\end{table}
+lists the various I/O ports associated with OpenArty.
+
+
+% Appendices
+% Index
+\end{document}
+
+
