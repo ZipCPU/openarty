@@ -159,8 +159,6 @@ int main(int argc, char **argv) {
 	}
 
 	printf("ALL-DONE\n");
-	if (m_fpga->poll())
-		printf("FPGA was interrupted\n");
 	delete	m_fpga;
 }
 
