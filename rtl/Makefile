@@ -49,7 +49,7 @@ CPUDR := cpu
 CPUSOURCESnD := zipcpu.v cpuops.v pfcache.v pipemem.v		\
 			pfcache.v idecode.v wbpriarbiter.v zipbones.v	\
 	zipsystem.v zipcounter.v zipjiffies.v ziptimer.v		\
-		wbdmac.v icontrol.v wbwatchdog.v
+		wbdmac.v icontrol.v wbwatchdog.v busdelay.v
 CPUSOURCES := $(addprefix $(CPUDR)/,$(CPUSOURCESnD))
 
 JTAGBUS := wbufifo.v wbubus.v wbucompactlines.v				\
