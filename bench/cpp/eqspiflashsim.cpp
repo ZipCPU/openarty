@@ -110,7 +110,7 @@ EQSPIFLASHSIM::EQSPIFLASHSIM(void) {
 	m_ireg = m_oreg = 0;
 	m_sreg = 0x01c;
 	m_creg = 0x001;	// Initial creg on delivery
-	m_config   = 0x7; // Volatile configuration register
+	m_vconfig   = 0x7; // Volatile configuration register
 	m_nvconfig = 0x0fff; // Nonvolatile configuration register
 	m_quad_mode = false;
 	m_mode_byte = 0;
@@ -431,12 +431,12 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			break;
 		case 0x81: // Write volatile config register
 			m_state = EQSPIF_WRCR;
-			if (m_debug) printf("EQSPI: WRITING CONFIG REGISTER: %02x\n", m_config);
+			if (m_debug) printf("EQSPI: WRITING VOLATILE CONFIG REGISTER: %02x\n", m_vconfig);
 			break;
 		case 0x85: // Read volatile config register
 			m_state = EQSPIF_RDCR;
-			if (m_debug) printf("EQSPI: READING CONFIG REGISTER: %02x\n", m_config);
-			QOREG(m_config>>8);
+			if (m_debug) printf("EQSPI: READING VOLATILE CONFIG REGISTER: %02x\n", m_vconfig);
+			QOREG(m_vconfig);
 			break;
 		case 0x9e: // Read ID (fall through)
 		case 0x9f: // Read ID
@@ -508,19 +508,19 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			}
 			break;
 		case EQSPIF_WRCR: // Write volatile config register, 0x81
-			if (m_count == 8) {
-				m_config = m_ireg & 0x0ff;
-				printf("Setting volatile config register to %08x\n", m_config);
-				assert((m_config & 0xfb)==0x8b);
+			if (m_count == 8+8) {
+				m_vconfig = m_ireg & 0x0ff;
+				printf("Setting volatile config register to %08x\n", m_vconfig);
+				assert((m_vconfig & 0xfb)==0x8b);
 			} break;
 		case EQSPIF_WRNVCONFIG: // Write nonvolatile config register
-			if (m_count == 8) {
+			if (m_count == 8+8) {
 				m_nvconfig = m_ireg & 0x0ffdf;
-				printf("Setting nonvolatile config register to %08x\n", m_config);
+				printf("Setting nonvolatile config register to %08x\n", m_nvconfig);
 				assert((m_nvconfig & 0xffc5)==0x8fc5);
 			} break;
 		case EQSPIF_WREVCONFIG: // Write enhanced volatile config reg
-			if (m_count == 8) {
+			if (m_count == 8+8) {
 				m_evconfig = m_ireg & 0x0ff;
 				printf("Setting enhanced volatile config register to %08x\n", m_evconfig);
 				assert((m_evconfig & 0x0d7)==0xd7);
@@ -531,7 +531,6 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				if ((m_lockregs[m_addr]&2)==0)
 					m_lockregs[m_addr] = m_ireg&3;
 				printf("Setting lock register[%02x] to %d\n", m_addr, m_lockregs[m_addr]);
-				assert((m_config & 0xfb)==0x8b);
 			} break;
 		case EQSPIF_RDLOCK:
 			if (m_count == 24) {
@@ -592,7 +591,7 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			QOREG(m_sreg);
 			break;
 		case EQSPIF_RDCR:
-			if (m_debug) printf("Read CREG = %02x\n", m_creg);
+			if (m_debug) printf("Read VCONF = %02x\n", m_vconfig);
 			QOREG(m_creg);
 			break;
 		case EQSPIF_FAST_READ:
@@ -637,7 +636,7 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				// printf("EQSPIF[%08x]/QR = %02x\n",
 					// m_addr-1, m_oreg);
 			} else {
-				printf("ERR: EQSPIF--TRYING TO READ WHILE BUSY! (count = %d)\n", m_count);
+				// printf("ERR: EQSPIF--TRYING TO READ WHILE BUSY! (count = %d)\n", m_count);
 				m_oreg = 0;
 			}
 			break;

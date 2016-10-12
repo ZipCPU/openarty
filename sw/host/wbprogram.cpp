@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 	}
 
 	fp = fopen(argv[argn], "r");
-	if (strcmp(&argv[argn][strlen(argv[argn])-4],".bit")!=0)
+	if (strcmp(&argv[argn][strlen(argv[argn])-4],".bit")==0)
 		fseek(fp, 0x5dl, SEEK_SET);
 	sz = fread(buf, sizeof(buf[0]), BUFLN, fp);
 	fclose(fp);

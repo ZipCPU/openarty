@@ -156,13 +156,34 @@ public:
 
 		PIPECMDR::tick();
 
-#define	DEBUGGING_OUTPUT
+// #define	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
-		if (m_core->o_net_tx_en)
-			writeout = true;
+#ifdef	DEBUGGING_OUTPUT
+		// if (m_core->o_net_tx_en)
+		//	writeout = true;
 
-		if (m_core->v__DOT__netctrl__DOT__n_rx_valid)
+		if (m_core->v__DOT__wbu_cyc)
+			writeout = true;
+		if (m_core->v__DOT__dwb_cyc)
+			writeout = true;
+		if (!m_core->o_qspi_cs_n)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__preproc__DOT__pending)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__rd_data_ack)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__ew_data_ack)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__ct_data_ack)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__rd_qspi_req)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__ew_qspi_req)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__id_qspi_req)
+			writeout = true;
+		if (m_core->v__DOT__flashmem__DOT__ct_qspi_req)
 			writeout = true;
 
 		/*
@@ -177,18 +198,19 @@ public:
 				m_core->i_tx_busy?"/BSY":"    ");
 			*/
 
-			/*
-			printf("(%d,%d->%d),(%c:%d,%d->%d)|%c[%08x/%08x]@%08x %c%c%c",
+			// To get some understanding of what is on the bus,
+			// and hence some context for everything else,
+			// this offers a view of the bus.
+			printf("(%d,%d->%d)%s(%c:%d,%d->%d)|%c[%08x/%08x]@%08x %c%c%c",
 				m_core->v__DOT__wbu_cyc,
 				m_core->v__DOT__dwb_cyc, // was zip_cyc
-				0,
 				m_core->v__DOT__wb_cyc,
+				(m_core->v__DOT__wbu_zip_delay__DOT__r_stb)?"!":" ",
 				//
 				m_core->v__DOT__wbu_zip_arbiter__DOT__r_a_owner?'Z':'j',
-				m_core->v__DOT__wbu_stb,
-				// 0, // m_core->v__DOT__dwb_stb, // was zip_stb
-				m_core->v__DOT__zippy__DOT__thecpu__DOT__mem_stb_gbl,
-				m_core->v__DOT__wb_stb,
+				m_core->v__DOT__wbu_stb, // WBU strobe
+				m_core->v__DOT__zippy__DOT__ext_stb, // zip_stb
+				m_core->v__DOT__wb_stb, // m_core->v__DOT__wb_stb, output of delay(ed) strobe
 				//
 				(m_core->v__DOT__wb_we)?'W':'R',
 				m_core->v__DOT__wb_data,
@@ -199,7 +221,6 @@ public:
 				(m_core->v__DOT__dwb_stall)?'S':
 					(m_core->v__DOT____Vcellinp__genbus____pinNumber10)?'s':' ',
 				(m_core->v__DOT__wb_err)?'E':'.');
-			*/
 
 			/*
 			*/
@@ -259,6 +280,7 @@ public:
 			}
 			*/
 
+			/*
 			printf("ETH[TX:%s%s%x%s]",
 				(m_core->i_net_tx_clk)?"CK":"  ",
 				(m_core->o_net_tx_en)?" ":"(",
@@ -301,13 +323,81 @@ public:
 				m_core->v__DOT__netctrl__DOT__txcrci__DOT__r_crc,
 				m_core->v__DOT__netctrl__DOT__w_macd,
 				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
-				
+			*/
+
+			/*
+			// Flash debugging support
+			printf("%s/%s %s %s[%s%s%s%s%s] %s@%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
+				((m_core->v__DOT__wb_stb)&&((m_core->v__DOT__skipaddr>>3)==1))?"D":" ",
+				((m_core->v__DOT__wb_stb)&&(m_core->v__DOT__flctl_sel))?"C":" ",
+				(m_core->v__DOT__flashmem__DOT__bus_wb_stall)?"STALL":"     ",
+				(m_core->v__DOT__flash_ack)?"ACK":"   ",
+				(m_core->v__DOT__flashmem__DOT__bus_wb_ack)?"BS":"  ",
+				(m_core->v__DOT__flashmem__DOT__rd_data_ack)?"RD":"  ",
+				(m_core->v__DOT__flashmem__DOT__ew_data_ack)?"EW":"  ",
+				(m_core->v__DOT__flashmem__DOT__id_data_ack)?"ID":"  ",
+				(m_core->v__DOT__flashmem__DOT__ct_data_ack)?"CT":"  ",
+				(m_core->v__DOT__wb_we)?"W":"R",
+				(m_core->v__DOT__wb_addr),
+				(m_core->v__DOT__wb_data),
+				(m_core->v__DOT__flash_data),
+				(m_core->o_qspi_cs_n)?"CS":"  ",
+				(m_core->o_qspi_sck)?"CK":"  ",
+				(m_core->o_qspi_dat),
+				(m_core->i_qspi_dat),
+				(m_core->o_qspi_dat)&1,
+				((m_core->i_qspi_dat)&2)?1:0),
+
+			printf(" REQ[%s%s%s%s]",
+				m_core->v__DOT__flashmem__DOT__rd_qspi_req?"RD":"  ",
+				m_core->v__DOT__flashmem__DOT__ew_qspi_req?"EW":"  ",
+				m_core->v__DOT__flashmem__DOT__id_qspi_req?"ID":"  ",
+				m_core->v__DOT__flashmem__DOT__ct_qspi_req?"CT":"  ");
+
+			printf(" %s[%s%2d%s%s0x%08x]",
+				(m_core->v__DOT__flashmem__DOT__spi_wr)?"CMD":"   ",
+				(m_core->v__DOT__flashmem__DOT__spi_hold)?"HLD":"   ",
+				(m_core->v__DOT__flashmem__DOT__spi_len+1)*8,
+				(m_core->v__DOT__flashmem__DOT__spi_dir)?"RD":"WR",
+				(m_core->v__DOT__flashmem__DOT__spi_spd)?"Q":" ",
+				m_core->v__DOT__flashmem__DOT__spi_word);
+
+			printf(" STATE[%2x%s,%2x%s,%2x%s,%2x%s]",
+				m_core->v__DOT__flashmem__DOT__rdproc__DOT__rd_state, (m_core->v__DOT__flashmem__DOT__rd_spi_wr)?"W":" ",
+				m_core->v__DOT__flashmem__DOT__ewproc__DOT__wr_state, (m_core->v__DOT__flashmem__DOT__ew_spi_wr)?"W":" ",
+				m_core->v__DOT__flashmem__DOT__idotp__DOT__id_state, (m_core->v__DOT__flashmem__DOT__id_spi_wr)?"W":" ",
+				m_core->v__DOT__flashmem__DOT__ctproc__DOT__ctstate, (m_core->v__DOT__flashmem__DOT__ct_spi_wr)?"W":" ");
+			printf("%s%s%s%s",
+				(m_core->v__DOT__flashmem__DOT__rdproc__DOT__accepted)?"RD-ACC":"",
+				(m_core->v__DOT__flashmem__DOT__ewproc__DOT__accepted)?"EW-ACC":"",
+				(m_core->v__DOT__flashmem__DOT__idotp__DOT__accepted)?"ID-ACC":"",
+				(m_core->v__DOT__flashmem__DOT__ctproc__DOT__accepted)?"CT-ACC":"");
+
+			printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__pending)?" PENDING":"",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__lcl_key)?" KEY":"",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__ctreg_stb)?" CTSTB":"",
+				(m_core->v__DOT__flashmem__DOT__bus_ctreq)?" BUSCTRL":"",
+				(m_core->v__DOT__flashmem__DOT__bus_other_req)?" BUSOTHER":"",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__wp)?" WRWP":"",
+				(m_core->v__DOT__flashmem__DOT__bus_wip)?" WIP":"",
+				(m_core->v__DOT__flashmem__DOT__ewproc__DOT__cyc)?" WRCYC":"",
+				(m_core->v__DOT__flashmem__DOT__bus_pipewr)?" WRPIPE":"",
+				(m_core->v__DOT__flashmem__DOT__bus_endwr)?" ENDWR":"",
+				(m_core->v__DOT__flashmem__DOT__ct_ack)?" CTACK":"",
+				(m_core->v__DOT__flashmem__DOT__rd_bus_ack)?" RDACK":"",
+				(m_core->v__DOT__flashmem__DOT__id_bus_ack)?" IDACK":"",
+				(m_core->v__DOT__flashmem__DOT__ew_bus_ack)?" EWACK":"",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__lcl_ack)?" LCLACK":"",
+				(m_core->v__DOT__flashmem__DOT__rdproc__DOT__r_leave_xip)?" LVXIP":"",
+				(m_core->v__DOT__flashmem__DOT__preproc__DOT__new_req)?" NREQ":"");
+
+			*/
 
 
 			printf("\n"); fflush(stdout);
-		} // m_last_writeout = writeout;
-
-		m_last_writeout = (writeout)||(m_last_writeout)||(m_core->o_net_tx_en);
+		} m_last_writeout = writeout;
+#endif
 	}
 };
 

@@ -82,7 +82,7 @@ class	EQSPIFLASHSIM {
 	char		*m_mem, *m_pmem, *m_otp, *m_lockregs;
 	int		m_last_sck;
 	unsigned	m_write_count, m_ireg, m_oreg, m_sreg, m_addr,
-			m_count, m_config, m_mode_byte, m_creg,
+			m_count, m_vconfig, m_mode_byte, m_creg,
 			m_nvconfig, m_evconfig, m_flagreg, m_nxtout[4];
 	bool		m_quad_mode, m_debug, m_otp_wp;
 
