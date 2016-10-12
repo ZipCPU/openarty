@@ -1,12 +1,12 @@
 #!/bin/bash
 ################################################################################
 ##
-## Filename: 	startupex.sh
+## Filename: 	zprog.sh
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	A simple, but rather neat, demonstration proving that the wishbone
-##		command capability works and that the FPGA is at least somewhat responsive.
+## Purpose:	To install a new program into the Arty, using the main
+##		programming slot (slot 0).
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -38,16 +38,33 @@
 ##
 ##
 export PATH=$PATH:.
-export BINFILE=../../xilinx/openarty/openarty.runs/impl_1/fasttop.bin
+export BINFILE=../../xilinx/openarty.runs/impl_1/toplevel.bin
 
-WBREGS=host/wbregs
+WBREGS=wbregs
+WBPROG=wbprogram
+
+# 
+# $WBREGS qspiv 0x8b	# Accomplished by the flash driver
+#
+$WBREGS stopwatch 2	# Clear and stop the stopwatch
+$WBREGS stopwatch 1	# Start the stopwatch
+echo $WBPROG @0x0400000 $BINFILE
+$WBPROG @0x0400000 $BINFILE
+$WBREGS stopwatch 0	# Stop the stopwatch, we are done
+$WBREGS stopwatch	# Print out the time on the stopwatch
+
+$WBREGS wbstar 0
+$WBREGS fpgacmd 15
+sleep 1
+
+
 RED=0x00ff0000
 GREEN=0x0000ff00
-WHITE=0x00070707
+WHITE=0x000f0f0f
 BLACK=0x00000000
 DIMGREEN=0x00001f00
 
-$WBREGS led 0x0ff
+$WBREGS led 0x0f
 $WBREGS clrled0 $RED
 $WBREGS clrled1 $RED
 $WBREGS clrled2 $RED
@@ -64,14 +81,18 @@ sleep 1
 $WBREGS clrled2 $GREEN
 $WBREGS clrled1 $DIMGREEN
 $WBREGS led 0x40
-sleep 1
+
+if [[ -x ./wbsettime ]]; then
+  ./wbsettime
+fi
+
 $WBREGS clrled3 $GREEN
 $WBREGS clrled2 $DIMGREEN
 $WBREGS led 0x80
 sleep 1
 $WBREGS clrled0 $WHITE
-$WBREGS clrled1 $WHITE
-$WBREGS clrled2 $WHITE
+$WBREGS clrled1 $BLACK
+$WBREGS clrled2 $BLACK
 $WBREGS clrled3 $WHITE
 $WBREGS led 0x00
 
