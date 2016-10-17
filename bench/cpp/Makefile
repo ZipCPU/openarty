@@ -40,11 +40,13 @@ CXX	:= g++
 FLAGS	:= -Wall -Og -g
 OBJDIR  := obj-pc
 RTLD	:= ../../rtl
-INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I/usr/share/verilator/include
+VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
+VROOT   := $(VERILATOR_ROOT)
+INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VROOT)/include
 SOURCES := eqspiflashsim.cpp eqspiflash_tb.cpp enetctrlsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp ddrsdramsim.cpp
 VOBJDR	:= $(RTLD)/obj_dir
-VLIB	:= /usr/share/verilator/include/verilated.cpp
+VLIB	:= $(VROOT)/include/verilated.cpp
 SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))

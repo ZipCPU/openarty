@@ -74,10 +74,11 @@
 // SCOPE POSITION ZERO
 //
 `ifdef	FLASH_ACCESS
-`define	FLASH_SCOPE	// Position zero
-`else
+// `define	FLASH_SCOPE	// Position zero
+`endif
 `ifdef ZIPCPU
-// `define	CPU_SCOPE	// Position zero
+`ifndef	FLASH_SCOPE
+`define	CPU_SCOPE	// Position zero
 `endif
 `endif
 //
@@ -87,12 +88,12 @@
 // `ifdef ICAPE_ACCESS
 // `define	CFG_SCOPE	// Position one
 // `endif
-`define	WBU_SCOPE
+// `define	WBU_SCOPE
 //
 // SCOPE POSITION TWO
 //
 `ifdef	SDRAM_ACCESS
-`define	SDRAM_SCOPE		// Position two
+// `define	SDRAM_SCOPE		// Position two
 `endif
 //
 // SCOPE POSITION THREE
@@ -137,7 +138,7 @@ module	busmaster(i_clk, i_rst,
 		// The GPS PMod
 		i_gps_pps, i_gps_3df
 		);
-	parameter	ZA=24, ZIPINTS=14;
+	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=28'h04e0000;
 	input			i_clk, i_rst;
 	// The bus commander, via an external uart port
 	input			i_rx_stb;
@@ -255,17 +256,17 @@ module	busmaster(i_clk, i_rst,
 				(wbu_zip_sel)?zip_dbg_data:wbu_idata,
 			w_interrupt,
 			o_tx_stb, o_tx_data, i_tx_busy
-// `ifdef	WBU_SCOPE
 			// , wbu_debug
-// `endif
 			);
 
+`ifdef	WBU_SCOPE
 	// assign	o_dbg = (wbu_ack)&&(wbu_cyc);
 	assign	wbu_debug = { wbu_cyc, wbu_stb, wbu_we, wbu_ack, wbu_stall,
 				wbu_err, wbu_zip_sel,
 				wbu_addr[8:0],
 				wbu_data[7:0],
 				wbu_idata[7:0] };
+`endif
 
 	wire	zip_cpu_int; // True if the CPU suddenly halts
 `ifdef	ZIPCPU
@@ -294,8 +295,7 @@ module	busmaster(i_clk, i_rst,
 			gpsrx_int, rtc_pps
 		};
 
-	zipsystem #(	//.RESET_ADDRESS(24'h0480000),
-			.RESET_ADDRESS(24'h0008000),
+	zipsystem #(	.RESET_ADDRESS(RESET_ADDRESS),
 			.ADDRESS_WIDTH(ZA),
 			.LGICACHE(10),
 			.START_HALTED(1),
@@ -311,13 +311,13 @@ module	busmaster(i_clk, i_rst,
 				((wbu_stb)&&(wbu_zip_sel)),wbu_we, wbu_addr[0],
 				wbu_data,
 				zip_dbg_ack, zip_dbg_stall, zip_dbg_data
-`ifdef	CPU_DEBUG
+`ifdef	CPU_SCOPE
 			, zip_scope_data
 `endif
 			);
 `else // ZIP_SYSTEM
 	wire	w_zip_cpu_int_ignored;
-	zipbones #(	.RESET_ADDRESS(24'h08000),
+	zipbones #(	.RESET_ADDRESS(RESET_ADDRESS),
 			.ADDRESS_WIDTH(ZA),
 			.LGICACHE(10),
 			.START_HALTED(1),
@@ -332,7 +332,7 @@ module	busmaster(i_clk, i_rst,
 				((wbu_stb)&&(wbu_zip_sel)),wbu_we, wbu_addr[0],
 				wbu_data,
 				zip_dbg_ack, zip_dbg_stall, zip_dbg_data
-`ifdef	CPU_DEBUG
+`ifdef	CPU_SCOPE
 			, zip_scope_data
 `endif
 			);
@@ -359,7 +359,7 @@ module	busmaster(i_clk, i_rst,
 		zip_cyc, zip_stb, zip_we, zip_addr, zip_data,
 			zip_ack, zip_stall, zip_err,
 		// The UART interface Master
-		(wbu_cyc)&&(~wbu_zip_sel), (wbu_stb)&&(~wbu_zip_sel), wbu_we,
+		(wbu_cyc)&&(!wbu_zip_sel), (wbu_stb)&&(!wbu_zip_sel), wbu_we,
 			wbu_addr, wbu_data,
 			wbu_ack, wbu_stall, wbu_err,
 		// Common bus returns
@@ -1057,15 +1057,16 @@ module	busmaster(i_clk, i_rst,
 	wire	[31:0]	scop_cpu_data;
 	wire	scop_cpu_ack, scop_cpu_stall, scop_cpu_interrupt;
 	wire	scop_cpu_trigger;
-	// assign	scop_cpu_trigger = zip_scope_data[30];
-	assign	scop_cpu_trigger = (wb_stb)&&(mem_sel)&&(~wb_we)
-			&&(wb_err)||(zip_scope_data[31]);
-	wbscope #(5'd13) cpuscope(i_clk, 1'b1,(scop_cpu_trigger), zip_scope_data,
-		// Wishbone interface
-		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b00)),
-			wb_we, wb_addr[0], wb_data,
-			scop_cpu_ack, scop_cpu_stall, scop_cpu_data,
-		scop_cpu_interrupt);
+	assign	scop_cpu_trigger = (zip_scope_data[31]);
+	wbscope #(	.LGMEM(5'd13),
+			.DEFAULT_HOLDOFF(32))
+		cpuscope(i_clk, 1'b1,(scop_cpu_trigger),zip_scope_data,
+			// Wishbone interface
+			i_clk, wb_cyc,
+				((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b00)),
+				wb_we, wb_addr[0], wb_data,
+				scop_cpu_ack, scop_cpu_stall, scop_cpu_data,
+			scop_cpu_interrupt);
 
 	assign	scop_a_data = scop_cpu_data;
 	assign	scop_a_ack = scop_cpu_ack;
@@ -1076,7 +1077,6 @@ module	busmaster(i_clk, i_rst,
 	wire	[31:0]	scop_flash_data;
 	wire	scop_flash_ack, scop_flash_stall, scop_flash_interrupt;
 	wire	scop_flash_trigger;
-	// assign	scop_cpu_trigger = zip_scope_data[30];
 	assign	scop_flash_trigger = (wb_stb)&&((flash_sel)||(flctl_sel));
 	wbscope #(5'd11) flashscope(i_clk, 1'b1,
 			(scop_flash_trigger), flash_debug,

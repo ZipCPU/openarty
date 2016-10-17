@@ -57,17 +57,19 @@
 #define	R_GPSRX		0x00000110
 #define	R_GPSTX		0x00000111
 // WB Scope registers
-#define	R_QSCOPE	0x00000120	// Quad SPI scope ctrl
+#define	R_QSCOPE	0x00000120	// Scope #0: Quad SPI scope ctrl
 #define	R_QSCOPED	0x00000121	//	and data
-#define	R_GPSCOPE	0x00000122	// GPS configuration scope control
+#define	R_CPUSCOPE	0x00000120	// CPU scope (if so configured)
+#define	R_CPUSCOPED	0x00000121	//	and data
+#define	R_GPSCOPE	0x00000122	// Scope #1: GPS config scope control
 #define	R_GPSCOPED	0x00000123	//	and data
 #define	R_CFGSCOPE	0x00000122	// ICAPE2 configuration scop control
 #define	R_CFGSCOPED	0x00000123	//	and data
 #define	R_BUSSCOPE	0x00000122	// WBUBUS scope control
 #define	R_BUSSCOPED	0x00000123	//	and data
-#define	R_RAMSCOPE	0x00000124	// DDR3 SDRAM Scope
+#define	R_RAMSCOPE	0x00000124	// Scope #2: DDR3 SDRAM Scope
 #define	R_RAMSCOPED	0x00000125	//
-#define	R_NETSCOPE	0x00000126	// Ethernet debug scope
+#define	R_NETSCOPE	0x00000126	// Scope #3: Ethernet debug scope
 #define	R_NETSCOPED	0x00000127	//
 // RTC Clock Registers
 #define	R_CLOCK		0x00000128
@@ -176,14 +178,15 @@
 #define	MEMWORDS	0x00008000
 // Flash memory space
 #define	EQSPIFLASH	0x00400000
+#define	RESET_ADDRESS	0x004e0000
 #define	FLASHWORDS	(1<<22)
 // DDR3 SDRAM memory space
 #define	RAMBASE		0x04000000
 #define	SDRAMBASE	RAMBASE
 #define	RAMWORDS	(1<<26)
 // Zip CPU Control and Debug registers
-#define	R_ZIPCTRL	0x01000000
-#define	R_ZIPDATA	0x01000001
+#define	R_ZIPCTRL	0x08000000
+#define	R_ZIPDATA	0x08000001
 
 // Interrupt control constants
 #define	GIE		0x80000000	// Enable all interrupts
@@ -216,17 +219,18 @@
 #define	CPU_STALL	0x0200
 #define	CPU_HALT	0x0400
 #define	CPU_CLRCACHE	0x0800
-#define	CPU_sR0		(0x0000|CPU_HALT)
-#define	CPU_sSP		(0x000d|CPU_HALT)
-#define	CPU_sCC		(0x000e|CPU_HALT)
-#define	CPU_sPC		(0x000f|CPU_HALT)
-#define	CPU_uR0		(0x0010|CPU_HALT)
-#define	CPU_uSP		(0x001d|CPU_HALT)
-#define	CPU_uCC		(0x001e|CPU_HALT)
-#define	CPU_uPC		(0x001f|CPU_HALT)
+#define	CPU_sR0		0x0000
+#define	CPU_sSP		0x000d
+#define	CPU_sCC		0x000e
+#define	CPU_sPC		0x000f
+#define	CPU_uR0		0x0010
+#define	CPU_uSP		0x001d
+#define	CPU_uCC		0x001e
+#define	CPU_uPC		0x001f
 
 #define	SCOPE_NO_RESET	0x80000000
 #define	SCOPE_TRIGGER	(0x08000000|SCOPE_NO_RESET)
+#define	SCOPE_MANUAL	SCOPE_TRIGGER
 #define	SCOPE_DISABLE	(0x04000000)
 
 typedef	struct {

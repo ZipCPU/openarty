@@ -37,19 +37,22 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram eqspiscope etxscope netsetup manping erxscope
-all: $(PROGRAMS)
+PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg
+SCOPES := eqspiscope etxscope erxscope cpuscope
+all: $(PROGRAMS) $(SCOPES)
 CXX := g++
 OBJDIR := obj-pc
 BUSOBJS := $(OBJDIR)/ttybus.o $(OBJDIR)/llcomms.o $(OBJDIR)/regdefs.o
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 	ttybus.cpp llcomms.cpp dumpflash.cpp eqspiscope.cpp flashdrvr.cpp \
 	regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp		\
-	cfgscope.cpp							\
-	erxscope.cpp etxscope.cpp netsetup.cpp mdioscope.cpp manping.cpp
-	# ziprun.cpp zipload.cpp
+	cfgscope.cpp zipload.cpp zipstate.cpp zipdbg.cpp		\
+	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp		\
+	 mdioscope.cpp manping.cpp
+	# ziprun.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
+ZIPD := ../../../../../zipcpu/trunk/sw/zasm
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
@@ -78,6 +81,8 @@ manping: $(OBJDIR)/manping.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
+zipstate: $(OBJDIR)/zipstate.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
 netsetup: $(OBJDIR)/netsetup.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
@@ -86,9 +91,16 @@ eqspiscope: $(OBJDIR)/eqspiscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
+wbprogram: $(OBJDIR)/wbprogram.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
+	$(CXX) -g $^ -lelf -o $@
+
+
+## SCOPES
 cfgscope: $(OBJDIR)/cfgscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
-wbuscope: $(OBJDIR)/wbuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+cpuscope: $(OBJDIR)/cpuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 erxscope: $(OBJDIR)/erxscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
@@ -96,18 +108,26 @@ etxscope: $(OBJDIR)/etxscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 mdioscope: $(OBJDIR)/mdioscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
-wbprogram: $(OBJDIR)/wbprogram.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
+wbuscope: $(OBJDIR)/wbuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
-# ziprun: $(OBJDIR)/ziprun.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
-#	$(CXX) -g $^ -lelf -o $@
-# zipdbg: zipdbg.cpp $(ZIPD)/zparser.cpp $(ZIPD)/zopcodes.cpp $(ZIPD)/twoc.cpp $(BUSOBJS)
-#	$(CXX) -g -I../bench/cpp -I $(ZIPD)/ $^ -lncurses -o $@
-# zipstate: zipstate.cpp $(BUSOBJS)
-	# $(CXX) -g $^ -o $@
+
+DBGRAW  := zparser.cpp zopcodes.cpp twoc.cpp
+DBGSRCS := $(addprefix $(ZIPD)/,$(DBGRAW))
+DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGRAW)))
+$(OBJDIR)/zipdbg.o: zipdbg.cpp
+	$(CXX) -g -I$(ZIPD) -c $< -o $@
+$(OBJDIR)/zparser.o: $(ZIPD)/zparser.cpp
+	$(CXX) -g -I$(ZIPD) -c $< -o $@
+$(OBJDIR)/zopcodes.o: $(ZIPD)/zopcodes.cpp
+	$(CXX) -g -I$(ZIPD) -c $< -o $@
+$(OBJDIR)/twoc.o: $(ZIPD)/twoc.cpp
+	$(CXX) -g -I$(ZIPD) -c $< -o $@
+zipdbg: $(OBJDIR)/zipdbg.o $(BUSOBJS) $(DBGOBJS)
+	$(CXX) -g -I$(ZIPD) $^ -lcurses -o $@
 
 define	build-depends
 	@echo "Building dependency file(s)"
-	@$(CXX) $(CPPFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	$(CXX) $(CPPFLAGS) -I$(ZIPD) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
 endef
