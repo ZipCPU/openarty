@@ -99,6 +99,7 @@ typedef	struct	{
 #define	CC_FPUERR	0x1000
 #define	CC_IPHASE	0x2000
 
+// extern void	zip_break(void);
 extern void	zip_rtu(void);
 extern void	zip_halt(void);
 extern void	zip_idle(void);

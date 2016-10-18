@@ -35,7 +35,7 @@ all:	exstartup
 #
 
 exstartup: exstartup.c artyboard.h zipsys.h arty.ld
-	zip-gcc -O3 -T arty.ld -Wl,-Map=exstartup.map exstartup.c -o exstartup
+	zip-gcc -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map exstartup.c -o exstartup
 
 exstartup.txt: exstartup
 	zip-objdump -S -D exstartup > exstartup.txt
