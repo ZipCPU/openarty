@@ -1,5 +1,0 @@
-busmaster_tb
-enetctrl_tb
-enetctrlsim.o
-eqspiflash_tb
-obj-pc/*
