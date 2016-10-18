@@ -80,7 +80,7 @@ public:
 
 	unsigned	m_last_led, m_last_pic, m_last_tx_state, m_net_ticks;
 	time_t		m_start_time;
-	bool		m_last_writeout;
+	bool		m_last_writeout, m_cpu_started;
 	int		m_last_bus_owner, m_busy;
 
 	TESTBENCH(void) : PIPECMDR(FPGAPORT),
@@ -88,6 +88,7 @@ public:
 			{
 		m_start_time = time(NULL);
 		m_mid = new ENETCTRLSIM;
+		m_cpu_started =false;
 	}
 
 	void	setsdcard(const char *fn) {
@@ -108,8 +109,6 @@ public:
 		}
 
 		// Set up the bus before any clock tick
-		m_core->i_clk = 1;
-
 		m_core->i_qspi_dat = m_flash(m_core->o_qspi_cs_n,
 				m_core->o_qspi_sck, m_core->o_qspi_dat);
 
@@ -157,33 +156,26 @@ public:
 		PIPECMDR::tick();
 
 // #define	DEBUGGING_OUTPUT
+#ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
-#ifdef	DEBUGGING_OUTPUT
 		// if (m_core->o_net_tx_en)
 		//	writeout = true;
 
-		if (m_core->v__DOT__wbu_cyc)
+		// if (m_core->v__DOT__wbu_cyc)
+			// writeout = true;
+		// if (m_core->v__DOT__dwb_cyc)
+			// writeout = true;
+
+		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__master_ce)
 			writeout = true;
-		if (m_core->v__DOT__dwb_cyc)
+		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dbgv)
 			writeout = true;
-		if (!m_core->o_qspi_cs_n)
+		if ((m_core->v__DOT__zippy__DOT__dbg_cyc)&&(m_core->v__DOT__zippy__DOT__dbg_stb))
 			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__preproc__DOT__pending)
+		if ((m_core->v__DOT__zippy__DOT__dbg_cyc)&&(m_core->v__DOT__zippy__DOT__dbg_ack))
 			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__rd_data_ack)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__ew_data_ack)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__ct_data_ack)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__rd_qspi_req)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__ew_qspi_req)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__id_qspi_req)
-			writeout = true;
-		if (m_core->v__DOT__flashmem__DOT__ct_qspi_req)
+		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_cyc)
 			writeout = true;
 
 		/*
@@ -205,7 +197,7 @@ public:
 				m_core->v__DOT__wbu_cyc,
 				m_core->v__DOT__dwb_cyc, // was zip_cyc
 				m_core->v__DOT__wb_cyc,
-				(m_core->v__DOT__wbu_zip_delay__DOT__r_stb)?"!":" ",
+				"", // (m_core->v__DOT__wbu_zip_delay__DOT__r_stb)?"!":" ",
 				//
 				m_core->v__DOT__wbu_zip_arbiter__DOT__r_a_owner?'Z':'j',
 				m_core->v__DOT__wbu_stb, // WBU strobe
@@ -223,11 +215,129 @@ public:
 				(m_core->v__DOT__wb_err)?'E':'.');
 
 			/*
+			// CPU Pipeline debugging
+			printf("%s%s%s%s%s%s%s%s%s%s%s",
+				// (m_core->v__DOT__zippy__DOT__dbg_ack)?"A":"-",
+				// (m_core->v__DOT__zippy__DOT__dbg_stall)?"S":"-",
+				// (m_core->v__DOT__zippy__DOT__sys_dbg_cyc)?"D":"-",
+				(m_core->v__DOT__zippy__DOT__cpu_lcl_cyc)?"L":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_halted)?"Z":"-",
+				(m_core->v__DOT__zippy__DOT__cpu_break)?"!":"-",
+				(m_core->v__DOT__zippy__DOT__cmd_halt)?"H":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__gie)?"G":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_cyc)?"P":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_valid)?"V":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_illegal)?"i":" ",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__new_pc)?"N":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_gbl)?"G":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_lcl)?"L":"-");
+			printf("|%s%s%s%s%s%s",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_dcdvalid)?"D":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dcd_ce)?"d":"-",
+				"x", // (m_core->v__DOT__zippy__DOT__thecpu__DOT__dcdA_stall)?"A":"-",
+				"x", // (m_core->v__DOT__zippy__DOT__thecpu__DOT__dcdB_stall)?"B":"-",
+				"x", // (m_core->v__DOT__zippy__DOT__thecpu__DOT__dcdF_stall)?"F":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dcd_illegal)?"i":"-");
+			
+			printf("|%s%s%s%s%s%s%s%s%s%s",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__opvalid)?"O":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__op_ce)?"k":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__op_stall)?"s":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__op_illegal)?"i":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_op_break)?"B":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__genblk5__DOT__r_op_lock)?"L":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_op_pipe)?"P":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_break_pending)?"p":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_op_gie)?"G":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__opvalid_alu)?"A":"-");
+			printf("|%s%s%s%s%s",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__alu_ce)?"a":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__alu_stall)?"s":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__doalu__DOT__genblk2__DOT__r_busy)?"B":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_alu_gie)?"G":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_alu_illegal)?"i":"-");
+			printf("|%s%s%s%2x %s%s%s %2d %2d",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__opvalid_mem)?"M":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__mem_ce)?"m":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__adf_ce_unconditional)?"!":"-",
+				(m_core->v__DOT__zippy__DOT__cmd_addr),
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__bus_err)?"BE":"  ",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ibus_err_flag)?"IB":"  ",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ubus_err_flag)?"UB":"  ",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__rdaddr,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__wraddr);
+			printf("|%s%s",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__div_busy)?"D":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__div_error)?"E":"-");
+			printf("|%s%s[%2x]%08x",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_ce)?"W":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_flags_ce)?"F":"-",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_id,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_gpreg_vl);
+
+			// Program counter debugging
+			printf(" PC0x%08x/%08x/%08x-%08x %s0x%08x", 
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_pc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ipc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__upc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction,
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_early_branch)?"EB":"  ",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_branch_pc
+				);
+			// More in-depth
+			printf("[%c%08x,%c%08x,%c%08x]",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_dcdvalid)?'D':'-',
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dcd_pc,
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__opvalid)?'O':'-',
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__op_pc,
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__alu_valid)?'A':'-',
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_alu_pc);
+			
+			// Prefetch debugging
+			printf(" [PC%08x,LST%08x]->[%d%s%s](%d,%08x/%08x)->%08x@%08x",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_pc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__lastpc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__rvsrc,
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__rvsrc)
+				?((m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_v_from_pc)?"P":" ")
+				:((m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_v_from_pc)?"p":" "),
+				(!m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__rvsrc)
+				?((m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_v_from_last)?"l":" ")
+				:((m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_v_from_last)?"L":" "),
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__isrc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_pc_cache,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf__DOT__r_last_cache,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_pc);
+
+			// Decode Stage debugging
+			// (nothing)
+
+			// Op Stage debugging
+//			printf(" Op(%02x,%02x->%02x)",
+//				m_core->v__DOT__zippy__DOT__thecpu__DOT__dcdOp,
+//				m_core->v__DOT__zippy__DOT__thecpu__DOT__opn,
+//				m_core->v__DOT__zippy__DOT__thecpu__DOT__opR);
+
+			printf(" %s[%02x]=%08x(%08x)",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_ce?"WR":"--",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_id,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_gpreg_vl,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_spreg_vl
+				);
+
+			printf(" DBG%s%s%s[%s/%02x]=%08x/%08x",
+				(m_core->v__DOT__zippy__DOT__dbg_cyc)?"CYC":"   ",
+				(m_core->v__DOT__zippy__DOT__dbg_stb)?"STB":((m_core->v__DOT__zippy__DOT__dbg_ack)?"ACK":"   "),
+				((m_core->v__DOT__zippy__DOT__dbg_cyc)&&(m_core->v__DOT__zippy__DOT__dbg_stb))?((m_core->v__DOT__zippy__DOT__dbg_we)?"-W":"-R"):"  ",
+				(m_core->v__DOT__zippy__DOT__dbg_cyc)?" ":((m_core->v__DOT__zippy__DOT__dbg_addr)?"D":"C"),
+				(m_core->v__DOT__zippy__DOT__cmd_addr),
+				(m_core->v__DOT__zippy__DOT__dbg_idata),
+				m_core->v__DOT__zip_dbg_data);
+
+			printf(" %s,0x%08x", (m_core->i_ram_ack)?"RCK":"   ", m_core->i_ram_rdata);
 			*/
 
-			/*
-			// CPU Pipeline debugging
-			*/
 
 			/*
 			printf(" SDSPI[%d,%d(%d),(%d)]",
@@ -325,7 +435,6 @@ public:
 				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
 			*/
 
-			/*
 			// Flash debugging support
 			printf("%s/%s %s %s[%s%s%s%s%s] %s@%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 				((m_core->v__DOT__wb_stb)&&((m_core->v__DOT__skipaddr>>3)==1))?"D":" ",
@@ -391,8 +500,6 @@ public:
 				(m_core->v__DOT__flashmem__DOT__preproc__DOT__lcl_ack)?" LCLACK":"",
 				(m_core->v__DOT__flashmem__DOT__rdproc__DOT__r_leave_xip)?" LVXIP":"",
 				(m_core->v__DOT__flashmem__DOT__preproc__DOT__new_req)?" NREQ":"");
-
-			*/
 
 
 			printf("\n"); fflush(stdout);
