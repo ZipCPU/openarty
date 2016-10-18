@@ -167,7 +167,7 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 
 bool	FLASHDRVR::verify_config(void) {
 	unsigned cfg = m_fpga->readio(R_QSPI_VCONF);
-	printf("CFG = %02x\n", cfg);
+	// printf("CFG = %02x\n", cfg);
 	return (cfg == VCONF_VALUE);
 }
 
