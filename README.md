@@ -22,10 +22,19 @@ The design builds, as of 20160910, at an 81.25 MHz clock speed.
 - ZipCPU: The ZipCPU should be fully functional at the current clock speed.  I'd like to boost it to twice this speed, but that may remain a longer term project.
 - Flash: the flash controller has now passedd all of the tests given it, both simulated and live.  It can read and write the flash, and so it can place configurations onto the flash as desired.  As built, though, the controller is optimized for a 200MHz clock speed, and a 100MHz bus speed.  It's being run at an 81.25MHz clock speed though (40.625MHz bus speed), so some performance improvement might yet be achieved.
 - SDRAM: I intend to implement work from the DDR3 SDRAM controller for the Arty.  For now, the project builds with a Xilinx Memory Interface Generated (MIG) core, and a pipelind wishbone to AXI translator.
-- NET: The entire network functionality has now been built.  It is waiting for testing and the faults that will be found during said testing.
-- SD: The SDSPI controller has been integrated into the device, yet not tested yet.  I don't expect issues with it, as it is a proven controller.  Work remains to turn this from a SPI controller to an SDIO based driver.
-- OLEDRGB: the driver is built, and has been integrated into the project, but testing hasn't started yet.
+- NET: The entire network functionality has now been built, and preliminary testing suggests that it is fully functional.
+- SD: The SDSPI controller has been integrated into the device, yet not tested yet.  I don't expect issues with it, as it is a proven controller--just not one proven (yet) in this platform.  Work remains to turn this from a SPI controller to an SDIO based driver.
+- OLEDRGB: this driver is built, and has been integrated into the project, but testing hasn't started yet.
 
 So ... it's a work in progress.
 
+# Repository
 
+Due to the ongoing issues with OpenCores, the official OpenArty repository
+is being kept on GitHub, under the ZipCPU username.
+
+# License
+
+Gisselquist Technology, LLC, is pleased to provide you with this entire
+OpenArty project under the GPLv3 license.  If this doesn't work for you,
+please contact me.
