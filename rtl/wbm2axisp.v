@@ -319,11 +319,23 @@ module wbm2axisp #(
 			end
 		end
 
+		//
+		// The debug wires are set up for a 6-bit ID.  In hind sight,
+		// I only ever needed 5-bit ID's.  Hence, let's expand those
+		// five bit ID's for 6-bits so we can still fit nicely into
+		// our 32-bit words.
+		//
+		wire	[5:0]	six_head, six_tail, six_rid, six_bid;
+		assign	six_head = {{(6-LGFIFOLN){1'b0}}, fifo_head };
+		assign	six_tail = {{(6-LGFIFOLN){1'b0}}, fifo_tail };
+		assign	six_rid  = {{(6-LGFIFOLN){1'b0}}, i_axi_rid };
+		assign	six_bid  = {{(6-LGFIFOLN){1'b0}}, i_axi_bid };
+
 		assign o_dbg = { 
 			i_wb_stb, o_wb_stall, o_wb_ack, o_wb_err,
-			fifo_head, fifo_tail, 	// 12 bits
-			{ ((i_axi_rvalid)&&(o_axi_rready)) ? i_axi_rid
-			: ((i_axi_bvalid)&&(o_axi_bready)) ? i_axi_bid
+			six_head, six_tail, 	// 12 bits
+			{ ((i_axi_rvalid)&&(o_axi_rready)) ? six_rid
+			: ((i_axi_bvalid)&&(o_axi_bready)) ? six_bid
 			: 6'hf }, // 6 bits
 			o_axi_arvalid, i_axi_arready,
 			o_axi_awvalid, i_axi_awready,
