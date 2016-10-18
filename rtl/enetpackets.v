@@ -389,11 +389,11 @@ module	enetpackets(i_wb_clk, i_reset,
 
 	reg	[(MAW+2):0]	n_tx_addr;
 	reg	[31:0]		n_tx_data, n_next_tx_data;
+	reg			n_tx_complete;
 `ifdef	TX_SYNCHRONOUSH_WITH_WB
-	reg		n_tx_complete, n_tx_busy,
-			n_tx_config_hw_mac, n_tx_config_hw_crc;
+	reg		n_tx_busy, n_tx_config_hw_mac, n_tx_config_hw_crc;
 `else
-	(* ASYNC_REG = "TRUE" *) reg	n_tx_complete, n_tx_busy,
+	(* ASYNC_REG = "TRUE" *) reg	n_tx_busy,
 					n_tx_config_hw_mac, n_tx_config_hw_crc;
 `endif
 	(* ASYNC_REG = "TRUE" *) reg r_tx_crs;
@@ -624,9 +624,6 @@ module	enetpackets(i_wb_clk, i_reset,
 	initial	n_rx_valid = 1'b0;
 	initial	n_rx_clear = 1'b1;
 	initial	n_rx_miss  = 1'b0;
-	initial	n_rx_valid = 1'b0;
-	initial	n_rx_valid = 1'b0;
-	initial	n_rx_valid = 1'b0;
 	always @(posedge `RXCLK)
 	begin
 		if ((w_rxwr)&&(!n_rx_valid))
@@ -681,7 +678,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	rx_len   = n_rx_len;
 `else
 	reg	r_rx_busy, r_rx_valid;
-	always @(posedge `RXCLK)
+	always @(posedge i_wb_clk)
 	begin
 		r_rx_valid <= n_rx_valid;
 		rx_valid <= r_rx_valid;

@@ -46,7 +46,7 @@ module	rxecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 	input		[3:0]	i_d;
 	output	reg		o_v;
 	output	reg	[3:0]	o_d;
-	output	reg		o_err;
+	output	wire		o_err;
 
 	reg	r_err;
 	reg	[6:0]	r_mq; // Partial CRC matches
@@ -151,5 +151,7 @@ module	rxecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 			o_d <= r_buf[13:10];
 		end
 	end
+
+	assign o_err = r_err;
 
 endmodule
