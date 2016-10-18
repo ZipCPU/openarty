@@ -1191,12 +1191,14 @@ module	busmaster(i_clk, i_rst,
 	assign	sdram_trigger = (ram_sel)&&(wb_stb);
 	assign	sdram_debug= i_ram_dbg;
 
-	wbscope	#(5'd9,32,1) ramscope(i_clk, 1'b1, sdram_trigger, sdram_debug,
-		// Wishbone interface
-		i_clk, wb_cyc, ((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b10)),
-			wb_we, wb_addr[0], wb_data,
+	wbscope #(5'd9,32,1)
+		ramscope(i_clk, 1'b1, sdram_trigger, sdram_debug,
+			// Wishbone interface
+			i_clk, wb_cyc,
+				((wb_stb)&&(scop_sel)&&(wb_addr[2:1]==2'b10)),
+				wb_we, wb_addr[0], wb_data,
 			scop_sdram_ack, scop_sdram_stall, scop_sdram_data,
-		scop_sdram_interrupt);
+			scop_sdram_interrupt);
 
 	assign	scop_c_ack       = scop_sdram_ack;
 	assign	scop_c_stall     = scop_sdram_stall;
