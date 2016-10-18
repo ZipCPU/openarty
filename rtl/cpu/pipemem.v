@@ -52,7 +52,7 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 	input		[4:0]	i_oreg;
 	// CPU outputs
 	output	wire		o_busy;
-	output	reg		o_pipe_stalled;
+	output	wire		o_pipe_stalled;
 	output	reg		o_valid;
 	output	reg		o_err;
 	output	reg	[4:0]	o_wreg;
@@ -164,13 +164,8 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 		// then either.
 		o_result <= i_wb_data;
 
-	/*
 	assign	o_pipe_stalled = (cyc)
 			&&((i_wb_stall)||((~o_wb_stb_lcl)&&(~o_wb_stb_gbl)));
-	*/
-	always @(posedge i_clk)
-		o_pipe_stalled <= (i_pipe_stb)&&(cyc)&&(i_wb_stall);
-	
 
 	generate
 	if (IMPLEMENT_LOCK != 0)
