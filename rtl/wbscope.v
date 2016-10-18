@@ -88,7 +88,8 @@ module wbscope(i_clk, i_ce, i_trigger, i_data,
 	i_wb_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
 	o_wb_ack, o_wb_stall, o_wb_data,
 	o_interrupt);
-	parameter	LGMEM = 5'd10, BUSW = 32, SYNCHRONOUS=1;
+	parameter	LGMEM = 5'd10, BUSW = 32, SYNCHRONOUS=1,
+			DEFAULT_HOLDOFF = ((1<<(LGMEM-1))-4);
 	// The input signals that we wish to record
 	input				i_clk, i_ce, i_trigger;
 	input		[(BUSW-1):0]	i_data;
@@ -111,7 +112,7 @@ module wbscope(i_clk, i_ce, i_trigger, i_data,
 			bw_disable_trigger, bw_reset_complete;
 	reg	[22:0]	br_config;
 	wire	[19:0]	bw_holdoff;
-	initial	br_config = ((1<<(LGMEM-1))-4);
+	initial	br_config = DEFAULT_HOLDOFF;
 	always @(posedge i_wb_clk)
 		if ((i_wb_cyc)&&(i_wb_stb)&&(~i_wb_addr))
 		begin
