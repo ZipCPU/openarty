@@ -47,7 +47,7 @@ _top_of_stack = ORIGIN(blkram) + LENGTH(blkram) - 1;
 
 SECTIONS
 {
-	.rocode 0x480000 : {
+	.rocode 0x4e0000 : {
 		_boot_address = .;
 		*(.start) *(.boot)
 		} > flash
