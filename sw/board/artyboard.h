@@ -66,6 +66,10 @@
 typedef	struct	{
 	volatile unsigned	s_ctrl, s_data;
 } SCOPE;
+#define	SCOPE_NO_RESET	0x80000000
+#define	SCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
+#define	SCOPE_MANUAL	SCOPE_TRIGGER
+#define	SCOPE_DISABLE	0x04000000
 
 typedef	struct	{
 	volatile unsigned	sd_ctrl, sd_data, sd_fifo[2];
@@ -135,6 +139,7 @@ typedef	struct	{
 	volatile unsigned	io_gpio;
 	volatile unsigned	io_uart_rx, io_uart_tx;
 	volatile unsigned	io_gps_rx, io_gps_tx;
+	unsigned		io_reserved[32-18];
 	SCOPE			io_scope[4];
 	RTC			io_rtc;
 	SDCARD			io_sd;
