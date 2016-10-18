@@ -113,14 +113,22 @@ void	MEMSIM::apply(const unsigned char wb_cyc,
 			m_mem[wb_addr & m_mask] = wb_data;
 		m_fifo_ack[m_head] = 1;
 		m_fifo_data[m_head] = m_mem[wb_addr & m_mask];
+#ifdef	DEBUG
+		printf("MEMBUS %s[%08x] = %08x\n",
+			(wb_we)?"W":"R",
+			wb_addr&m_mask,
+			m_mem[wb_addr&m_mask]);
+#endif
 		// o_ack  = 1;
-
-		/*
-		printf("MEMBUS -- ACK %s 0x%08x - 0x%08x\n",
-			(wb_we)?"WRITE":"READ",
-			wb_addr, o_data);
-		*/
 	}
+
+#ifdef	DEBUG
+	if (o_ack) {
+		printf("MEMBUS -- ACK %s 0x%08x - 0x%08x\n",
+			(wb_we)?"WRITE":"READ ",
+			wb_addr, o_data);
+	}
+#endif
 }
 
 
