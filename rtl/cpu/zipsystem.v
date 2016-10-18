@@ -558,7 +558,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		ctri_sel, ctri_stall;
 	reg		ctri_ack;
 	wire	[31:0]	ctri_data;
-	assign	ctri_sel = (sys_cyc)&&(sys_stb)&&(sys_addr == `CTRINT);
+	assign	ctri_sel = (sys_stb)&&(sys_addr == `CTRINT);
 	always @(posedge i_clk)
 		ctri_ack <= ctri_sel;
 	assign	ctri_stall = 1'b0;
@@ -662,7 +662,7 @@ module	zipsystem(i_clk, i_rst,
 	assign	pic_stall = 1'b0;
 	reg	pic_ack;
 	always @(posedge i_clk)
-		pic_ack <= (sys_cyc)&&(sys_stb)&&(sys_addr == `INTCTRL);
+		pic_ack <= (sys_stb)&&(sys_addr == `INTCTRL);
 
 	//
 	// The CPU itself
@@ -812,7 +812,7 @@ module	zipsystem(i_clk, i_rst,
 
 	assign	sys_stall = (tma_stall | tmb_stall | tmc_stall | jif_stall
 				| wdt_stall | ctri_stall | actr_stall 
-				| pic_stall | dmac_stall);
+				| pic_stall | dmac_stall); // Always 1'b0!
 	assign	cpu_stall = (sys_stall)|(cpu_ext_stall);
 	assign	sys_ack = (tmr_ack|wdt_ack|ctri_ack|actr_ack|pic_ack|dmac_ack|wdbus_ack);
 	assign	cpu_ack = (sys_ack)||(cpu_ext_ack);

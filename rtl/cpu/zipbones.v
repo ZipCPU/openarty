@@ -179,7 +179,7 @@ module	zipbones(i_clk, i_rst,
 				cpu_lcl_cyc, cpu_lcl_stb,
 				o_wb_we, o_wb_addr, o_wb_data,
 				i_wb_ack, i_wb_stall, i_wb_data,
-				(i_wb_err)||((cpu_lcl_cyc)&&(cpu_lcl_stb)),
+				(i_wb_err)||(cpu_lcl_cyc),
 			cpu_op_stall, cpu_pf_stall, cpu_i_count
 `ifdef	DEBUG_SCOPE
 			, o_zip_debug
@@ -208,7 +208,7 @@ module	zipbones(i_clk, i_rst,
 	initial o_dbg_ack = 1'b0;
 	always @(posedge i_clk)
 		o_dbg_ack <= (i_dbg_cyc)&&((~i_dbg_addr)||(~o_dbg_stall));
-	assign	o_dbg_stall=(i_dbg_cyc)&&(cpu_dbg_stall)&&(i_dbg_addr);
+	assign	o_dbg_stall= 1'b0; //(i_dbg_cyc)&&(cpu_dbg_stall)&&(i_dbg_addr);
 
 	assign	o_ext_int = (cmd_halt) && (~i_wb_stall);
 
