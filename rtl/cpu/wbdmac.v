@@ -189,7 +189,7 @@ module wbdmac(i_clk, i_rst,
 		// When the slave wishbone writes, and we are in this 
 		// (ready) configuration, then allow the DMA to be controlled
 		// and thus to start.
-		if ((i_swb_cyc)&&(i_swb_stb)&&(i_swb_we))
+		if ((i_swb_stb)&&(i_swb_we))
 		begin
 			case(i_swb_addr)
 			2'b00: begin
@@ -340,8 +340,7 @@ module wbdmac(i_clk, i_rst,
 	always @(posedge i_clk)
 		if (dma_state == `DMA_IDLE)
 		begin
-			if ((i_swb_cyc)&&(i_swb_stb)&&(i_swb_we)
-					&&(i_swb_addr==2'b00))
+			if ((i_swb_stb)&&(i_swb_we)&&(i_swb_addr==2'b00))
 				cfg_err <= 1'b0;
 		end else if (((i_mwb_err)&&(o_mwb_cyc))||(abort))
 			cfg_err <= 1'b1;
@@ -366,7 +365,7 @@ module wbdmac(i_clk, i_rst,
 	always @(posedge i_clk)
 		if ((dma_state == `DMA_READ_REQ)||(dma_state == `DMA_READ_ACK))
 		begin
-			if (i_mwb_ack)
+			if ((i_mwb_ack)&&((~o_mwb_stb)||(i_mwb_stall)))
 				last_read_ack <= (nread+2 == nracks);
 			else
 				last_read_ack <= (nread+1 == nracks);
@@ -390,7 +389,7 @@ module wbdmac(i_clk, i_rst,
 	always @(posedge i_clk)
 		if((dma_state == `DMA_WRITE_REQ)||(dma_state == `DMA_WRITE_ACK))
 		begin
-			if (i_mwb_ack)
+			if ((i_mwb_ack)&&((~o_mwb_stb)||(i_mwb_stall)))
 				last_write_ack <= (nwacks+2 == nwritten);
 			else
 				last_write_ack <= (nwacks+1 == nwritten);
@@ -457,13 +456,13 @@ module wbdmac(i_clk, i_rst,
 	// but ack it anyway.  In other words, before writing to the device,
 	// double check that it isn't busy, and then write.
 	always @(posedge i_clk)
-		o_swb_ack <= (i_swb_cyc)&&(i_swb_stb);
+		o_swb_ack <= (i_swb_stb);
 
 	assign	o_swb_stall = 1'b0;
 
 	initial	abort = 1'b0;
 	always @(posedge i_clk)
-		abort <= (i_rst)||((i_swb_cyc)&&(i_swb_stb)&&(i_swb_we)
+		abort <= (i_rst)||((i_swb_stb)&&(i_swb_we)
 			&&(i_swb_addr == 2'b00)
 			&&(i_swb_data == 32'hffed0000));
 
