@@ -206,8 +206,9 @@ Tbl.~\ref{tbl:memregions}.
 \scalebox{0.9}{\tt 0000 0000 0000 0000 11xx xxxx xxxx} & \scalebox{0.9}{\tt 0x00000c00} & \hfill 1k & Ethernet TX Buffer\\\hline
 \scalebox{0.9}{\tt 0000 0000 0000 1xxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00008000} & \hfill 32k & On-chip Block RAM\\\hline
 \scalebox{0.9}{\tt 0000 01xx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00400000} & \hfill 4M & QuadSPI Flash\\\hline
-\scalebox{0.9}{\tt 0100 0000 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x0400000} & & Configuration Start\\\hline
-\scalebox{0.9}{\tt 0100 1000 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x0480000} & & CPU Reset Address\\\hline
+\scalebox{0.9}{\tt 0000 0100 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x00400000} & & Configuration Start\\\hline
+\scalebox{0.9}{\tt 0000 0100 0111 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x00470000} & & Alternate Configuration\\\hline
+\scalebox{0.9}{\tt 0000 0100 1110 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x004e0000} & & CPU Reset Address\\\hline
 \scalebox{0.9}{\tt 01xx xxxx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x04000000} & \hfill 64M & DDR3 SDRAM\\\hline
 \scalebox{0.9}{\tt 1000 0000 0000 0000 0000 0000 000x} & \scalebox{0.9}{\tt 0x08000000} & \hfill 2 & ZipCPU debug control port---only visible to debug WB master\\\hline
 \end{tabular}
