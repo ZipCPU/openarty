@@ -69,8 +69,8 @@
 // illegal instructions are quietly ignored and their behaviour is ...
 // undefined. (Many get treated like NOOPs ...)
 //
-// I recommend setting this flag, although it can be taken out if area is
-// critical ...
+// I recommend setting this flag so highly, that I'm likely going to remove
+// the option to turn this off in future versions of this CPU.
 //
 `define	OPT_ILLEGAL_INSTRUCTION
 //
@@ -97,7 +97,7 @@
 // mode.
 //
 //
-// `define	OPT_DIVIDE
+`define	OPT_DIVIDE
 //
 //
 //
@@ -273,6 +273,6 @@
 `define	INCLUDE_ACCOUNTING_COUNTERS
 //
 //
-// `define	DEBUG_SCOPE
+`define	DEBUG_SCOPE
 //
 `endif	// CPUDEFS_H
