@@ -159,8 +159,14 @@ public:
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
-		// if (m_core->o_net_tx_en)
-		//	writeout = true;
+		if (m_core->o_net_tx_en)
+			writeout = true;
+		if (m_core->v__DOT__netctrl__DOT__n_rx_busy)
+			writeout = true;
+		if (m_core->v__DOT__netctrl__DOT__r_txd_en)
+			writeout = true;
+		if (m_core->v__DOT__netctrl__DOT__w_rxwr)
+			writeout = true;
 
 		// if (m_core->v__DOT__wbu_cyc)
 			// writeout = true;
@@ -391,6 +397,7 @@ public:
 			*/
 
 			/*
+			// Network debugging
 			printf("ETH[TX:%s%s%x%s]",
 				(m_core->i_net_tx_clk)?"CK":"  ",
 				(m_core->o_net_tx_en)?" ":"(",
@@ -408,17 +415,15 @@ public:
 				(m_core->i_net_dv)?" ":"(",
 				m_core->i_net_rxd,
 				(m_core->i_net_dv)?" ":")");
-			printf("%s%s",
+			printf("%s%s%s",
 				(m_core->v__DOT__netctrl__DOT__n_rx_valid)?"V":" ",
-				(m_core->v__DOT__netctrl__DOT__n_rx_clear)?"C":" ");
-			printf("/%s%s(%04x,%s%08x@%04x)%08x",
+				(m_core->v__DOT__netctrl__DOT__n_rx_clear)?"C":" ",
+				(m_core->v__DOT__netctrl__DOT__n_rx_net_err)?"E":" ");
+			printf("/%s(%04x,%s%08x)",
 				(m_core->v__DOT__netctrl__DOT__n_rx_busy)?"BSY":"   ",
-				(m_core->v__DOT__netctrl__DOT__n_rx_inpacket)?"IN":"  ",
-				m_core->v__DOT__netctrl__DOT__n_rx_addr,
-				(m_core->v__DOT__netctrl__DOT__n_rx_wr)?"W":" ",
-				m_core->v__DOT__netctrl__DOT__n_rx_wdat,
-				m_core->v__DOT__netctrl__DOT__n_rx_wad,
-				m_core->v__DOT__netctrl__DOT__n_rx_toggle);
+				m_core->v__DOT__netctrl__DOT__w_rxaddr,
+				(m_core->v__DOT__netctrl__DOT__w_rxwr)?"W":" ",
+				m_core->v__DOT__netctrl__DOT__w_rxdata);
 
 			printf(" TXMAC %x%s -> %2x -> %x%s",
 				m_core->v__DOT__netctrl__DOT__r_txd,
@@ -426,15 +431,43 @@ public:
 				(m_core->v__DOT__netctrl__DOT__txmaci__DOT__r_pos),
 				m_core->v__DOT__netctrl__DOT__w_macd,
 				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
-			printf(" TXCRC %x%s ->%2x/0x%08x -> %x%s",
-				m_core->v__DOT__netctrl__DOT__w_macd,
-				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ",
+			printf(" TXCRC %x%s ->%2x/0x%08x-> %x%s",
+				m_core->v__DOT__netctrl__DOT__w_padd,
+				(m_core->v__DOT__netctrl__DOT__w_paden)?"!":" ",
 				m_core->v__DOT__netctrl__DOT__txcrci__DOT__r_p,
 				m_core->v__DOT__netctrl__DOT__txcrci__DOT__r_crc,
-				m_core->v__DOT__netctrl__DOT__w_macd,
-				(m_core->v__DOT__netctrl__DOT__w_macen)?"!":" ");
+				m_core->v__DOT__netctrl__DOT__w_txcrcd,
+				(m_core->v__DOT__netctrl__DOT__w_txcrcen)?"!":" ");
+
+			printf(" RXCRC %x%s -> 0x%08x/%2x/%2x/%s -> %x%s",
+				m_core->v__DOT__netctrl__DOT__w_npred,
+				(m_core->v__DOT__netctrl__DOT__w_npre)?"!":" ",
+				m_core->v__DOT__netctrl__DOT__rxcrci__DOT__r_crc,
+				(m_core->v__DOT__netctrl__DOT__rxcrci__DOT__r_mq),
+				(m_core->v__DOT__netctrl__DOT__rxcrci__DOT__r_mp),
+				(m_core->v__DOT__netctrl__DOT__rxcrci__DOT__r_err)?"E":" ",
+				m_core->v__DOT__netctrl__DOT__w_rxcrcd,
+				(m_core->v__DOT__netctrl__DOT__w_rxcrc)?"!":" ");
+
+			printf(" RXIP %x%s ->%4x%s->%4x/%2d/%2d/%s",
+				m_core->v__DOT__netctrl__DOT__w_rxcrcd,
+				(m_core->v__DOT__netctrl__DOT__w_rxcrc)?"!":" ",
+				(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_word)&0x0ffff,
+				(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_v)?"!":" ",
+				(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_check)&0x0ffff,
+				(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_idx),
+				(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_hlen),
+				(m_core->v__DOT__netctrl__DOT__w_iperr)?"E"
+				:(m_core->v__DOT__netctrl__DOT__rxipci__DOT__r_ip)?" ":"z");
+			printf(" RXMAC %x%s ->%2x-> %x%s",
+				m_core->v__DOT__netctrl__DOT__w_rxcrcd,
+				(m_core->v__DOT__netctrl__DOT__w_rxcrc)?"!":" ",
+				(m_core->v__DOT__netctrl__DOT__rxmaci__DOT__r_p)&0x0ff,
+				m_core->v__DOT__netctrl__DOT__w_rxmacd,
+				(m_core->v__DOT__netctrl__DOT__w_rxmac)?"!":" ");
 			*/
 
+			/*
 			// Flash debugging support
 			printf("%s/%s %s %s[%s%s%s%s%s] %s@%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 				((m_core->v__DOT__wb_stb)&&((m_core->v__DOT__skipaddr>>3)==1))?"D":" ",
@@ -500,6 +533,7 @@ public:
 				(m_core->v__DOT__flashmem__DOT__preproc__DOT__lcl_ack)?" LCLACK":"",
 				(m_core->v__DOT__flashmem__DOT__rdproc__DOT__r_leave_xip)?" LVXIP":"",
 				(m_core->v__DOT__flashmem__DOT__preproc__DOT__new_req)?" NREQ":"");
+			*/
 
 
 			printf("\n"); fflush(stdout);
