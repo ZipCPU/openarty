@@ -99,7 +99,7 @@ typedef	struct	{
 #define	ENET_RXBUSY	0x008000
 #define	ENET_RXERR	0x010000
 #define	ENET_RXMISS	0x020000
-#define	ENET_RXCRC	0x040000
+#define	ENET_RXCRC	0x040000	// Set on a CRC error
 #define	ENET_RXLEN	rxcmd & 0x0ffff
 #define	ENET_RXCLR	0x004000
 #define	ENET_RXCLRERR	0x078000

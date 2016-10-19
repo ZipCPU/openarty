@@ -5,7 +5,8 @@
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	To detect any CRC errors in the packet as received.  The CRC
-//		is not stripped as part of this process.
+//		is not stripped as part of this process.  However, any bytes
+//	following the CRC, up to four, will be stripped from the output.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -67,7 +68,7 @@ module	rxecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 	assign	lownibble = r_crc[3:0] ^ i_d;
 
 	wire	[31:0]	shifted_crc;
-	assign	shifted_crc = { 4'h0, r_crc[27:0] };
+	assign	shifted_crc = { 4'h0, r_crc[31:4] };
 	always @(posedge i_clk)
 	if (i_ce)
 	begin
@@ -81,7 +82,7 @@ module	rxecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 		r_crc_q6 <= r_crc_q5[ 7:4];
 
 		r_buf <= { r_buf[9:0], i_v, i_d };
-		if (((!i_ce)&&(!o_v))||(i_cancel))
+		if (((!i_v)&&(!o_v))||(i_cancel))
 		begin
 			r_crc <= 32'hffff_ffff;
 			r_err <= 1'b0;
@@ -115,17 +116,17 @@ module	rxecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 			4'hf: r_crc <= shifted_crc ^ `CRCBIT8 ^ `CRCBIT4 ^ `CRCBIT2 ^ `CRCBIT1;
 			endcase
 
-			r_mq[0] <=          (i_v)&&(i_d == r_crc[3:0]);
-			r_mq[1] <= (r_mq[0])&&(i_v)&&(i_d == r_crc_q0[3:0]);
-			r_mq[2] <= (r_mq[1])&&(i_v)&&(i_d == r_crc_q1[3:0]);
-			r_mq[3] <= (r_mq[2])&&(i_v)&&(i_d == r_crc_q2[3:0]);
-			r_mq[4] <= (r_mq[3])&&(i_v)&&(i_d == r_crc_q3[3:0]);
-			r_mq[5] <= (r_mq[4])&&(i_v)&&(i_d == r_crc_q4[3:0]);
-			r_mq[6] <= (r_mq[5])&&(i_v)&&(i_d == r_crc_q5[3:0]);
+			r_mq[0] <=            (i_v)&&(i_d == (~r_crc[3:0]));
+			r_mq[1] <= (r_mq[0])&&(i_v)&&(i_d == (~r_crc_q0[3:0]));
+			r_mq[2] <= (r_mq[1])&&(i_v)&&(i_d == (~r_crc_q1[3:0]));
+			r_mq[3] <= (r_mq[2])&&(i_v)&&(i_d == (~r_crc_q2[3:0]));
+			r_mq[4] <= (r_mq[3])&&(i_v)&&(i_d == (~r_crc_q3[3:0]));
+			r_mq[5] <= (r_mq[4])&&(i_v)&&(i_d == (~r_crc_q4[3:0]));
+			r_mq[6] <= (r_mq[5])&&(i_v)&&(i_d == (~r_crc_q5[3:0]));
 			//r_mq7<=(r_mq6)&&(i_v)&&(i_d == r_crc_q6[3:0]);
 
 			r_mp <= { r_mp[2:0], 
-				(r_mq[6])&&(i_v)&&(i_d == r_crc_q6[3:0]) };
+				(r_mq[6])&&(i_v)&&(i_d == (~r_crc_q6[3:0])) };
 
 			// Now, we have an error if ...
 			// On the first empty, none of the prior N matches

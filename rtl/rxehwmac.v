@@ -49,6 +49,21 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 	output	wire		o_err;
 	output	reg		o_broadcast;
 
+	wire	[47:0]	mac_remapped;
+
+	assign	mac_remapped[47:44] = i_hwmac[43:40];
+	assign	mac_remapped[43:40] = i_hwmac[47:44];
+	assign	mac_remapped[39:36] = i_hwmac[35:32];
+	assign	mac_remapped[35:32] = i_hwmac[39:36];
+	assign	mac_remapped[31:28] = i_hwmac[27:24];
+	assign	mac_remapped[27:24] = i_hwmac[31:28];
+	assign	mac_remapped[23:20] = i_hwmac[19:16];
+	assign	mac_remapped[19:16] = i_hwmac[23:20];
+	assign	mac_remapped[15:12] = i_hwmac[11: 8];
+	assign	mac_remapped[11: 8] = i_hwmac[15:12];
+	assign	mac_remapped[ 7: 4] = i_hwmac[ 3: 0];
+	assign	mac_remapped[ 3: 0] = i_hwmac[ 7: 4];
+
 	reg	[47:0]	r_hwmac;
 	reg		r_cancel, r_err, r_hwmatch, r_broadcast;
 	reg	[19:0]	r_buf;
@@ -70,6 +85,9 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 				r_broadcast<= 1'b0;
 		end
 
+		if ((i_v)&&(r_p[11]))
+			r_hwmac <= { r_hwmac[43:0], 4'h0 };
+
 		r_err <= (i_en)&&(!r_hwmatch)&&(!r_broadcast)&&(i_v);
 		o_broadcast <= (r_broadcast)&&(!r_p[11])&&(i_v);
 
@@ -77,7 +95,7 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 		if (((!i_v)&&(!o_v))||(i_cancel))
 		begin
 			r_p <= 30'h3fff_ffff;
-			r_hwmac <= i_hwmac;
+			r_hwmac <= mac_remapped;
 			r_hwmatch   <= 1'b1;
 			r_broadcast <= 1'b1;
 			r_buf[ 4] <= 1'b0;

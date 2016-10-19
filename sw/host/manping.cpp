@@ -387,7 +387,11 @@ int main(int argc, char **argv) {
 		m_fpga->writei(R_NET_TXBUF, ln, packet);
 
 		// And give it the transmit command.
-		m_fpga->writeio(R_NET_TXCMD, TXGO|(ln<<2)|((config_hw_crc)?0:NOHWCRC));
+		{ unsigned cmd;
+		cmd = TXGO|(ln<<2)|((config_hw_crc)?0:NOHWCRC);
+		m_fpga->writeio(R_NET_TXCMD, cmd);
+		printf("Sent TX command: 0x%x\n", cmd);
+		}
 
 	} else {
 		int	ln;
@@ -424,10 +428,10 @@ int main(int argc, char **argv) {
 			for(int i=0; i<rxlen; i++)
 				printf("\tRX[%2d]: 0x%08x\n", i, buf[i]);
 			delete[] buf;
-			m_fpga->writeio(R_NET_RXCMD, 0xffffff);
+			// m_fpga->writeio(R_NET_RXCMD, 0xffffff);
 			break;
 		}
-	} while(((rxstat & 0x04000)==0)&&(errcount++ < 50));
+	} while(((rxstat & 0x04000)==0)&&(errcount++ < 500));
 
 	rxstat = m_fpga->readio(R_NET_RXCMD);
 	printf("Final Rx Status = %08x\n", rxstat);

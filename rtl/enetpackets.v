@@ -211,7 +211,7 @@ module	enetpackets(i_wb_clk, i_reset,
 `else
 	reg	tx_busy, tx_complete;
 `endif
-	reg	config_hw_crc, config_hw_mac;
+	reg	config_hw_crc, config_hw_mac, config_hw_ip_check;
 	reg	rx_crcerr, rx_err, rx_miss, rx_clear;
 `ifdef	RX_SYNCHRONOUS_WITH_WB_CLK
 	wire	rx_valid, rx_busy;
@@ -229,6 +229,7 @@ module	enetpackets(i_wb_clk, i_reset,
 
 	initial	config_hw_crc = 0;
 	initial	config_hw_mac = 0;
+	initial	config_hw_ip_check = 0;
 	initial	o_net_reset_n = 1'b0;
 	initial	tx_cmd    = 1'b0;
 	initial	tx_cancel = 1'b0;
@@ -274,6 +275,7 @@ module	enetpackets(i_wb_clk, i_reset,
 		begin // TX command register
 
 			// Reset bit must be held down to be valid
+			config_hw_ip_check <= (!wr_data[18]);
 			o_net_reset_n <= (!wr_data[17]);
 			config_hw_mac <= (!wr_data[16]);
 			config_hw_crc <= (!wr_data[15]);
@@ -305,7 +307,8 @@ module	enetpackets(i_wb_clk, i_reset,
 			rx_miss, rx_busy, (rx_valid)&&(!rx_clear),
 			{(14-MAW-2){1'b0}}, rx_len };
 
-	assign	w_tx_ctrl = { 4'h0, w_maw, {(24-18){1'b0}}, 
+	assign	w_tx_ctrl = { 4'h0, w_maw, {(24-19){1'b0}}, 
+			!config_hw_ip_check,
 			!o_net_reset_n,!config_hw_mac,
 			!config_hw_crc, tx_busy,
 				{(14-MAW-2){1'b0}}, tx_len };
@@ -545,10 +548,11 @@ module	enetpackets(i_wb_clk, i_reset,
 
 `ifdef	RX_SYNCHRONOUS_WITH_WB_CLK
 	wire	n_rx_clear;
-	reg	n_rx_config_hw_mac, n_rx_config_hw_crc;
+	reg	n_rx_config_hw_mac, n_rx_config_hw_crc, n_rx_config_ip_check;
 	assign	n_rx_clear = rx_clear;
 `else
-	(* ASYNC_REG = "TRUE" *) reg n_rx_config_hw_mac, n_rx_config_hw_crc;
+	(* ASYNC_REG = "TRUE" *) reg n_rx_config_hw_mac, n_rx_config_hw_crc,
+			n_rx_config_ip_check;
 	(* ASYNC_REG = "TRUE" *) reg r_rx_clear;
 	reg	n_rx_clear;
 	always @(posedge `RXCLK)
@@ -560,8 +564,8 @@ module	enetpackets(i_wb_clk, i_reset,
 
 
 	reg		n_rx_net_err;
-	wire		w_npre,  w_rxmin,  w_rxcrc,  w_rxmac,  w_rxip;
-	wire	[3:0]	w_npred, w_rxmind, w_rxcrcd, w_rxmacd, w_rxipd;
+	wire		w_npre,  w_rxmin,  w_rxcrc,  w_rxmac;
+	wire	[3:0]	w_npred, w_rxmind, w_rxcrcd, w_rxmacd;
 	wire		w_minerr, w_rxcrcerr, w_macerr, w_broadcast, w_iperr;
 `ifndef	RX_BYPASS_HW_PREAMBLE
 	rxepreambl rxprei(`RXCLK, rx_clk_stb, 1'b1, (n_rx_net_err),
@@ -571,15 +575,15 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	w_npred = i_net_rxerr; 
 `endif
 
-`ifdef	RX_HW_MINLENGTH
+`ifdef	RX_BYPASS_HW_MINLENGTH
 	// Insist on a minimum of 64-byte packets
-	rxeminlen	rxmini(`RXCLK, rx_clk_stb, 1'b1, (n_rx_net_err),
-			w_npre, w_npred, w_rxmin, w_rxmind, w_minerr);
+	rxemin	rxmini(`RXCLK, rx_clk_stb, 1'b1, (n_rx_net_err),
+			w_npre, w_npred, w_minerr);
 `else
-	assign	w_rxmin = w_npre;
-	assign	w_rxmind= w_npred;
 	assign	w_minerr= 1'b0;
 `endif
+	assign	w_rxmin = w_npre;
+	assign	w_rxmind= w_npred;
 
 `ifndef	RX_BYPASS_HW_CRC
 	rxecrc	rxcrci(`RXCLK, rx_clk_stb, n_rx_config_hw_crc, (n_rx_net_err),
@@ -600,12 +604,13 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	w_rxmacd = w_rxcrcd;
 `endif
 
+`define	RX_HW_IPCHECK
 `ifdef	RX_HW_IPCHECK
 	// Check: if this packet is an IP packet, is the IP header checksum
 	// valid?
+	rxeipchk rxipci(`RXCLK, rx_clk_stb, n_rx_config_ip_check,(n_rx_net_err),
+			w_rxcrc, w_rxcrcd, w_iperr);
 `else
-	assign	w_rxip  = w_rxmac;
-	assign	w_rxipd = w_rxmacd;
 	assign	w_iperr = 1'b0;
 `endif
 
@@ -614,7 +619,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	wire	[31:0]		w_rxdata;
 	wire	[(MAW+1):0]	w_rxlen;
 
-	rxewrite #(MAW) rxememi(`RXCLK, 1'b1, (n_rx_net_err), w_rxip, w_rxipd,
+	rxewrite #(MAW) rxememi(`RXCLK, 1'b1, (n_rx_net_err), w_rxmac, w_rxmacd,
 			w_rxwr, w_rxaddr, w_rxdata, w_rxlen);
 
 	reg	last_rxwr, n_rx_valid, n_rxmiss, n_eop, n_rx_busy, n_rx_crcerr,
@@ -633,6 +638,7 @@ module	enetpackets(i_wb_clk, i_reset,
 		// and stays true as long as valid data is coming in
 		n_rx_net_err <= (i_net_dv)&&((i_net_rxerr)||(i_net_col)
 				||(w_minerr)||(w_macerr)||(w_rxcrcerr)
+				||(w_iperr)
 				||(n_rx_net_err)
 				||((w_rxwr)&&(n_rx_valid)));
 
@@ -640,7 +646,7 @@ module	enetpackets(i_wb_clk, i_reset,
 		n_eop <= (!w_rxwr)&&(last_rxwr)&&(!n_rx_net_err);
 
 		n_rx_busy <= (!n_rx_net_err)&&((i_net_dv)||(w_npre)||(w_rxmin)
-			||(w_rxcrc)||(w_rxmac)||(w_rxip)||(w_rxwr));
+			||(w_rxcrc)||(w_rxmac)||(w_rxwr));
 
 		// Oops ... we missed a packet
 		n_rx_miss <= (n_rx_valid)&&(w_rxwr)||
@@ -667,8 +673,9 @@ module	enetpackets(i_wb_clk, i_reset,
 
 		if ((!i_net_dv)||(n_rx_clear))
 		begin
-			n_rx_config_hw_mac <= config_hw_mac;
-			n_rx_config_hw_crc <= config_hw_crc;
+			n_rx_config_hw_mac   <= config_hw_mac;
+			n_rx_config_hw_crc   <= config_hw_crc;
+			n_rx_config_ip_check <= config_hw_ip_check;
 		end
 	end
 
