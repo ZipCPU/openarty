@@ -416,7 +416,7 @@ module	fastio(i_clk,
 		end
 	always @(posedge i_clk)
 		if(((i_wb_stb)&&(~i_wb_we)&&(i_wb_addr == 5'h10))||(gpsrx_stb))
-			r_gpsrx_data[8] <= gpsrx_stb;
+			r_gpsrx_data[8] <= !gpsrx_stb;
 	assign	gpsrx_data = { 20'h00, r_gpsrx_data };
 	assign	gpsrx_int = r_gpsrx_data[8];
 
