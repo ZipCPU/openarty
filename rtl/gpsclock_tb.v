@@ -66,6 +66,8 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	//
 	//
 	//
+	initial	r_jump = 0; 
+	initial	r_maxcount = 32'd81200000; 
 	always @(posedge i_clk)
 		if ((i_wb_cyc_stb)&&(i_wb_we))
 		begin
