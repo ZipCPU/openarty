@@ -37,7 +37,7 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg
+PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg gps
 SCOPES := eqspiscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES)
 CXX := g++
@@ -58,6 +58,10 @@ ZIPD := ../../../../../zipcpu/trunk/sw/zasm
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) -g -c $< -o $@
 
+.PHONY: gps
+gps: $(BUSOBJS) $(OBJDIR)/scopecls.o
+	@bash -c "if [[ -e gps/Makefile ]]; then cd gps; make --no-print-directory; fi"
+
 $(OBJDIR)/hsnetuart.o: netuart.cpp
 	$(CXX) -g -c -DHIGH_SPEED $< -o $@
 
@@ -73,6 +77,9 @@ netuart: $(OBJDIR)/netuart.o
 	$(CXX) -g $^ -o $@
 hsnetuart: $(OBJDIR)/hsnetuart.o
 	$(CXX) -g $^ -o $@
+#
+# Some simple programs that just depend upon the ability to talk to the FPGA,
+# and little more. 
 wbsettime: $(OBJDIR)/wbsettime.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 mtest: $(OBJDIR)/mtest.o $(BUSOBJS)
@@ -87,10 +94,10 @@ netsetup: $(OBJDIR)/netsetup.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
-eqspiscope: $(OBJDIR)/eqspiscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
-sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+
+#
+# Programs that depend upon not just the bus objects, but the flash driver
+# as well.
 wbprogram: $(OBJDIR)/wbprogram.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
@@ -98,6 +105,12 @@ zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
 
 
 ## SCOPES
+# These depend upon the scopecls.o, the bus objects, as well as their
+# main file(s).
+eqspiscope: $(OBJDIR)/eqspiscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
 cfgscope: $(OBJDIR)/cfgscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 cpuscope: $(OBJDIR)/cpuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
@@ -111,6 +124,11 @@ mdioscope: $(OBJDIR)/mdioscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 wbuscope: $(OBJDIR)/wbuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 
+#
+# The ZipDebugger is a bit more difficult to build, as it wants to be able
+# to disassemble opcodes given to it.  Hence, it depends upon the zparser.cpp,
+# zopcodes.cpp, and twoc.cpp files from the ZipCPU build directory.
+#
 DBGRAW  := zparser.cpp zopcodes.cpp twoc.cpp
 DBGSRCS := $(addprefix $(ZIPD)/,$(DBGRAW))
 DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGRAW)))

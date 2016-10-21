@@ -67,13 +67,14 @@ const char *regstr[] = {
 class	CPUSCOPE : public SCOPE {
 public:
 	CPUSCOPE(FPGA *fpga, unsigned addr, bool vecread)
-		: SCOPE(fpga, addr, false, false) {};
+		: SCOPE(fpga, addr, false, vecread) {};
 	~CPUSCOPE(void) {}
 	virtual	void	decode(DEVBUS::BUSW val) const {
 		if (val & 0x80000000)
 			printf("TRIG ");
 		else
 			printf("     ");
+		if (true) {
 		if ((val & 0x40000000)==0) {
 			printf("%s <- 0x.%08x", regstr[(val>>32-6)&0xf], val&0x03ffffff);
 		} else if ((val & 0x60000000)==0x60000000) {
@@ -144,6 +145,65 @@ public:
 			if (memwe)  printf(" MEM-WE");
 			if (membsy) printf(" MEM-BUSY");
 			//
+		}}
+
+		if (false) {
+			// CPU internal bus_debug
+			int	mce, mwe, mbsy, mpip,
+				gcyc, gstb, lcyc, lstb, we, ack, stall, err,
+				pcyc, pstb, pack, pstall, perr,
+				mcycg, mstbg, mcycl, mstbl, mack, mstall, merr;
+
+			mce    = (val>>24)&1;
+			//
+			mbsy   = (val>>22)&1;
+			mpip   = (val>>21)&1;
+			gcyc   = (val>>20)&1;
+			gstb   = (val>>19)&1;
+			lcyc   = (val>>18)&1;
+			lstb   = (val>>17)&1;
+			we     = (val>>16)&1;
+			ack    = (val>>15)&1;
+			stall  = (val>>14)&1;
+			err    = (val>>13)&1;
+			pcyc   = (val>>12)&1;
+			pstb   = (val>>11)&1;
+			pack   = (val>>10)&1;
+			pstall = (val>> 9)&1;
+			perr   = (val>> 8)&1;
+			mcycg  = (val>> 7)&1;
+			mstbg  = (val>> 6)&1;
+			mcycl  = (val>> 5)&1;
+			mstbl  = (val>> 4)&1;
+			mwe    = (val>> 3)&1;
+			mack   = (val>> 2)&1;
+			mstall = (val>> 1)&1;
+			merr   = (val&1);
+
+			printf("P[%s%s%s%s%s]",
+				(pcyc)?"C":" ",
+				(pstb)?"S":" ",
+				(pack)?"A":" ",
+				(pstall)?"S":" ",
+				(perr)?"E":" ");
+
+			printf("M[(%s%s)(%s%s)%s%s%s%s]",
+				(mcycg)?"C":" ", (mstbg)?"S":" ",
+				(mcycl)?"C":" ", (mstbl)?"S":" ",
+				(mwe)?"W":"R", (mack)?"A":" ",
+				(mstall)?"S":" ",
+				(merr)?"E":" ");
+
+			printf("O[(%s%s)(%s%s)%s%s%s%s]",
+				(gcyc)?"C":" ", (gstb)?"S":" ",
+				(lcyc)?"C":" ", (lstb)?"S":" ",
+				(we)?"W":"R", (ack)?"A":" ",
+				(stall)?"S":" ",
+				(err)?"E":" ");
+
+			if (mbsy) printf("M-BUSY ");
+			if (mpip) printf("M-PIPE ");
+			if (mce)  printf("M-CE ");
 		}
 	}
 };
