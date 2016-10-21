@@ -36,31 +36,55 @@
 //
 //
 module	bigadd(i_clk, i_sync, i_a, i_b, o_r, o_sync);
+	parameter	NCLOCKS = 1;
 	input			i_clk, i_sync;
 	input		[63:0]	i_a, i_b;
-	output	reg	[63:0]	o_r;
-	output	reg	o_sync;
+	output	wire	[63:0]	o_r;
+	output	wire	o_sync;
 
-	reg		r_sync, r_pps;
-	reg	[31:0]	r_hi_a, r_hi_b, r_low;
+	generate
+	if (NCLOCKS == 0)
+	begin
+		assign	o_sync= i_sync;
+		assign	o_r = i_a + i_b;
+	end else if (NCLOCKS == 1)
+	begin
+		reg		r_sync;
+		reg	[63:0]	r_out;
+		always @(posedge i_clk)
+			r_sync <= i_sync;
+		always @(posedge i_clk)
+			r_out <= i_a+i_b;
 
-	initial	r_sync = 1'b0;
-	always @(posedge i_clk)
-		r_sync <= i_sync;
+		assign	o_sync = r_sync;
+		assign	o_r = r_out;
+	end else // if (NCLOCKS == 2)
+	begin
+		reg		r_sync, r_pps;
+		reg	[31:0]	r_hi, r_low;
 
-	always @(posedge i_clk)
-		{ r_pps, r_low } <= i_a[31:0] + i_b[31:0];
-	always @(posedge i_clk)
-		r_hi_a <= i_a[63:32];
-	always @(posedge i_clk)
-		r_hi_b <= i_b[63:32];
+		reg		f_sync;
+		reg	[63:0]	f_r;
 
-	initial	o_sync = 1'b0;
-	always @(posedge i_clk)
-		o_sync <= r_sync;
-	always @(posedge i_clk)
-		o_r[31:0] <= r_low;
-	always @(posedge i_clk)
-		o_r[63:32] <= r_hi_a + r_hi_b + { 31'h00, r_pps };
+		initial	r_sync = 1'b0;
+		always @(posedge i_clk)
+			r_sync <= i_sync;
+
+		always @(posedge i_clk)
+			{ r_pps, r_low } <= i_a[31:0] + i_b[31:0];
+		always @(posedge i_clk)
+			r_hi <= i_a[63:32] + i_b[63:32];
+
+		initial	f_sync = 1'b0;
+		always @(posedge i_clk)
+			f_sync <= r_sync;
+		always @(posedge i_clk)
+			f_r[31:0] <= r_low;
+		always @(posedge i_clk)
+			f_r[63:32] <= r_hi + { 31'h00, r_pps };
+
+		assign	o_sync = f_sync;
+		assign	o_r    = f_r;
+	end endgenerate
 
 endmodule

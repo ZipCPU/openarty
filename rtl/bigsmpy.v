@@ -4,7 +4,15 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	To multiply two 32-bit numbers into a 64-bit number.  We try
+//		to use the hardware multiply to do this, but just what kind of
+//	hardware multiply is actually available ... can be used to determine
+//	how many clocks to take.
+//
+//	If you look at the algorithm below, it's actually a series of a couple
+//	of independent algorithms dependent upon the parameter NCLOCKS.  If your
+//	timing through here becomes a problem, set NCLOCKS to a higher number
+//	and see if that doesn't help things.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -36,14 +44,14 @@
 //
 //
 module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
-	parameter	CLOCKS = 1;
+	parameter	NCLOCKS = 1;
 	input			i_clk, i_sync, i_sgn;
 	input		[31:0]	i_a, i_b;
 	output	reg	[63:0]	o_r;
 	output	reg		o_sync;
 
 	generate
-	if (CLOCKS == 1)
+	if (NCLOCKS == 1)
 	begin
 		wire	signed	[31:0]	w_sa, w_sb;
 		wire		[31:0]	w_ua, w_ub;
@@ -62,15 +70,18 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 				o_r <= w_ua * w_ub;
 		end
 
-	end else if (CLOCKS == 2)
+	end else if (NCLOCKS == 2)
 	begin
+		reg	r_sync;
 		reg	signed	[31:0]	r_sa, r_sb;
 		wire		[31:0]	w_ua, w_ub;
 
+		initial r_sync = 1'b0;
 		always @(posedge i_clk)
 		begin
-			r_sa = i_a;
-			r_sb = i_b;
+			r_sync <=i_sync;
+			r_sa <= i_a;
+			r_sb <= i_b;
 		end
 
 		assign	w_ua = r_sa;
@@ -78,7 +89,7 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 
 		always @(posedge i_clk)
 		begin
-			o_sync <= i_sync;
+			o_sync <= r_sync;
 			if (i_sgn)
 				o_r <= r_sa * r_sb;
 			else
@@ -86,7 +97,7 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 		end
 
 	
-	end else if (CLOCKS == 5)
+	end else if (NCLOCKS == 5)
 	begin
 		//
 		// A pipeline, shift register, to track our
