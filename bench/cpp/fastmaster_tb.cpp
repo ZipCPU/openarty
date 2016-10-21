@@ -82,6 +82,8 @@ public:
 	time_t		m_start_time;
 	bool		m_last_writeout, m_cpu_started;
 	int		m_last_bus_owner, m_busy;
+	unsigned long	m_gps_err, m_gps_step, m_gps_newstep;
+	unsigned 	m_gps_stepc;
 
 	TESTBENCH(void) : PIPECMDR(FPGAPORT),
 			m_uart(FPGAPORT+1), m_ram(1<<26)
@@ -159,6 +161,8 @@ public:
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
+		/*
+		// Ethernet triggers
 		if (m_core->o_net_tx_en)
 			writeout = true;
 		if (m_core->v__DOT__netctrl__DOT__n_rx_busy)
@@ -167,6 +171,48 @@ public:
 			writeout = true;
 		if (m_core->v__DOT__netctrl__DOT__w_rxwr)
 			writeout = true;
+		*/
+
+		/*
+		// GPS Clock triggers
+		if (m_core->v__DOT__ppsck__DOT__tick)
+			writeout = true;
+		if (m_core->v__DOT__gps_step != m_gps_step) {
+			writeout = true;
+			// printf("STEP");
+		} if (m_core->v__DOT__gps_err != m_gps_err) {
+			writeout = true;
+			// printf("ERR");
+		} if (m_core->v__DOT__ppsck__DOT__step_correction != m_gps_stepc) {
+			writeout = true;
+			// printf("DSTP");
+		} if (m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out != m_gps_newstep)
+			writeout = true;
+		*/
+		m_gps_step = m_core->v__DOT__gps_step;
+		m_gps_err  = m_core->v__DOT__gps_err;
+		m_gps_stepc= m_core->v__DOT__ppsck__DOT__step_correction;
+		m_gps_newstep=m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out;
+
+
+		/*
+		if (m_core->v__DOT__ppsck__DOT__err_tick)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__sub_tick)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__shift_tick)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__fltr_tick)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__config_tick)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__mpy_sync)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__mpy_sync_two)
+			writeout = true;
+		if (m_core->v__DOT__ppsck__DOT__delay_step_clk)
+			writeout = true;
+		*/
 
 		// if (m_core->v__DOT__wbu_cyc)
 			// writeout = true;
@@ -536,6 +582,16 @@ public:
 			*/
 
 
+			/*
+			// Debugging the GPS tracking circuit
+			printf("COUNT %016lx STEP %016lx+%08x->%016lx ERR %016lx %s",
+				m_core->v__DOT__gps_now,
+				m_core->v__DOT__gps_step,
+				m_core->v__DOT__ppsck__DOT__step_correction,
+				m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out,
+				m_core->v__DOT__gps_err,
+				(m_core->v__DOT__ppsck__DOT__tick)?"TICK":"    ");
+			*/
 			printf("\n"); fflush(stdout);
 		} m_last_writeout = writeout;
 #endif
