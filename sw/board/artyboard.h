@@ -41,7 +41,6 @@
 #ifndef	ARTYBOARD_H
 #define	ARTYBOARD_H
 
-
 // BUS Interrupts
 #define	BUS_BUTTON	0x0001
 #define	BUS_SWITCH	0x0002
@@ -92,6 +91,7 @@ typedef	struct	{
 #define	ENET_NOHWCRC	0x008000
 #define	ENET_NOHWMAC	0x010000
 #define	ENET_RESET	0x020000
+#define	ENET_NOHWIPCHK	0x040000
 #define	ENET_TXCMD(LEN)	((LEN)|ENET_TXBIT)
 #define	ENET_TXCLR	0x038000
 #define	ENET_TXCANCEL	0x000000
@@ -162,7 +162,8 @@ static SDCARD	* const sd = (SDCARD *)0x0120;
 #define	BKRAM	(void *)0x0008000
 #define	FLASH	(void *)0x0400000
 #define	SDRAM	(void *)0x4000000
-#define	CLOCKFREQHZ	80000000
+#define	CLOCKFREQHZ	81250000
+#define	CLOCKFREQ_HZ	CLOCKFREQHZ
 #define	RAMWORDS	0x800000
 
 #endif

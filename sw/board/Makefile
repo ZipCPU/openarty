@@ -32,13 +32,46 @@
 ##
 .PHONY: all
 all:	exstartup
+OBJDIR := obj-zip
+CC := zip-gcc
+OBJDUMP := zip-objdump
+SOURCES := exstartup.c bootloader.c gpsdump.c
+HEADERS := artyboard.h zipsys.h
+#
+# For source analysis, the following macros are defined:
+
 #
 
+%.o: $(OBJDIR)/%.o
+$(OBJDIR)/%.o: %.c
+	$(CC) -g -c $< -o $@
+
 exstartup: exstartup.c artyboard.h zipsys.h arty.ld
-	zip-gcc -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map exstartup.c -o exstartup
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map exstartup.c -o exstartup
+gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o -o $@
 
 exstartup.txt: exstartup
-	zip-objdump -S -D exstartup > exstartup.txt
+	$(OBJDUMP) -S -D $^ > $@
 
 clean:
 	rm -f exstartup exstartup.map exstartup.txt
+
+define	build-depends
+	@echo "Building dependency file(s)"
+	$(CC) $(CFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
+	@rm $(OBJDIR)/xdepends.txt
+endef
+
+tags: $(SOURCES) $(HEADERS)
+	@echo "Generating tags"
+	@ctags $(SOURCES) $(HEADERS)
+
+$(OBJDIR)/depends.txt: $(OBJDIR)/
+	$(build-depends)
+
+$(OBJDIR)/:
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+
+-include $(OBJDIR)/depends.txt
