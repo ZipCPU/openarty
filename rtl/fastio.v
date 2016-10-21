@@ -43,7 +43,9 @@ module	fastio(i_clk,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
 		i_aux_rx, o_aux_tx, o_aux_cts, i_gps_rx, o_gps_tx,
-		// i_gpio, o_gpio,
+`ifdef	USE_GPIO
+		i_gpio, o_gpio,
+`endif
 		// Wishbone control
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr,
 			i_wb_data, o_wb_ack, o_wb_stall, o_wb_data,
@@ -51,7 +53,8 @@ module	fastio(i_clk,
 		i_rtc_ppd, i_buserr, i_other_ints, o_bus_int, o_board_ints);
 	parameter	AUXUART_SETUP = 30'd1736, // 115200 baud from 200MHz clk
 			GPSUART_SETUP = 30'd20833, // 9600 baud from 200MHz clk
-			EXTRACLOCK = 1; // Do we need an extra clock to process?
+			EXTRACLOCK = 1, // Do we need an extra clock to process?
+			NGPI=0, NGPO=0; // Number of GPIO in and out wires
 	input			i_clk;
 	// Board level I/O
 	input		[3:0]	i_sw;
@@ -71,9 +74,11 @@ module	fastio(i_clk,
 	input		i_gps_rx;
 	output	wire	o_gps_tx;
 	//
+`ifdef	USE_GPIO
 	// GPIO
-	// input	[(NGPI-1):0]	i_gpio;
-	// output reg	[(NGPO-1):0]	o_gpio;
+	input		[(NGPI-1):0]	i_gpio;
+	output reg	[(NGPO-1):0]	o_gpio;
+`endif
 	//
 	// Wishbone inputs
 	input			i_wb_cyc, i_wb_stb, i_wb_we;
@@ -210,7 +215,15 @@ module	fastio(i_clk,
 	// when any of the inputs changes.  (Sorry, which input isn't (yet)
 	// selectable.)
 	//
+	wire	[31:0]	gpio_data;
+`ifdef	USE_GPIO
+	wbgpio	#(NIN, NOUT)
+		gpioi(i_clk, w_wb_cyc, (w_wb_stb)&&(w_wb_addr == 5'hd), 1'b1,
+			w_wb_data, gpio_data, i_gpio, o_gpio, gpio_int);
+`else
+	assign	gpio_data = 32'h00;
 	assign	gpio_int = 1'b0;
+`endif
 
 	//
 	// AUX (UART) SETUP
@@ -462,7 +475,7 @@ module	fastio(i_clk,
 		5'h0a: o_wb_data <= w_clr_led2;
 		5'h0b: o_wb_data <= w_clr_led3;
 		5'h0c: o_wb_data <= date_data;
-		// 5'h0d: o_wb_data <= gpio_data;
+		5'h0d: o_wb_data <= gpio_data;
 		5'h0e: o_wb_data <= auxrx_data;
 		5'h0f: o_wb_data <= auxtx_data;
 		5'h10: o_wb_data <= gpsrx_data;
