@@ -40,3 +40,5 @@ exstartup: exstartup.c artyboard.h zipsys.h arty.ld
 exstartup.txt: exstartup
 	zip-objdump -S -D exstartup > exstartup.txt
 
+clean:
+	rm -f exstartup exstartup.map exstartup.txt
