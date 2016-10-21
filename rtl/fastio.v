@@ -151,7 +151,10 @@ module	fastio(i_clk,
 	reg	[31:0]	pwr_counter;
 	initial	pwr_counter = 32'h00;
 	always @(posedge i_clk)
-		pwr_counter <= pwr_counter+32'h001;
+		if (pwr_counter[31])
+			pwr_counter[30:0] <= pwr_counter[30:0] + 31'h001;
+		else
+			pwr_counter[31:0] <= pwr_counter[31:0] + 31'h001;
 
 	//
 	// BTNSW
