@@ -50,6 +50,9 @@
 `define	FLASH_ACCESS
 `define	SDRAM_ACCESS
 `define	GPS_CLOCK
+`ifdef	VERILATOR
+`define	GPSTB
+`endif
 //	UART_ACCESS and GPS_UART have both been placed within fastio
 //		`define	UART_ACCESS
 //		`define	GPS_UART
@@ -656,8 +659,8 @@ module	busmaster(i_clk, i_rst,
 	wire	[3:0]	w_led;
 	wire	rtc_ppd;
 	fastio	#(
-		.AUXUART_SETUP(30'hd705),	// 115200 Baud, 8N1, from 81.25M
-		.GPSUART_SETUP(30'hd8464),	//   9600 Baud, 8N1
+		.AUXUART_SETUP(30'd705),	// 115200 Baud, 8N1, from 81.25M
+		.GPSUART_SETUP(30'd8464),	//   9600 Baud, 8N1
 		.EXTRACLOCK(0)
 		) runio(i_clk, i_sw, i_btn, 
 			w_led, o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
@@ -813,7 +816,7 @@ module	busmaster(i_clk, i_rst,
 	wire	[1:0]	gps_dbg_tick;
 
 	gpsclock_tb ppscktb(i_clk, ck_pps, tb_pps,
-			(wb_stb)&&(gps_sel)&&(wb_addr[3]),
+			(wb_stb)&&(gps_sel)&&(!wb_addr[4]),
 				wb_we, wb_addr[2:0],
 				wb_data, gtb_ack, gtb_stall, gtb_data,
 			gps_err, gps_now, gps_step);
@@ -830,7 +833,7 @@ module	busmaster(i_clk, i_rst,
 	gpsclock #(
 		.DEFAULT_STEP(32'h834d_c736)
 		) ppsck(i_clk, 1'b0, gps_pps, ck_pps, gps_led,
-			(wb_stb)&&(gps_sel)&&(~wb_addr[3]),
+			(wb_stb)&&(gps_sel)&&(wb_addr[4]),
 				wb_we, wb_addr[1:0],
 				wb_data, gck_ack, gck_stall, gck_data,
 			gps_tracking, gps_now, gps_step, gps_err, gps_locked,
