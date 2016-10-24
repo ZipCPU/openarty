@@ -63,6 +63,9 @@
 #include "uartsim.h"
 #include "enetctrlsim.h"
 #include "memsim.h"
+// #ifdef	OLEDSIM
+#include "oledsim.h"
+// #endif
 
 #include "port.h"
 
@@ -77,6 +80,9 @@ public:
 	ENETCTRLSIM	*m_mid;
 	UARTSIM		m_uart;
 	MEMSIM		m_ram;
+#ifdef	OLEDSIM_H
+	OLEDWIN		m_oled;
+#endif
 
 	unsigned	m_last_led, m_last_pic, m_last_tx_state, m_net_ticks;
 	time_t		m_start_time;
@@ -91,12 +97,20 @@ public:
 		m_start_time = time(NULL);
 		m_mid = new ENETCTRLSIM;
 		m_cpu_started =false;
+#ifdef	OLEDSIM_H
+		Glib::signal_idle().connect(sigc::mem_fun((*this),&TESTBENCH::on_tick));
+#endif
 	}
 
 	void	setsdcard(const char *fn) {
 		m_sdcard.load(fn);
 	
 		printf("LOADING SDCARD FROM: \'%s\'\n", fn);
+	}
+
+	bool	on_tick(void) {
+		tick();
+		return true; // Keep going 'til the kingdom comes
 	}
 
 	void	tick(void) {
@@ -111,6 +125,12 @@ public:
 		}
 
 		// Set up the bus before any clock tick
+#ifdef	OLEDSIM_H
+		m_oled(m_core->o_oled_pmoden, m_core->o_oled_reset_n,
+			m_core->o_oled_vccen, m_core->o_oled_cs_n,
+			m_core->o_oled_sck, m_core->o_oled_dcn,
+			m_core->o_oled_mosi);
+#endif
 		m_core->i_qspi_dat = m_flash(m_core->o_qspi_cs_n,
 				m_core->o_qspi_sck, m_core->o_qspi_dat);
 
@@ -157,7 +177,7 @@ public:
 
 		PIPECMDR::tick();
 
-// #define	DEBUGGING_OUTPUT
+#define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
@@ -194,6 +214,17 @@ public:
 		m_gps_stepc= m_core->v__DOT__ppsck__DOT__step_correction;
 		m_gps_newstep=m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out;
 
+		if (m_core->o_oled_cs_n == 0)
+			writeout = true;
+		if (m_core->o_oled_sck  == 0)
+			writeout = true;
+		if (m_core->v__DOT__rgbctrl__DOT__dev_wr)
+			writeout = true;
+		if (m_core->v__DOT__rgbctrl__DOT__r_busy)
+			writeout = true;
+		if (m_core->v__DOT__rgbctrl__DOT__dev_busy)
+			writeout = true;
+
 
 		/*
 		if (m_core->v__DOT__ppsck__DOT__err_tick)
@@ -219,6 +250,7 @@ public:
 		// if (m_core->v__DOT__dwb_cyc)
 			// writeout = true;
 
+		// Write out if the CPU is active at all
 		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__master_ce)
 			writeout = true;
 		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dbgv)
@@ -592,6 +624,58 @@ public:
 				m_core->v__DOT__gps_err,
 				(m_core->v__DOT__ppsck__DOT__tick)?"TICK":"    ");
 			*/
+
+
+			// Debug the OLED
+
+			{ const char *pwr; int pwrk;
+			if (m_core->o_oled_pmoden) {
+				if (!m_core->o_oled_reset_n)
+					pwr = "RST";
+				else if (m_core->o_oled_vccen)
+					pwr = "ON ";
+				else
+					pwr = "VIO";
+			} else if (m_core->o_oled_vccen) {
+				pwr = "ERR";
+			} else
+				pwr = "OFF";
+			pwrk = (m_core->o_oled_reset_n)?4:0;
+			pwrk|= (m_core->o_oled_vccen)?2:0;
+			pwrk|= (m_core->o_oled_pmoden);
+			// First the top-level ports
+			printf(" OLED[%s/%d,%s%s%s-%d]",
+				pwr, pwrk,
+				(!m_core->o_oled_cs_n)?"CS":"  ",
+				(m_core->o_oled_sck)?"CK":"  ",
+				(m_core->o_oled_dcn)?"/D":"/C",
+				(m_core->o_oled_mosi));
+			}
+			// Now the low-level internals
+			printf("LL[");
+			switch(m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__state){
+			case 0: printf("I,"); break;
+			case 1: printf("S,"); break;
+			case 2: printf("B,"); break;
+			case 3: printf("R,"); break;
+			case 4: printf("!,"); break;
+			case 5: printf(".,"); break;
+			default: printf("U%d",
+				m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__state);
+			}
+			printf("%2d,%s%2d,%08x]",
+				m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__spi_len,
+				(m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__pre_last_counter)?"P":" ",
+
+				m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__counter,
+				m_core->v__DOT__rgbctrl__DOT__lwlvl__DOT__r_word);
+			printf("[%s%s%s/%2d/%d]",
+				(m_core->v__DOT__rgbctrl__DOT__dev_wr)?"W":" ",
+				(m_core->v__DOT__rgbctrl__DOT__r_busy)?"BSY":"   ",
+				(m_core->v__DOT__rgbctrl__DOT__dev_busy)?"D-BSY":"     ",
+				m_core->v__DOT__rgbctrl__DOT__r_len,
+				m_core->v__DOT__rgbctrl__DOT__dev_len);
+
 			printf("\n"); fflush(stdout);
 		} m_last_writeout = writeout;
 #endif
@@ -607,6 +691,9 @@ void	fastmaster_kill(int v) {
 }
 
 int	main(int argc, char **argv) {
+#ifdef	OLEDSIM_H
+	Gtk::Main	main_instance(argc, argv);
+#endif
 	Verilated::commandArgs(argc, argv);
 	tb = new TESTBENCH;
 
@@ -618,8 +705,12 @@ int	main(int argc, char **argv) {
 	else
 		tb->setsdcard("/dev/zero");
 
+#ifdef	OLEDSIM_H
+	Gtk::Main::run(tb->m_oled);
+#else
 	while(1)
 		tb->tick();
+#endif
 
 	exit(0);
 }

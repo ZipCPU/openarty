@@ -4,7 +4,26 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	This is a low-level SPI output (not input) controller
+//		designed to command interactions between an upper level
+//	controller and a PModOLEDrgb.  As a result, this is a one-bit
+//	(traditional, not quad) SPI controller, it has no MISO input bits,
+//	and it also controls a DCN bits (output data at active high, vs
+//	output control at active low).
+//
+//	This particular implementation was taken from a low-level QSPI
+//	controller.  For those who wish to compare, the low-level QSPI
+//	controller is very similar to the low-level EQSPI controller that is
+//	also a part of the OpenArty project.
+//
+//	Interfacing with the controller works as follows: If the controller
+//	is idle, set the values you wish to send and strobe the i_wr bit.
+//	Once the last bit has been committed to the interface, but before it
+//	closes the connection by setting CS_N high, it will check the i_wr bit
+//	again.  If that bit is high, the busy bit will be dropped for one
+//	cycle, new data will be accepted, and the controller will continue
+//	with the new(er) data as though it was still part of the last 
+//	transmission (without lowering cs_n).
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -39,6 +58,7 @@
 `define	OLED_READY	3'h3
 `define	OLED_STOP	3'h4
 `define	OLED_STOP_B	3'h5
+`define	OLED_STOP_C	3'h6
 
 // Modes
 `define	OLED_MOD_SPI	2'b00
@@ -157,8 +177,8 @@ module	lloled(i_clk,
 			o_mosi <= r_word[31];
 		end else if (~last_counter)
 		begin
-			o_busy <= (pre_last_counter)&&(o_sck)
-				&&((state != `OLED_READY)||(~i_wr));
+			o_busy <= (!pre_last_counter)||(!o_sck)
+				||(state != `OLED_READY)||(~i_wr);
 		end else if (~o_sck)
 		begin
 			o_sck <= 1'b1;
@@ -205,8 +225,18 @@ module	lloled(i_clk,
 			o_sck   <= 1'b1; // Stop the clock
 			o_busy  <= 1'b1; // Still busy till port is clear
 			state <= `OLED_STOP_B;
-		end else // if (state == `OLED_STOP_B)
+		end else if (state == `OLED_STOP_B)
 		begin
+			o_cs_n <= 1'b1;	// Deselect CS
+			o_sck <= 1'b1;
+			// Do I need this????
+			// spi_len <= 3; // Minimum CS high time before next cmd
+			state <= `OLED_STOP_C;
+			o_mosi <= 1'b1;
+			o_busy <= 1'b1;
+		end else // if (state == `OLED_STOP_C)
+		begin
+			// Keep us in idle for at least a full clock period.
 			o_cs_n <= 1'b1;	// Deselect CS
 			o_sck <= 1'b1;
 			// Do I need this????

@@ -122,6 +122,7 @@ extern	int	syscall(int,int,int,int);
 
 #define	EINT(A)	(0x80000000|(A<<16))
 #define	DINT(A)	(0x80000000|(A<<16))
+#define	CLEARPIC	0x7fff7fff
 
 static	ZIPSYS *const zip = (ZIPSYS *)(ZIPSYS_ADDR);
 

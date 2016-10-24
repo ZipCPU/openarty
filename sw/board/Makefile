@@ -31,11 +31,11 @@
 ##
 ##
 .PHONY: all
-all:	exstartup
+all:	exstartup oledtest gpsdump
 OBJDIR := obj-zip
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c
+SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c
 HEADERS := artyboard.h zipsys.h
 #
 # For source analysis, the following macros are defined:
@@ -44,22 +44,27 @@ HEADERS := artyboard.h zipsys.h
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.c
-	$(CC) -g -c $< -o $@
+	$(CC) -c -fno-builtin $< -o $@
+%.txt: %
+	$(OBJDUMP) -S -D $^ > $@
 
 exstartup: exstartup.c artyboard.h zipsys.h arty.ld
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map exstartup.c -o exstartup
 gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o -o $@
+oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
 
 clean:
 	rm -f exstartup exstartup.map exstartup.txt
+	rm -rf $(OBJDIR)/
 
 define	build-depends
 	@echo "Building dependency file(s)"
-	$(CC) $(CFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	@$(CC) $(CFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
 endef
