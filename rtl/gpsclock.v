@@ -333,7 +333,9 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		// correction can never be negative.  As a result, we have no
 		// o_pps suppression.
 		{ cnt_carry, p_count } <= p_count[31:0] + r_count_correction[31:0];
-		{ o_pps, o_count[63:32] } <= o_count[63:32] + r_count_correction[63:32] + cnt_carry;
+		{ o_pps, o_count[63:32] } <= o_count[63:32]
+				+ r_count_correction[63:32]
+				+ { 31'h00, cnt_carry };
 		if (r_count_correction[(RW-1)])
 			o_pps <= 1'b0;
 		// Delay the bottom bits of o_count by one clock, so that they
