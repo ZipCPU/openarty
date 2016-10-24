@@ -378,9 +378,10 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 					} m_block_buf[0] = 0x0fe;
 					m_blklen = 512; // (1<<m_csd[5]);
 					if (m_dev)
-						fread(&m_block_buf[1], m_blklen, 1, m_dev);
+						m_blklen = fread(&m_block_buf[1], m_blklen, 1, m_dev);
 					else
 						memset(&m_block_buf[1], 0, m_blklen);
+					m_blklen = (m_blklen != 512) ? 512 : m_blklen;
 					add_block_crc(m_blklen, m_block_buf);
 
 					m_blkdly = 60;
