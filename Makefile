@@ -40,9 +40,10 @@ all:	archive datestamp rtl bench sw
 BENCH := `find bench -name Makefile` `find bench -name "*.cpp"` `find bench -name "*.h"`
 RTL   := `find rtl -name "*.v"` `find rtl -name Makefile`
 NOTES := `find . -name "*.txt"` `find . -name "*.html"`
-SW    := `find sw -name "*.cpp"` `find sw -name "*.h"`	\
-	`find sw -name "*.sh"` `find sw -name "*.py"`	\
-	`find sw -name "*.pl"` `find sw -name Makefile`
+SW    := `find sw -name "*.cpp"` `find sw -name "*.c"`	\
+	`find sw -name "*.h"`	`find sw -name "*.sh"`	\
+	`find sw -name "*.py"`	`find sw -name "*.pl"`	\
+	`find sw -name "*.png"`	`find sw -name Makefile`
 DEVSW := `find sw-board -name "*.cpp"` `find sw-board -name "*.h"` \
 	`find sw-board -name Makefile`
 PROJ  := 
