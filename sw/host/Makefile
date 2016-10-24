@@ -37,9 +37,9 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg gps
+PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg
 SCOPES := eqspiscope etxscope erxscope cpuscope
-all: $(PROGRAMS) $(SCOPES)
+all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
 OBJDIR := obj-pc
 BUSOBJS := $(OBJDIR)/ttybus.o $(OBJDIR)/llcomms.o $(OBJDIR)/regdefs.o
