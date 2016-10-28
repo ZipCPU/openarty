@@ -40,8 +40,8 @@
 //
 //
 
-#include "artyboard.h"
 #include "zipsys.h"
+#include "artyboard.h"
 
 void	idle_task(void) {
 	while(1)
@@ -89,6 +89,13 @@ void	timer_delay(int counts) {
 	} // else anything less has likely already passed
 }
 
+void	wait_on_interrupt(int mask) {
+	// Clear our interrupt only, but disable all others
+	zip->pic = DALLPIC|mask;
+	zip->pic = EINT(mask);
+	zip_rtu();
+	zip->pic = DINT(mask)|mask;
+}
 
 void oled_clear(void);
 
@@ -260,13 +267,31 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 		;
 }
 
+void	oled_show_image(int *img) {
+#define	USE_DMA
+#ifdef	USE_DMA
+		zip->dma.ctrl = DMACLEAR;
+		zip->dma.rd = img;
+		zip->dma.wr = &sys->io_oled.o_data;
+		zip->dma.len= 6144;
+		zip->dma.ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_OLED;
+		// timer_delay(256);
+		// zip_halt();
+#else
+		for(int i=0; i<6144; i++) {
+			while(sys->io_oled.o_ctrl & OLED_BUSY)
+				;
+			sys->io_oled.o_data = img[i];
+		}
+#endif
+}
 
 /*
  * entry()
  *
  * In all (current) ZipCPU programs, the programs start with an entry()
  * function that takes no arguments.  The actual bootup entry can be found
- * in the bootstram directory, but that calls us here.
+ * in the bootstrap.c file, but that calls us here.
  *
  */
 void	entry(void) {
@@ -375,11 +400,8 @@ void	entry(void) {
 		sys->io_oled.o_ctrl = 0x2075003f; // Sets row min/max address
 
 		// Now ... finally ... we can send our image.
-		for(int i=0; i<6144; i++) {
-			while(sys->io_oled.o_ctrl & OLED_BUSY)
-				;
-			sys->io_oled.o_data = splash[i];
-		}
+		oled_show_image(splash);
+		wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
 		sys->io_ledctrl = 0x0f1;
@@ -396,11 +418,8 @@ void	entry(void) {
 
 		// Display a second image.
 		sys->io_ledctrl = 0x0fc;
-		for(int i=0; i<6144; i++) {
-			while(sys->io_oled.o_ctrl & OLED_BUSY)
-				;
-			sys->io_oled.o_data = mug[i];
-		}
+		oled_show_image(mug);
+		wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
 		sys->io_ledctrl = 0x0f8;
