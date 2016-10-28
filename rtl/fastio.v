@@ -50,7 +50,7 @@ module	fastio(i_clk,
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr,
 			i_wb_data, o_wb_ack, o_wb_stall, o_wb_data,
 		// Cross-board I/O
-		i_rtc_ppd, i_buserr, i_gps_now, i_gps_step, i_other_ints, o_bus_int, o_board_ints);
+		i_rtc_ppd, i_buserr, i_gps_sub, i_gps_step, i_other_ints, o_bus_int, o_board_ints);
 	parameter	AUXUART_SETUP = 30'd1736, // 115200 baud from 200MHz clk
 			GPSUART_SETUP = 30'd20833, // 9600 baud from 200MHz clk
 			EXTRACLOCK = 1, // Do we need an extra clock to process?
@@ -93,7 +93,7 @@ module	fastio(i_clk,
 	// Address of the last bus error
 	input		[31:0]	i_buserr;
 	// The current time, as produced by the GPS tracking processor
-	input		[31:0]	i_gps_now, i_gps_step;
+	input		[31:0]	i_gps_sub, i_gps_step;
 	//
 	// Interrupts -- both the output bus interrupt, as well as those
 	//	internally generated interrupts which may be used elsewhere
