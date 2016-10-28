@@ -49,7 +49,6 @@ void	wait_on_interrupt(int mask) {
 	zip->pic = DALLPIC|mask;
 	zip->pic = EINT(mask);
 	zip_rtu();
-	zip->pic = DINT(mask)|mask;
 }
 
 int	user_stack[256];
@@ -58,7 +57,7 @@ void	user_task(void) {
 	while(1) {
 		unsigned	btn, subnow, sw;
 
-		subnow = (sys->io_gps_now >> 28)&0x0f;
+		subnow = (sys->io_gps_sub >> 28)&0x0f;
 
 		// If the button is pressed, toggle the LED
 		// Otherwise, turn the LED off.
@@ -143,88 +142,65 @@ void	entry(void) {
 
 	// Repeating timer, every 250ms
 	zip->tma = (second/4) | 0x80000000;
-	// zip->tma = 1024 | 0x80000000;
-	// Restart the PIC -- listening for SYSINT_TMA only
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[0] = green;
 	sys->io_ledctrl = 0x010;
 
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[0] = dimgreen;
 	sys->io_clrled[1] = green;
 	sys->io_scope[0].s_ctrl = 32 | 0x80000000; // SCOPE_TRIGGER;
 	sys->io_ledctrl = 0x020;
 
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[1] = dimgreen;
 	sys->io_clrled[2] = green;
 	sys->io_ledctrl = 0x040;
 
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[2] = dimgreen;
 	sys->io_clrled[3] = green;
 	sys->io_ledctrl = 0x080;
 
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[3] = dimgreen;
 
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	for(i=0; i<4; i++)
 		sys->io_clrled[i] = black;
 
 	// Wait one second ...
-	for(i=0; i<4; i++) {
-		zip_rtu();
-		zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
-	}
-
-	sw = sys->io_btnsw & 0x0f;
-	for(int i=0; i<4; i++)
-		sys->io_clrled[i] = (sw & (1<<i)) ? white : black;
-
-
-	// Wait another two second ...
-	for(i=0; i<8; i++) {
-		zip_rtu();
-		zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
-	}
+	for(i=0; i<4; i++)
+		wait_on_interrupt(SYSINT_TMA);
 
 	// Blink all the LEDs
 	//	First turn them on
 	sys->io_ledctrl = 0x0ff;
 	// Then wait a quarter second
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 	// Then turn the back off
 	sys->io_ledctrl = 0x0f0;
 	// and wait another quarter second
-	zip_rtu();
-	zip->pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+	wait_on_interrupt(SYSINT_TMA);
 
 	// Now, read buttons, and flash an LED on any button being held
 	// down ... ? neat?
-
-	// zip->tma = 20000000; // 1/4 second -- already set
 
 	// Now, let's synchronize ourselves to the PPS
 	user_context[13] = (int)&user_stack[256];
 	user_context[15] = (int)&user_task;
 	zip_restore_context(user_context);
 
-	wait_on_interrupt(SYSINT_PPS);
+	do {
+		wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
+	} while((zip->pic & SYSINT_PPS)==0);
+	
 	while(1) {
 		int	*s = errstring;
 
@@ -380,6 +356,7 @@ void	entry(void) {
 
 		zip->pic = SYSINT_GPSRX | SYSINT_PPS;
 		do {
+			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRX);
 			if (zip->pic & SYSINT_GPSRX) {
 				sys->io_uart_tx = sys->io_gps_rx;
 				zip->pic = SYSINT_GPSRX;
