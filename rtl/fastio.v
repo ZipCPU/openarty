@@ -483,8 +483,9 @@ module	fastio(i_clk,
 		5'h0f: o_wb_data <= auxtx_data;
 		5'h10: o_wb_data <= gpsrx_data;
 		5'h11: o_wb_data <= gpstx_data;
-		5'h12: o_wb_data <= i_gps_now;
-		5'h13: o_wb_data <= i_gps_step;
+		// 5'h12: o_wb_data <= i_gps_secs;
+		5'h13: o_wb_data <= i_gps_sub;
+		5'h14: o_wb_data <= i_gps_step;
 		// 5'hf: UART_SETUP
 		// 4'h6: GPIO
 		// ?? : GPS-UARTRX

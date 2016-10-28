@@ -63,7 +63,8 @@ You should have received a copy of the GNU General Public License along
 with this program.  If not, see \texttt{http://www.gnu.org/licenses/} for a copy.
 \end{license}
 \begin{revisionhistory}
-0.0 & 6/20/2016 & Gisselquist & First Draft \\\hline
+0.0 &  6/20/2016 & Gisselquist & First Draft \\\hline
+0.0 & 10/21/2016 & Gisselquist & More Comments Added\\\hline
 \end{revisionhistory}
 % Revision History
 % Table of Contents, named Contents
@@ -73,7 +74,7 @@ with this program.  If not, see \texttt{http://www.gnu.org/licenses/} for a copy
 \begin{preface}
 \end{preface}
 
-\chapter{Introduction}
+\chapter{Introduction}\label{ch:intro}
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
@@ -120,14 +121,335 @@ The goals of this project include:
 
 I intend to demonstrate this project with a couple programs:
 \begin{enumerate}
-\item A very simple program that runs automatically upon startup that can be
-	used to select from among multiple configurations.
 \item NTP Server
 \item A ZipOS that can actually load and run programs from the SD Card
+
+	This will require a functioning memory management unit (MMU), which
+	will be a new addition to the ZipCPU created to support this project.
+	For those not familiar with MMU's, an MMU translates memory addresses
+	from a virtual address space to a physical address space.  This allows
+	every program running on the ZipCPU to believe that they own the entire
+	memory address space, while allowing the operating system to allocate
+	actual physical memory addresses as necessary to support whatever
+	program needs more (or less) memory.
 \end{enumerate}
 
-\chapter{Architecture}
 
+
+
+
+\chapter{Architecture}\label{ch:architecture}
+My philosophy in peripherals is to keep them simple.  If there is a default
+mode on the peripheral, setting that mode should not require turning any bits
+on.  If a peripheral encounters an error condition, a bit may be turned on to
+indicate this fact, otherwise status bits will be left in the off position.
+
+\subsection{Bus Structure}
+The OpenArty project contains four bus masters, three of them within the CPU.
+These masters are the instruction fetch unit, the data read/write unit,
+and the direct memory access peripheral within the ZipCPU, as well as an 
+external debug port which can be commanded from over the main UART port
+connecting the Arty to its host.  
+
+There is also a second minor peripheral bus located within the ZipCPU
+ZipSystem.  This bus provides access to a number of peripherals within the
+ZipSystem, such as timers, counters, and the direct memory access controller.
+This bus will also be used to configure the memory management unit once
+integrated.  This bus is only visible to the CPU, and located starting at
+address {\tt 0xc0000000}.
+
+The ZipCPU debug port is also available on the bus.  This port, however, is
+only visible to the external debug port.  It can be found at address
+{\tt 0x08000000} for the control register, and {\tt 0x08000001} for the
+data register.
+
+Once the MMU has been integrated, it will be placed between the instruction
+fetch unit, data read/write unit, and the rest of the peripheral bus.
+
+The actual bus chosen for this design is the Wishbone Bus, based upon the
+pipeline mode defined in the B4 specification.  All optional wires required
+by this bus structure have been removed, such as the tag lines, the cycle
+type identifier, the burst type, and so forth.  This was done to simplify
+the logic within the core.
+
+However, because of the complicated bus structure--particularly because of the
+number of masters and slaves on the bus and the speed for which the bus is
+defined, there are a number of delays and arbiters placed on the bus.  As a
+result, the stall wire which is supposed to be depend upon combinational logic
+only, has been registered at a number of locations.  What this means is that
+there are a variety of delays as commands propagate through the bus structure.
+Most of these are variable, in that they can be turned on or off at build time,
+or even that the stall line may (or may not) be registered as configured.
+
+All interactions between bus masters and any peripherals passes through the
+interconnect, located in {\tt busmaster.v}.  This interconnect divides the
+slaves into separate groups.  The first group of slaves are those for which the
+bus is supposed to provide fast access to.  These are the DDR3 SDRAM, the
+flash, the block RAM, and the network.  The next group of slaves will have their
+acknowledgements delayed by an additional clock.  The final group of slaves
+are those single register slaves whose results may be known ahead of any read,
+and who only require one clock to access.  These are grouped together and
+controlled from within {\tt fastio.v}.
+
+Further information about the Wishbone bus structure found within this core
+can be found either on the Wishbone datasheet (Ch.~\ref{ch:wishbone}), or in
+the memory map table in the Registers chapter (Ch.~\ref{ch:registers}).
+
+\subsection{DDR3 SDRAM}
+
+{\em It is the intention of this project to use a completely open source
+DDR3 SDRAM controller.  While the controller has been written, it has yet to
+be successfully connected to the physical pins of the port.  Until that time,
+the design is running using a Wishbone to AXI bus bridge.  Memory may still
+be read or written, after an initial pipeline delay of roughly 27~clocks per
+access, at one access per clock.}
+
+{\em The open source SDRAM controller should be able to achieve a delay closer
+to 9~clocks per access--once I figure out how to connect it to the PHY.}
+
+\subsection{Flash}
+\subsection{Block RAM}
+
+The block RAM on this board has been arranged into one 32kW section.
+Programs that use block RAM will run fastest using the block RAM, both for
+instructions as well as for memory.  
+
+\subsection{Ethernet}
+
+The ether net controller has been split into three parts.  The first part is
+an area of packet memory.  This part is simple: it acts like memory.  The
+receive memory is read only, whereas the transmit memory is both read and
+write.  Packets received by the controller will be found in the receive memory,
+packets transmitted must be in the transmit area of memory.  The octets
+may be found in memory with the first octet in the most significant byte.
+This is the easy part.
+
+The format of the packets within this memory is a touch more interesting.
+With no options turned on, the first 6~bytes are the destination MAC
+address, the next 6~bytes will be the source MAC address, and the {\em next
+4~bytes} will be the EtherType repeated twice.  This was done to align the
+packet, and particularly the IP header, onto word boundaries.  If the hardware
+CRC has been turned off, the packet must contain its own CRC as well as
+ensuring that it has a minimum packet length (64 octets) when including that
+CRC.
+
+With all options turned on, however, things are a touch simpler.  The first
+two words of the packet contain the destination MAC (for a transmit packet)
+or the source MAC (for a received packet), followed by the two--octet
+EtherType.  At this point the packet is word--aligned prior to the IP header.
+Since broadcast packets are sent to a special destination MAC other than
+our own, a flag in the command register will indicate this fact.
+
+
+The second part of the controller is the MDIO interface.  This follows from
+the specification, and can be used to toggle the LED's on the ethernet,
+to force the ethernet into a particular mode, either 10M or 100M, to control
+auto--negotiation of the speed, and more.  Reads or writes to MDIO memory
+addresses will command reads or writes via the MDIO port from the FPGA to the
+ethernet PHY.  As the PHY can only handle 16--bit words, only 16~bits will
+ever be transferred as a result of any read/write command, the top 16~bits
+are automatically set to zero.  Further details of this capability may be
+found within the specification for the chip.
+
+The MDIO interface may be ignored.  If ignored, the defaults within the
+interface will naturally set up the network connection in full duplex mode (if
+your hardware supports it), at the highest speed the network will support.  
+However, if you ignore this interface you may not know what problems you are
+suffering from this interface, if any.  The {\tt netsetup} program has been
+provided, among the host software, to help diagnose how the various MDIO
+registers have been set, and what the status is that is being reported from
+the PHY.
+
+The third part of the controller is the packet command interface.  This
+consists of two command registers, one for reading and one for writing.
+Before doing anything with the network, it must first be taken out of 
+reset.  According to the specification for the network chip, this must
+happen a minimum of one second after power up.  This may be done by simply
+writing to the transmit command register with the reset bit turned off.
+
+To send a packet, simply write the number of octets in the packet to the
+transmit control register and set the GO bit ({\tt 0x04000}).  Other bits
+in this control register can be used to turn off the hardware MAC generation
+(and removal upon receive), the hardware CRC checking, and/or the hardware
+IP header checksum validation (but not generation).  The GO bit will remain
+high while the packet is being sent, and only transition to low once the
+packet is away.  While the packet is being sent, a zero may be written to the
+command register to cancel the packet--although this is not recommended.
+
+Packets are automatically received without intervention.  Once a packet has been
+received, the available bit will be set in the receive command register and
+a receive packet interrupt will be generated.  The ethernet port will then
+halt/stall until a user has reset the receive interface so that it may
+receive the next packet.  Without clearing this interface, the receive port
+will not accept further packets.  Other status bits in this interface are
+used to indicate whether packets have been missed (because the interface was
+busy), or thrown out due to some error such as a CRC error or a more general
+error.\footnote{It should be possible to extend this interface so that further
+packets may be read as long as the memory isn't yet full.  This is left as an
+exercise to others.}
+
+\subsection{SD Card}
+\subsection{GPS Tracking}
+\subsection{Configuration port}
+
+The registers associated with the ICAPE2 port have been made accessible
+to the core via the {\tt wbicapetwo} core.  More information about the meaning
+of these registers can be found in Xilinx's ``7--Series FPGAs Configuration
+User's Guide''.  
+
+Testing with the OpenArty board has tended to focus on the warmboot capability.
+Using this capability, a user is able to command the FPGA to reload its
+configuration.  In support of this, two configuration areas have been 
+defined within memory.  The first is the default configuration, found at
+the beginning of the flash.  This configuration is sometimes called the ``golden
+configuration'' within Xilinx's documentation because it is the configuration
+that the Xilinx device will always start up from after a power on reset.  On
+the OpenArty, a second configuration may immediately follow the first in flash. 
+Commanding the FPGA to reload it's configuration is as simple as
+setting the WBSTAR (warm boot start address) register to the location of the
+new configuration within the flash, and then writing a 15 (a.k.a. IPROG)
+to the FPGA command register (offset 4 from the beginning of the ICAPE2
+addresses).  Examples of doing this are found in the 
+{\tt sw/host/zprog.sh} and {\tt sw/host/program.sh} scripts.  The former
+programs the default configuration and then switches to it, 
+
+This configuration capability makes it possible for a user to 1) reprogram
+the flash with an experimental configuration in the second configuration
+location, and 2) test the configuration without actually touching the board. 
+If the configuration doesn't work well enough to be communicated with, the
+board may simply be powered down and it will come back up with the initial
+or golden configuration.  If the golden configuration ever gets corrupted,
+or loaded with a configuration that will not work, then the user will need to
+reload the FPGA from the JTAG port.
+
+\subsection{OLED}
+\subsection{Real Time Clock}
+
+The Arty board contains a real time clock core together with a companion
+real time date/calendar core.  The clock core itself contains not only current
+time, but also a stopwatch, seconds timer, and alarm.  The real time date core
+can be used to maintain the current date.  The real--time clock core uses the
+GPS PPS output, as schooled by the GPS tracking circuit, in order to synchronize
+their subsecond timing to the GPS itself.  Further, the real--time clock core
+then creates a synchronization wire for the real--time date core.
+
+Neither of these cores exports its subsecond precision to the rest of the
+design.  This must be done using either the internal GPS tracking wires, or
+by reading the time information from the tracking test bench.
+
+\subsection{LEDs}
+
+The Arty board contains two sets of LEDs: a plain set of LEDs, and a colored
+set of LEDs.
+
+The plain set of LEDs is controlled simply from the LED register.  This register
+can be used to turn these LEDs on and off, either individually or as a whole.
+It has been designed for atomic access, so only one write to this register
+is necessary to set any particular LED.
+
+The color LEDs are slightly different.  Each color LED is supported by its
+own register, which controls three pulse width modulation controllers.  Three
+groups of eight bits within the color LED register control the PWM thresholds,
+first for red, then green, and then in the lowest bits for blue.  These are
+used to turn on and off the various color components of the LEDs.  Using this
+method, there are $2^{24}$ different colors each of these LEDs may be set
+to.  
+
+\subsection{Buttons}
+\subsection{Switches}
+\subsection{Startup counter}
+
+A startup counter has been placed into the basic peripheral I/O area.  This 
+counter simply counts the clocks since startup.  Upon rollover, the high
+order bit remains set.  This can be used to sequence the start up of components
+within the design if so desired.
+
+\subsection{GPS UART}
+The GPS UART, debug control UART, as well as the auxilliary UART, are all
+based upon the same underlying UART IP core, sometimes known as the WBUART32
+core.  The setup register is defined within the documentation for that core,
+and provides for a large baud rate selection, 5-8 data bits, 1-2 stop bits,
+and several parity choices.  Within OpenArty, the GPS core is initialized
+to 9.6~kBaud, 8 data bits, no parity, and one stop bit.  
+
+When a value is ready to be read from the GPS uart, the GPS interrupt line
+will go high.  Once read, and only when read, will this interrupt line reset.
+If the read is successful, only bits within the bottom eight will be set.
+If a read is attempted when there is no data, when the UART is in a reset
+condition, or when there has been a framing or parity error (were parity
+to be turned on), the upper bits of the UART port will be set.
+
+In a like manner, the GPS device can be written to.  Certain strings, if sent
+to the UART, can be used to change the UARTs baud rate, its serial port
+settings, or even its reporting interval.  As with the read port, the transmit
+port will interrupt the CPU when it is idle.  Writing a character to this
+port will reset the interrupt.  Setting bits other than the bottom eight may
+result in a break condition being set on this port as well.
+
+Interacting with a controller can therefore be somewhat tricky.  The
+interrupt controller will trigger whenever the port is ready to be read from,
+and will re--trigger every clock until the port has been read from.  At this
+point, the interrupt controller may be reset.  If this is an auxilliary
+interrupt controller, such as the bus interrupt controller or the ZipSystem's
+auxiliary controller, the auxiliary controller will then need to be reset,
+and the bit in the primary controller associated with the auxiliary controller
+as well.  It is for this reason that the UARTs have been placed on the
+primary controller only.
+
+It should also be possible to use the DMA to read from (or write to) either
+UART port.
+
+\subsection{Auxilliary UART}
+
+The Auxilliary UART has roughly the same structure as the GPS UART, save that
+it's default configuration is for a 115,200~Baud configuration with 8~data bits,
+no stop bits, and no parity.  Reads, writes, and interrupts are treated in
+the same fashion.
+
+\subsection{GPIO}
+
+A General Purpose I/O controller has been placed within the design as well.
+This controller can handle 16--generic input wires, and set 16--generic output
+wires.  A single register is used to read both input and output wire values,
+as well as to set output values when written to. 
+
+However, to use this controller, you will need to manually configure it
+(i.e.~change the Verilog source) within the core, in order to wire the various
+GPIO values up to a device of interest.  This was done for the simple reason
+that wiring anything new up to the controller will require Verilog changes
+anyway.  For this reason, the controller has no way of setting wires to high
+impedence, or pulling them up or down.  Such control may be done within the
+top level design if necessary.
+
+This controller will set an interrupt if ever any of the input wires within
+it are changed.  The interrupt may be cleared in the interrupt controller.
+
+\subsection{Linker Script}
+
+A linker script has been created to capture the memory structure needed by
+a program.  This script may be found in {\tt sw/board/arty.ld}.  It is a
+sample script, using it is not required.
+
+The script defines three types of memory to the linker: flash, block RAM, and
+SDRAM.  Programs using this script will naturally start in flash (acting as
+a ROM memory).  A bootloader must then be used to copy, from flash, those
+sections of the program that are to be placed in block RAM or SDRAM into
+their particular memory locations.
+
+The block RAM locations are reserved for the user kernel, and specifically for
+any part of the code in the {\tt .kernel} section.  C attributes, or assembly
+{\tt .section} commands, must be used to place items within this section.
+A final symbol within this section, {\_top\_of\_stack}, is used so that the
+initial boot loader knows what to set the initial kernel stack to.
+
+The rest of the initial program's memory is placed into
+SDRAM.\footnote{Hopefully,
+I'll get a data cache running on the ZipCPU to speed this up.}  At the end,
+a {\tt \_top\_of\_heap} symbol is set to reference the final location in the
+setup.  This symbol can then be used as a starting point for a memory allocator.
+
+An example bootloader is provided in {\tt sw/board} that can be linked with
+any (bare metal, supervisor) program in order to properly load it into memory.
 
 \chapter{Software}
 \section{Directory Structure}
@@ -179,9 +501,9 @@ I intend to demonstrate this project with a couple programs:
 \end{itemize}
 \subsection{Scheduler}
 
-\chapter{Operation}
+\chapter{Operation}\label{ch:operation}
 
-\chapter{Registers}
+\chapter{Registers}\label{ch:registers}
 There are several address regions on the S6~SoC, as shown in
 Tbl.~\ref{tbl:memregions}.
 \begin{table}[htbp]
@@ -258,11 +580,14 @@ AUXSETUP &\scalebox{0.8}{\tt 0x0106} & 29 & R/W & Auxilliary UART config\\\hline
 GPSSETUP &\scalebox{0.8}{\tt 0x0107} & 29 & R/W & GPS UART config\\\hline
 CLR-LEDx &\scalebox{0.8}{\tt 0x0108-b} & 32 & R/W & Color LED controller\\\hline
 RTCDATE  &\scalebox{0.8}{\tt 0x010c} & 32 & R/W & BCD Calendar Date\\\hline
-GPIO     &\scalebox{0.8}{\tt 0x010d} & 32 & R/W & GPIO controller\\\hline
+GPIO     &\scalebox{0.8}{\tt 0x010d} & 32 & R/W & {\em Reserved for} GPIO controller\\\hline
 UARTRX   &\scalebox{0.8}{\tt 0x010e} & 32 & R/W & Aux UART receive byte\\\hline
 UARTTX   &\scalebox{0.8}{\tt 0x010f} & 32 & R/W & Aux UART transmit byte\\\hline
 GPSRX    &\scalebox{0.8}{\tt 0x0110} & 32 & R/W & GPS UART receive byte\\\hline
 GPSTX    &\scalebox{0.8}{\tt 0x0111} & 32 & R/W & GPS UART transmit byte\\\hline
+GPSSECS  &\scalebox{0.8}{\tt 0x0110} & 32 & R/W & {\em Reserved for a one-up seconds counter}\\\hline
+GPSSUB   &\scalebox{0.8}{\tt 0x0110} & 32 & R/W & GPS PPS tracking subsecond info\\\hline
+GPSSTEP  &\scalebox{0.8}{\tt 0x0111} & 32 & R/W & Current GPS step size, units TBD\\\hline
 % 0x010c-0x010f
 \end{reglist}
 \caption{I/O Peripheral Registers}\label{tbl:ioregs}
@@ -290,23 +615,23 @@ Tbl.~\ref{tbl:bus-ints}.
 \begin{table}[htbp]
 \begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{0.75in}|p{3.00in}|}\hline
 \rowcolor[gray]{0.85} Name & Bit Mask & DMAC ID &Description \\\hline\hline
-SYS\_DMAC  & 0x0001 && The DMA controller is idle.\\\hline
-SYS\_JIF   & 0x0002 & 1 & A Jiffies timer has expired.\\\hline
-SYS\_TMC   & 0x0004 & 2 & Timer C has timed out.\\\hline
-SYS\_TMB   & 0x0008 & 3 & Timer C has timed out.\\\hline
-SYS\_TMA   & 0x0010 & 4 & Timer C has timed out.\\\hline
-SYS\_AUX   & 0x0020 & 5 & The auxilliary interrupt controller sends an interrupt\\\hline
-SYS\_EXT   & 0x0040 & 6 & A Bus interrupt has tripped. \\\hline
-SYS\_PPS   & 0x0080 & 7 & An interrupt marking the top of the second\\\hline
-SYS\_GPSRX & 0x0100 & 8& A character has been received via GPS\\\hline
-SYS\_NETRX & 0x0200 & 9 & A packet has been received via the network\\\hline
-SYS\_NETTX & 0x0400 & 10 & The network controller is idle, having sent its
+SYS\_DMAC   & 0x0001 && The DMA controller is idle.\\\hline
+SYS\_JIF    & 0x0002 & 1 & A Jiffies timer has expired.\\\hline
+SYS\_TMC    & 0x0004 & 2 & Timer C has timed out.\\\hline
+SYS\_TMB    & 0x0008 & 3 & Timer C has timed out.\\\hline
+SYS\_TMA    & 0x0010 & 4 & Timer C has timed out.\\\hline
+SYS\_AUX    & 0x0020 & 5 & The auxilliary interrupt controller sends an interrupt\\\hline
+SYS\_PPS    & 0x0040 & 6 & An interrupt marking the top of the second\\\hline
+SYS\_NETRX  & 0x0080 & 7 & A packet has been received via the network\\\hline
+SYS\_NETTX  & 0x0100 & 8 & The network controller is idle, having sent its
 			last packet\\\hline
-SYS\_UARTRX & 0x0800 & 11 & A character has been received via the UART\\\hline
-SYS\_UARTTX & 0x1000 & 12 & The transmit UART is idle, and ready for its next
+SYS\_UARTRX & 0x200 &  9 & A character has been received via the UART\\\hline
+SYS\_UARTTX & 0x400 & 10 & The transmit UART is idle, and ready for its next
 		character.\\\hline
+SYS\_GPSRX  & 0x0800 & 11 & A character has been received via GPS\\\hline
+SYS\_GPSTX  & 0x1000 & 12 & The GPS serial port transmit is idle\\\hline
 SYS\_SDCARD & 0x2000 & 13 & The SD-Card controller has become idle\\\hline
-SYS\_BUTTON & 0x4000 & 14 & A Button has been pressed. \\\hline
+SYS\_OLED   & 0x4000 & 14 & The OLED port is idle\\\hline
 \end{tabular}
 \caption{Primary System Interrupts}\label{tbl:sys-ints}
 \end{center}\end{table}
@@ -322,13 +647,13 @@ AUX\_MIC & 0x0010 & 20 & The supervisor instruction counter has overflowed.\\\hl
 AUX\_MPC & 0x0020 & 21 & The supervisor prefetch stall counter has overflowed.\\\hline
 AUX\_MOC & 0x0040 & 22 & The supervisor ops stall counter has overflowed.\\\hline
 AUX\_MTC & 0x0080 & 23 & The supervisor clock tick counter has overflowed.\\\hline
-AUX\_SWITCH & 0x0100 & 24 & A switch has changed state\\\hline
-AUX\_FLASH  & 0x0200 & 25 & The flash controller has completed a write/erase cycle\\\hline
-AUX\_SCOPE & 0x0400 & 26 & The Scope has completed its collection\\\hline
-AUX\_RTC    & 0x0800 & 27& An alarm or timer has taken place (assuming the RTC
+AUX\_RTC    & 0x0100 & 24& An alarm or timer has taken place (assuming the RTC
 		is installed, and includes both alarm or timer)\\\hline
-AUX\_GPIO   & 0x1000 & 28 & The GPIO input lines have changed values.\\\hline
-AUX\_OLED   & 0x2000 & 29 & The OLED driver is idle\\\hline
+AUX\_BTN    & 0x0200 & 25 & A button has been pressed\\\hline
+AUX\_SWITCH & 0x0400 & 26 & A switch has changed state\\\hline
+AUX\_FLASH  & 0x0800 & 27 & The flash controller has completed a write/erase cycle\\\hline
+AUX\_SCOPE  & 0x1000 & 28 & The Scope has completed its collection\\\hline
+AUX\_GPIO   & 0x2000 & 29 & The GPIO input lines have changed values.\\\hline
 \end{tabular}
 \caption{Auxilliary System Interrupts}\label{tbl:aux-ints}
 \end{center}\end{table}

@@ -93,7 +93,7 @@ typedef	struct	{
 #define	ALTINT_BTN	0x0200
 #define	ALTINT_SWITCH	0x0400
 #define	ALTINT_FLASH	0x0800
-#define	ALTINT_SCOP	0x1000
+#define	ALTINT_SCOPE	0x1000
 #define	ALTINT_GPIO	0x2000
 
 

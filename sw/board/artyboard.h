@@ -156,8 +156,8 @@ typedef	struct	{
 	volatile unsigned	io_gpio;
 	volatile unsigned	io_uart_rx, io_uart_tx;
 	volatile unsigned	io_gps_rx, io_gps_tx;
-	volatile unsigned	io_gps_now, io_gps_step;
-	unsigned		io_reserved[32-20];
+	volatile unsigned	io_gps_sec, i_gps_sub, io_gps_step;
+	unsigned		io_reserved[32-21];
 	SCOPE			io_scope[4];
 	RTC			io_rtc;
 	SDCARD			io_sd;
