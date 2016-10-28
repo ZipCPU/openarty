@@ -141,7 +141,7 @@ module	busmaster(i_clk, i_rst,
 		// The GPS PMod
 		i_gps_pps, i_gps_3df
 		);
-	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=28'h04e0000;
+	parameter	ZA=28, ZIPINTS=15, RESET_ADDRESS=28'h04e0000;
 	input			i_clk, i_rst;
 	// The bus commander, via an external uart port
 	input			i_rx_stb;
@@ -228,7 +228,8 @@ module	busmaster(i_clk, i_rst,
 	// Interrupts
 	wire		gpio_int, oled_int, flash_int, scop_int;
 	wire		enet_tx_int, enet_rx_int, sdcard_int, rtc_int, rtc_pps,
-			auxrx_int, auxtx_int, gpsrx_int, sw_int, btn_int;
+			auxrx_int, auxtx_int, gpsrx_int, gpstx_int,
+			sw_int, btn_int;
 
 	//
 	//
@@ -292,10 +293,12 @@ module	busmaster(i_clk, i_rst,
 `ifdef	ZIP_SYSTEM
 	wire	[(ZIPINTS-1):0]	zip_interrupt_vec = {
 		// Lazy(ier) interrupts
-		oled_int, gpio_int, rtc_int, scop_int, flash_int, sw_int, btn_int,
+		gpio_int, scop_int, flash_int, sw_int, btn_int, rtc_int,
 		// Fast interrupts
-		sdcard_int, auxtx_int, auxrx_int, enet_tx_int, enet_rx_int,
-			gpsrx_int, rtc_pps
+		oled_int, sdcard_int,
+			gpstx_int, gpsrx_int,
+			auxtx_int, auxrx_int,
+			enet_tx_int, enet_rx_int, rtc_pps
 		};
 
 	zipsystem #(	.RESET_ADDRESS(RESET_ADDRESS),
@@ -655,7 +658,7 @@ module	busmaster(i_clk, i_rst,
 	assign	master_ints = { zip_cpu_int, oled_int, rtc_int, sdcard_int,
 			enet_tx_int, enet_rx_int,
 			scop_int, flash_int, rtc_pps };
-	wire	[5:0]	board_ints;
+	wire	[6:0]	board_ints;
 	wire	[3:0]	w_led;
 	wire	rtc_ppd;
 	fastio	#(
@@ -670,7 +673,7 @@ module	busmaster(i_clk, i_rst,
 			rtc_ppd,
 			bus_err_addr, gps_now[63:32], gps_step[47:16], master_ints, w_interrupt,
 			board_ints);
-	assign	{ gpio_int, auxrx_int, auxtx_int, gpsrx_int, sw_int, btn_int } = board_ints;
+	assign	{ gpio_int, auxrx_int, auxtx_int, gpsrx_int, gpstx_int, sw_int, btn_int } = board_ints;
 
 	/*
 	reg	[25:0]	dbg_counter_err, dbg_counter_cyc, dbg_counter_sel,

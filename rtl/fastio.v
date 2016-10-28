@@ -100,7 +100,7 @@ module	fastio(i_clk,
 	// 	in the design
 	input	wire	[8:0]	i_other_ints;
 	output	wire		o_bus_int;
-	output	wire	[5:0]	o_board_ints; // Button and switch interrupts
+	output	wire	[6:0]	o_board_ints; // Button and switch interrupts
 
 	wire	[31:0]	w_wb_data;
 	wire	[4:0]	w_wb_addr;
@@ -133,7 +133,7 @@ module	fastio(i_clk,
 	reg	sw_int, btn_int;
 	wire	pps_int, rtc_int, netrx_int, nettx_int,
 		auxrx_int, auxtx_int, gpio_int, flash_int, scop_int,
-		gpsrx_int, sd_int, oled_int, zip_int;
+		gpsrx_int, gpstx_int, sd_int, oled_int, zip_int;
 	assign { zip_int, oled_int, rtc_int, sd_int,
 			nettx_int, netrx_int, scop_int, flash_int,
 			pps_int } = i_other_ints;
@@ -381,7 +381,7 @@ module	fastio(i_clk,
 			r_auxrx_data[8] <= !auxrx_stb;
 	assign	o_aux_cts = auxrx_stb;
 	assign	auxrx_data = { 20'h00, r_auxrx_data };
-	assign	auxrx_int = r_auxrx_data[8];
+	assign	auxrx_int = !r_auxrx_data[8];
 
 	//
 	// Then the auxilliary UART transmitter
@@ -405,7 +405,7 @@ module	fastio(i_clk,
 			r_auxtx_data <= 8'h0;
 		end
 	assign	auxtx_data = { 20'h00,
-		auxck_uart, o_aux_tx, r_auxtx_break, auxtx_busy,
+		1'b0, o_aux_tx, r_auxtx_break, auxtx_busy,
 		r_auxtx_data };
 	assign	auxtx_int = ~auxtx_busy;
 
@@ -436,7 +436,7 @@ module	fastio(i_clk,
 		if(((i_wb_stb)&&(~i_wb_we)&&(i_wb_addr == 5'h10))||(gpsrx_stb))
 			r_gpsrx_data[8] <= !gpsrx_stb;
 	assign	gpsrx_data = { 20'h00, r_gpsrx_data };
-	assign	gpsrx_int = r_gpsrx_data[8];
+	assign	gpsrx_int = !r_gpsrx_data[8];
 
 
 	// Then the transmitter
@@ -461,6 +461,7 @@ module	fastio(i_clk,
 	assign	gpstx_data = { 20'h00,
 		gpsck_uart, o_gps_tx, r_gpstx_break, gpstx_busy,
 		r_gpstx_data };
+	assign	gpstx_int = !gpstx_busy;
 
 	always @(posedge i_clk)
 		case(i_wb_addr)
@@ -494,7 +495,8 @@ module	fastio(i_clk,
 	assign	o_wb_stall = 1'b0;
 	always @(posedge i_clk)
 		o_wb_ack <= (i_wb_stb);
-	assign	o_board_ints = { gpio_int, auxrx_int, auxtx_int, gpsrx_int, sw_int, btn_int };
+	assign	o_board_ints = { gpio_int, auxrx_int, auxtx_int,
+			gpsrx_int, gpstx_int, sw_int, btn_int };
 
 
 endmodule
