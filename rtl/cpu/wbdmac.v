@@ -332,9 +332,10 @@ module wbdmac(i_clk, i_rst,
 
 	initial	o_interrupt = 1'b0;
 	always @(posedge i_clk)
-		o_interrupt <= (dma_state == `DMA_WRITE_ACK)&&(i_mwb_ack)
-				&&(last_write_ack)
-				&&(cfg_len == {{(AW-1){1'b0}},1'b1});
+		o_interrupt <= ((dma_state == `DMA_WRITE_ACK)&&(i_mwb_ack)
+					&&(last_write_ack)
+					&&(cfg_len == {{(AW-1){1'b0}},1'b1}))
+				||((dma_state != `DMA_IDLE)&&(i_mwb_err));
 
 	initial	cfg_err = 1'b0;
 	always @(posedge i_clk)
