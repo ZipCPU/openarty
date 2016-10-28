@@ -177,7 +177,7 @@ public:
 
 		PIPECMDR::tick();
 
-#define	DEBUGGING_OUTPUT
+// #define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
@@ -223,6 +223,9 @@ public:
 		if (m_core->v__DOT__rgbctrl__DOT__r_busy)
 			writeout = true;
 		if (m_core->v__DOT__rgbctrl__DOT__dev_busy)
+			writeout = true;
+
+		if (m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state != 0)
 			writeout = true;
 
 
@@ -675,6 +678,46 @@ public:
 				(m_core->v__DOT__rgbctrl__DOT__dev_busy)?"D-BSY":"     ",
 				m_core->v__DOT__rgbctrl__DOT__r_len,
 				m_core->v__DOT__rgbctrl__DOT__dev_len);
+			printf((m_core->v__DOT__oled_int)?"I":" "); // And the interrupt
+
+			// Debug the DMA
+			printf(" DMAC[%d]: %08x/%08x/%08x(%03x)%d%d%d%d -- (%d,%d,%c)%c%c:@%08x-[%4d,%4d/%4d,%4d-#%4d]%08x",
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_waddr,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_raddr,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_len,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_blocklen_sub_one,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__last_read_request,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__last_read_ack,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__last_write_request,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__last_write_ack,
+				m_core->v__DOT__zippy__DOT__dc_cyc,
+				// m_core->v__DOT__zippy__DOT__dc_stb,
+				(m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state == 2)?1:0,
+
+				((m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state == 4)
+				||(m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state == 5)
+				||(m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state == 6))?'W':'R',
+				//(m_core->v__DOT__zippy__DOT__dc_we)?'W':'R',
+				(m_core->v__DOT__zippy__DOT__dc_ack)?'A':' ',
+				(m_core->v__DOT__zippy__DOT__dc_stall)?'S':' ',
+				m_core->v__DOT__zippy__DOT__dc_addr,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__rdaddr,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__nread,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__nracks,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__nwacks,
+				m_core->v__DOT__zippy__DOT__dma_controller__DOT__nwritten,
+				m_core->v__DOT__zippy__DOT__dc_data);
+			printf((m_core->v__DOT__zippy__DOT__dma_controller__DOT__trigger)?"T":" ");
+			printf((m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_incs)?"+":".");
+			printf((m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_incd)?"+":".");
+			printf("%s[%2x]",
+				(m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_on_dev_trigger)?"!":" ",
+				(m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_dev_trigger));
+
+			printf(" INT:0x%08x/0x%08x",
+				m_core->v__DOT__zippy__DOT__main_int_vector,
+				m_core->v__DOT__zippy__DOT__alt_int_vector);
 
 			printf("\n"); fflush(stdout);
 		} m_last_writeout = writeout;
