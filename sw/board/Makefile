@@ -31,11 +31,11 @@
 ##
 ##
 .PHONY: all
-all:	exstartup oledtest gpsdump
+all:	exstartup oledtest gpsdump exmulti
 OBJDIR := obj-zip
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c
+SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c
 HEADERS := artyboard.h zipsys.h
 #
 # For source analysis, the following macros are defined:
@@ -44,7 +44,7 @@ HEADERS := artyboard.h zipsys.h
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.c
-	$(CC) -c -fno-builtin $< -o $@
+	$(CC) -O3 -c -fno-builtin $< -o $@
 %.txt: %
 	$(OBJDUMP) -S -D $^ > $@
 
@@ -53,7 +53,10 @@ exstartup: exstartup.c artyboard.h zipsys.h arty.ld
 gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o -o $@
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
+
+exmulti: $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o arty.ld 
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exmulti.map $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o -o $@
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
