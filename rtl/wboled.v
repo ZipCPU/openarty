@@ -144,7 +144,7 @@ module	wboled(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 			o_ack, o_stall, o_data,
 		o_sck, o_cs_n, o_mosi, o_dbit,
 		o_pwr, o_int);
-	parameter	CBITS=8, // 2^4*2@6.25ns -> 200ns/clock > 150ns min
+	parameter	CBITS=4, // 2^4*13ns -> 208ns/clock > 150ns min
 			EXTRA_BUS_CLOCK = 0;
 	input			i_clk, i_cyc, i_stb, i_we;
 	input		[1:0]	i_addr;
