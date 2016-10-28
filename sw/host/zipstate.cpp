@@ -70,7 +70,7 @@ unsigned int	cmd_read(FPGA *fpga, int r) {
 		printf("ERR: errcount(%d) >= MAXERR on cmd_read(a=%02x)\n",
 			errcount, r);
 		printf("ZIPCTRL = 0x%08x", s);
-		if ((s & 0x0200)==0) printf(" STALL");
+		if ((s & 0x0200)==0) printf(" BUSY");
 		if  (s & 0x0400)     printf(" HALTED");
 		if ((s & 0x03000)==0x01000)
 			printf(" SW-HALT");
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
 		printf("0x%08x: ", v);
 		if (v & 0x0080) printf("PINT ");
 		// if (v & 0x0100) printf("STEP "); // self resetting
-		if((v & 0x00200)==0) printf("STALL ");
+		if((v & 0x00200)==0) printf("BUSY ");
 		if (v & 0x00400) printf("HALTED ");
 		if((v & 0x03000)==0x01000) {
 			printf("SW-HALT");
