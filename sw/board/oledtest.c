@@ -275,8 +275,6 @@ void	oled_show_image(int *img) {
 		zip->dma.wr = &sys->io_oled.o_data;
 		zip->dma.len= 6144;
 		zip->dma.ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_OLED;
-		// timer_delay(256);
-		// zip_halt();
 #else
 		for(int i=0; i<6144; i++) {
 			while(sys->io_oled.o_ctrl & OLED_BUSY)
@@ -398,10 +396,13 @@ void	entry(void) {
 		while(sys->io_oled.o_ctrl & OLED_BUSY)
 			;
 		sys->io_oled.o_ctrl = 0x2075003f; // Sets row min/max address
+		while(sys->io_oled.o_ctrl & OLED_BUSY)
+			;
 
 		// Now ... finally ... we can send our image.
 		oled_show_image(splash);
-		wait_on_interrupt(SYSINT_DMAC);
+		while(zip->dma.ctrl<0)
+			wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
 		sys->io_ledctrl = 0x0f1;
@@ -419,7 +420,8 @@ void	entry(void) {
 		// Display a second image.
 		sys->io_ledctrl = 0x0fc;
 		oled_show_image(mug);
-		wait_on_interrupt(SYSINT_DMAC);
+		while(zip->dma.ctrl<0)
+			wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
 		sys->io_ledctrl = 0x0f8;
