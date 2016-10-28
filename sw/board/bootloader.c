@@ -96,6 +96,41 @@
 #include "artyboard.h"
 #include "zipsys.h"
 
+// A bootloader is about nothing more than copying memory from a couple
+// particular locations (Flash/ROM) to other locations in memory (BLKRAM
+// and SDRAM).  Our DMA is a hardware accelerator that does nothing but
+// copy memory from one location to another.  Why not use the DMA for this
+// purpose then?
+//
+// Here, we have a USE_DMA #define.  When this is defined, the memory copy
+// will be done using the DMA hardware accelerator.  This is a good thing,
+// and this should be defined.  There are two problems with defining this
+// however: 1) It obscures for any readers of this code what is actually
+// happening, and 2) it makes the code dependent upon yet another piece of the
+// hardware design working.  For these reasons, we allow you to turn it off.
+#define	USE_DMA
+
+//
+// _start:
+//
+// Every computer needs to start processing from somewhere on reboot, and every
+// program needs some entry point.  For the ZipCPU, that starting place is the
+// routine with the _start symbol.  It is important that this start symbol be
+// placed at the boot address for the CPU.  This is the very first address of
+// program memory, and (currently) on the Arty board it is placed in Flash at
+// _start = 0x4e0000.  To make certain this routine goes into the very first
+// address in flash, we place it into it's own special section, the .start
+// section, and then tell the linker that the .start section is the first
+// section where it needs to start placing code.
+//
+// If you read through this short assembly routine below, you'll find that it
+// does only a small number of tasks.  It sets the stack pointer to point to
+// the top of the stack (a symbol defined in the linker file), calls the 
+// bootloader, resets the stack pointer, clears any data cache, and then calls
+// the kernel entry function.  It also sets up a return address for the kernel
+// entry function so that, should the kernel ever exit, it wouldn't exit on 
+// any error but rather it would exit by halting the CPU.
+//
 asm("\t.section\t.start\n"
 	"\t.global\t_start\n"
 "_start:\n"
@@ -116,18 +151,33 @@ extern int	_sdram_image_end, _sdram_image_start, _sdram,
 	_blkram, _flash, _bss_image_end,
 	_kernel_image_start, _kernel_image_end;
 
+//
+// We need to insist that the bootloader be kept in Flash, else it would depend
+// upon running a routine from memory that ... wasn't in memory yet.  For this
+// purpose, we place the bootloader in a special .boot section.  We'll also tell
+// the linker, via the arty.ld file, that thsi .boot section needs to be placed
+// into flash.
+//
 extern	void	bootloader(void) __attribute__ ((section (".boot")));
 
-// #define	USE_DMA
+//
+// bootloader()
+//
+// Here's the actual boot loader itself.  It copies three areas from flash:
+//	1. An area from flash to block RAM
+//	2. A second area from flash to SDRAM
+//	3. The third area isn't copied from flash, but rather it is just set to
+//		zero.  This is sometimes called the BSS segment.
+//
 void	bootloader(void) {
 	int	zero = 0;
 
 #ifdef	USE_DMA
 	zip->dma.ctrl= DMACLEAR;
-	zip->dma.rd = _kernel_image_start;
-	if (_kernel_image_end != _sdram_image_start) {
-		zip->dma.len = _kernel_image_end - _blkram;
-		zip->dma.wr  = _blkram;
+	zip->dma.rd = &_kernel_image_start;
+	if (&_kernel_image_end != &_sdram_image_start) {
+		zip->dma.len = &_kernel_image_end - &_blkram;
+		zip->dma.wr  = &_blkram;
 		zip->dma.ctrl= DMACCOPY;
 
 		zip->pic = SYSINT_DMAC;
@@ -135,16 +185,19 @@ void	bootloader(void) {
 			;
 	}
 
-	zip->dma.len = &_sdram_image_end - _sdram;
-	zip->dma.wr  = _sdram;
-	zip->dma.ctrl= DMACCOPY;
+	// zip->dma.rd // Keeps the same value
+	zip->dma.wr  = &_sdram;
+	if (&_sdram_image_end != &_sdram) {
+		zip->dma.len = &_sdram_image_end - &_sdram;
+		zip->dma.ctrl= DMACCOPY;
+	}
 
 	zip->pic = SYSINT_DMAC;
 	while((zip->pic & SYSINT_DMAC)==0)
 		;
 
-	if (_bss_image_end != _sdram_image_end) {
-		zip->dma.len = _bss_image_end - _sdram_image_end;
+	if (&_bss_image_end != &_sdram_image_end) {
+		zip->dma.len = &_bss_image_end - &_sdram_image_end;
 		zip->dma.rd  = &zero;
 		// zip->dma.wr // Keeps the same value
 		zip->dma.ctrl = DMACCOPY;
