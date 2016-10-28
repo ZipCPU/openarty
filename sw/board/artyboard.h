@@ -57,6 +57,23 @@
 #define	BUS_SDCARD	0x1000
 #define	BUS_OLED	0x2000
 #define	BUS_ZIP		0x4000
+
+// DMA Interrupt parameters
+#define	DMA_JIFFIES	(DMA_TRIGGER|0x0400)
+#define	DMA_TMC		(DMA_TRIGGER|0x0800)
+#define	DMA_TMB		(DMA_TRIGGER|0x0c00)
+#define	DMA_TMA		(DMA_TRIGGER|0x1000)
+#define	DMA_AUX		(DMA_TRIGGER|0x1400)
+#define	DMA_PPS		(DMA_TRIGGER|0x1800)
+#define	DMA_NETRX	(DMA_TRIGGER|0x1c00)
+#define	DMA_NETTX	(DMA_TRIGGER|0x2000)
+#define	DMA_UARTRX	(DMA_TRIGGER|0x2400)
+#define	DMA_UARTTX	(DMA_TRIGGER|0x2800)
+#define	DMA_GPSRX	(DMA_TRIGGER|0x2c00)
+#define	DMA_GPSTX	(DMA_TRIGGER|0x3000)
+#define	DMA_SDCARD	(DMA_TRIGGER|0x3400)
+#define	DMA_OLED	(DMA_TRIGGER|0x3800)
+
 // That's our maximum number of interrupts.  Any more, and we'll need to 
 // remove one.  Don't forget, the primary interrupt source will be the SYS_
 // interrupts, and there's another set of AUX_ interrupts--both available if
@@ -84,7 +101,7 @@ typedef	struct	{
 
 typedef	struct	{
 	volatile unsigned	rxcmd, txcmd;
-	volatile long		mac;
+	volatile unsigned	mac[2];
 	volatile unsigned	rxmiss, rxerr, rxcrc, txcol;
 #define	ENET_TXGO	0x004000
 #define	ENET_TXBUSY	0x004000
@@ -139,7 +156,8 @@ typedef	struct	{
 	volatile unsigned	io_gpio;
 	volatile unsigned	io_uart_rx, io_uart_tx;
 	volatile unsigned	io_gps_rx, io_gps_tx;
-	unsigned		io_reserved[32-18];
+	volatile unsigned	io_gps_now, io_gps_step;
+	unsigned		io_reserved[32-20];
 	SCOPE			io_scope[4];
 	RTC			io_rtc;
 	SDCARD			io_sd;
