@@ -31,7 +31,8 @@
 ##
 ##
 .PHONY: all
-all:	exstartup oledtest gpsdump exmulti
+PROGRAMS := exstartup oledtest gpsdump exmulti
+all:	$(PROGRAMS)
 OBJDIR := obj-zip
 CC := zip-gcc
 OBJDUMP := zip-objdump
@@ -62,7 +63,7 @@ exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
 
 clean:
-	rm -f exstartup exstartup.map exstartup.txt
+	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS)) $(addsuffix .txt,$(PROGRAMS))
 	rm -rf $(OBJDIR)/
 
 define	build-depends
