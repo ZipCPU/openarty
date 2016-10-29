@@ -229,7 +229,7 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	if (c+w > 95) w = 95-c;
 	if (r+h > 63) h = 63-r;
 
-	// Enable a rectangle to fill
+	// Enable the fill rectangle function, rather than just the outline
 	while(sys->io_oled.o_ctrl & OLED_BUSY)
 		;
 	sys->io_oled.o_ctrl = 0x12601;
@@ -252,7 +252,7 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	sys->io_oled.o_b|= ((pix >>  5) & 0x03f)<< 8;
 	sys->io_oled.o_b|= ((pix      ) & 0x01f)<< 1;
 
-	// Make certain we had finished with the port (we should've by now)
+	// Make certain we had finished with the port
 	while(sys->io_oled.o_ctrl & OLED_BUSY)
 		;
 
@@ -267,13 +267,26 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 		;
 }
 
+/*
+ * oled_show_image(int *img)
+ *
+ * This is a really simply function, for a really simple purpose: it copies
+ * a full size image to the device.  You'll notice two versions of the routine
+ * below.  They are roughly identical in what they do.  The first version
+ * sets up the DMA to transfer the data, one word at a time, from RAM to
+ * the OLED.  One byte is transferred every at every OLED interrupt.  The other
+ * version works roughly the same way, but first waits for the OLED port to be
+ * clear before sending the image.  The biggest difference between the two 
+ * approaches is that, when using the DMA, the routine finishes before the 
+ * DMA transfer is complete, whereas the second version of the routine
+ * returns as soon as the image transfer is complete.
+ */
 void	oled_show_image(int *img) {
 #define	USE_DMA
 #ifdef	USE_DMA
-		zip->dma.ctrl = DMACLEAR;
-		zip->dma.rd = img;
-		zip->dma.wr = &sys->io_oled.o_data;
 		zip->dma.len= 6144;
+		zip->dma.rd = img;
+		zip->dma.wr = (int *)&sys->io_oled.o_data;
 		zip->dma.ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_OLED;
 #else
 		for(int i=0; i<6144; i++) {
@@ -401,8 +414,7 @@ void	entry(void) {
 
 		// Now ... finally ... we can send our image.
 		oled_show_image(splash);
-		while(zip->dma.ctrl<0)
-			wait_on_interrupt(SYSINT_DMAC);
+		wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
 		sys->io_ledctrl = 0x0f1;
@@ -420,8 +432,7 @@ void	entry(void) {
 		// Display a second image.
 		sys->io_ledctrl = 0x0fc;
 		oled_show_image(mug);
-		while(zip->dma.ctrl<0)
-			wait_on_interrupt(SYSINT_DMAC);
+		wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
 		sys->io_ledctrl = 0x0f8;

@@ -80,7 +80,7 @@
 // the ZipSystem is in use.
 
 typedef	struct	{
-	volatile unsigned	s_ctrl, s_data;
+	unsigned	s_ctrl, s_data;
 } SCOPE;
 #define	SCOPE_NO_RESET	0x80000000
 #define	SCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
@@ -88,21 +88,21 @@ typedef	struct	{
 #define	SCOPE_DISABLE	0x04000000
 
 typedef	struct	{
-	volatile unsigned	sd_ctrl, sd_data, sd_fifo[2];
+	unsigned	sd_ctrl, sd_data, sd_fifo[2];
 } SDCARD;
 
 typedef	struct	{
-	volatile unsigned	r_clock, r_stopwach, r_timer, r_alarm;
+	unsigned	r_clock, r_stopwach, r_timer, r_alarm;
 } RTC;
 
 typedef	struct	{
-	volatile unsigned	g_alpha, g_beta, g_gamma, g_step;
+	unsigned	g_alpha, g_beta, g_gamma, g_step;
 } GPSTRACKER;
 
 typedef	struct	{
-	volatile unsigned	rxcmd, txcmd;
-	volatile unsigned	mac[2];
-	volatile unsigned	rxmiss, rxerr, rxcrc, txcol;
+	unsigned	rxcmd, txcmd;
+	unsigned	mac[2];
+	unsigned	rxmiss, rxerr, rxcrc, txcol;
 #define	ENET_TXGO	0x004000
 #define	ENET_TXBUSY	0x004000
 #define	ENET_NOHWCRC	0x008000
@@ -125,38 +125,38 @@ typedef	struct	{
 } ENETPACKET;
 
 typedef	struct {
-	volatile unsigned	o_ctrl, o_a, o_b, o_data;
+	unsigned	o_ctrl, o_a, o_b, o_data;
 } OLEDRGB;
 
 typedef	struct {
-	volatile unsigned	tb_maxcount, tb_jump;
-	volatile unsigned long	tb_err, tb_count, tb_step;
+	unsigned	tb_maxcount, tb_jump;
+	unsigned long	tb_err, tb_count, tb_step;
 } GPSTB;
 
 typedef	struct {
-	volatile unsigned	e_v[32];
+	unsigned	e_v[32];
 } ENETMDIO;
 
 typedef struct {
-	volatile unsigned	f_ereg, f_status, f_nvconfig, f_vconfig,
-				f_evconfig, f_flags, f_lock, f_;
-	volatile unsigned	f_id[5], f_unused[3];
-	volatile unsigned	f_otpc, f_otp[16];
+	unsigned	f_ereg, f_status, f_nvconfig, f_vconfig,
+			f_evconfig, f_flags, f_lock, f_;
+	unsigned	f_id[5], f_unused[3];
+	unsigned	f_otpc, f_otp[16];
 } EFLASHCTRL;
 
 typedef	struct	{
-	volatile int		io_version, io_pic;
-	volatile unsigned	*io_buserr;
-	volatile unsigned	io_pwrcount;
-	volatile unsigned	io_btnsw;
-	volatile unsigned	io_ledctrl;
-	volatile unsigned	io_auxsetup, io_gpssetup;
-	volatile unsigned	io_clrled[4];
-	volatile unsigned	io_rtcdate;
-	volatile unsigned	io_gpio;
-	volatile unsigned	io_uart_rx, io_uart_tx;
-	volatile unsigned	io_gps_rx, io_gps_tx;
-	volatile unsigned	io_gps_sec, io_gps_sub, io_gps_step;
+	int		io_version, io_pic;
+	unsigned	*io_buserr;
+	unsigned	io_pwrcount;
+	unsigned	io_btnsw;
+	unsigned	io_ledctrl;
+	unsigned	io_auxsetup, io_gpssetup;
+	unsigned	io_clrled[4];
+	unsigned	io_rtcdate;
+	unsigned	io_gpio;
+	unsigned	io_uart_rx, io_uart_tx;
+	unsigned	io_gps_rx, io_gps_tx;
+	unsigned	io_gps_sec, io_gps_sub, io_gps_step;
 	unsigned		io_reserved[32-21];
 	SCOPE			io_scope[4];
 	RTC			io_rtc;
@@ -168,14 +168,14 @@ typedef	struct	{
 	unsigned		io_ignore_1[8+16+64];
 	ENETMDIO		io_netmdio;
 	EFLASHCTRL		io_eflash;
-	volatile unsigned	io_icape2[32];
-	volatile unsigned	io_enet_rx[1024];
-	volatile unsigned	io_enet_tx[1024];
+	unsigned	io_icape2[32];
+	unsigned	io_enet_rx[1024];
+	unsigned	io_enet_tx[1024];
 } IOSPACE;
 
-static IOSPACE	* const sys = (IOSPACE *)0x0100;
+static volatile IOSPACE	* const sys = (IOSPACE *)0x0100;
 
-static SDCARD	* const sd = (SDCARD *)0x0120;
+static volatile SDCARD	* const sd = (SDCARD *)0x0120;
 
 #define	BKRAM	(void *)0x0008000
 #define	FLASH	(void *)0x0400000

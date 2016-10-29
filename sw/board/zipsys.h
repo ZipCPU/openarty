@@ -40,12 +40,12 @@
 #define	ZIPSYS_H
 
 typedef	struct	{
-	volatile unsigned	ck, mem, pf, icnt;
+	unsigned	ck, mem, pf, icnt;
 } ZIPTASKCTRS;
 
 typedef	struct	{
-	volatile int	ctrl, len;
-	volatile int	*rd, *wr;
+	int	ctrl, len;
+	int	*rd, *wr;
 } ZIPDMA;
 
 #define	DMA_TRIGGER	0x00008000
@@ -59,7 +59,7 @@ typedef	struct	{
 #define	DMA_ERR		0x40000000
 
 typedef	struct	{
-	volatile int	pic, wdt, err, apic, tma, tmb, tmc,
+	int	pic, wdt, err, apic, tma, tmb, tmc,
 		jiffies;
 	ZIPTASKCTRS	m, u;
 	ZIPDMA		dma;
@@ -141,7 +141,7 @@ extern	int	syscall(int,int,int,int);
 #define	CLEARPIC	0x7fff7fff
 #define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
 
-static	ZIPSYS *const zip = (ZIPSYS *)(ZIPSYS_ADDR);
+static	volatile ZIPSYS *const zip = (ZIPSYS *)(ZIPSYS_ADDR);
 
 static inline void	DISABLE_INTS(void) {
 	zip->pic = 0;
