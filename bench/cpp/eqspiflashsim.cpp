@@ -110,9 +110,9 @@ EQSPIFLASHSIM::EQSPIFLASHSIM(void) {
 	m_ireg = m_oreg = 0;
 	m_sreg = 0x01c;
 	m_creg = 0x001;	// Initial creg on delivery
-	m_vconfig   = 0x7; // Volatile configuration register
+	m_vconfig   = 0x83; // Volatile configuration register
 	m_nvconfig = 0x0fff; // Nonvolatile configuration register
-	m_quad_mode = false;
+	m_quad_mode = EQSPIF_QMODE_SPI;
 	m_mode_byte = 0;
 	m_flagreg = 0x0a5;
 
@@ -182,13 +182,13 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				*/
 				m_mem[(m_addr&(~0x0ff))+i] &= m_pmem[i];
 			}
-			m_quad_mode = false;
+			m_quad_mode = EQSPIF_QMODE_SPI;
 		} else if (EQSPIF_WRCR == m_state) {
-			if (m_debug) printf("Actually writing volatile config register\n");
+			if (m_debug) printf("Actually writing volatile config register: VCONFIG = 0x%04x\n", m_vconfig);
 			if (m_debug) printf("CK = %d & 7 = %d\n", m_count, m_count & 0x07);
 			m_state = EQSPIF_IDLE;
 		} else if (EQSPIF_WRNVCONFIG == m_state) {
-			if (m_debug) printf("Actually writing nonvolatile config register\n");
+			if (m_debug) printf("Actually writing nonvolatile config register: VCONFIG = 0x%02x\n", m_nvconfig);
 			m_write_count = tWNVCR;
 			m_state = EQSPIF_IDLE;
 		} else if (EQSPIF_WREVCONFIG == m_state) {
@@ -263,19 +263,15 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			m_write_count = tRES;
 			m_state = EQSPIF_IDLE;
 		*/
-		} else if (m_state == EQSPIF_QUAD_READ_CMD) {
-			m_state = EQSPIF_IDLE;
-			if (m_mode_byte!=0)
-				m_quad_mode = false;
-			else
-				m_state = EQSPIF_XIP;
 		} else if (m_state == EQSPIF_QUAD_READ) {
 			m_state = EQSPIF_IDLE;
 			if (m_mode_byte!=0)
-				m_quad_mode = false;
-			else
+				m_quad_mode = EQSPIF_QMODE_SPI;
+			else {
+				if (m_quad_mode == EQSPIF_QMODE_SPI_ADDR)
+					m_quad_mode = EQSPIF_QMODE_SPI;
 				m_state = EQSPIF_XIP;
-		// } else if (m_state == EQSPIF_XIP) {
+			}
 		}
 
 		m_oreg = 0x0fe;
@@ -324,7 +320,10 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("EQSPI: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
 			m_addr = (m_ireg) & 0x0ffffff;
 			assert((m_addr & 0xfc00000)==0);
+		} else if (m_count == 24 + 4*8) {// After the idle bits
 			m_state = EQSPIF_QUAD_READ;
+			if (m_debug) printf("EQSPI: QI/O Dummy = %04x\n", m_ireg);
+			m_mode_byte = (m_ireg>>24) & 0x10;
 		} m_oreg = 0;
 	} else if (m_count == 8) {
 		QOREG(0x0a5);
@@ -377,8 +376,10 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				if (m_debug) printf("EQSPI: WEL not set, cannot do a subsector erase\n");
 				m_state = EQSPIF_INVALID;
 				assert(0&&"WEL not set");
-			} else
+			} else {
 				m_state = EQSPIF_SUBSECTOR_ERASE;
+				if (m_debug) printf("EQSPI: SUBSECTOR_ERASE COMMAND\n");
+			}
 			break;
 		case 0x32: // QUAD Page program, 4 bits at a time
 			if (2 != (m_sreg & 0x203)) {
@@ -421,7 +422,7 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			QOREG(m_evconfig);
 			break;
 		case 0x06b:
-			m_state = EQSPIF_QUAD_READ_CMD;
+			m_state = EQSPIF_QUAD_OREAD_CMD;
 			// m_quad_mode = true; // Not yet, need to wait past dummy registers
 			break;
 		case 0x70: // Read flag status register
@@ -479,10 +480,8 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("EQSPI: READ LOCK REGISTER (Waiting on address)\n");
 			break;
 		case 0x0eb: // Here's the (other) read that we support
-			// printf("EQSPI: QUAD-I/O-READ\n");
-			// m_state = EQSPIF_QUAD_READ_CMD;
-			// m_quad_mode = true;
-			assert(0 && "Quad Input/Output fast read not supported");
+			m_state = EQSPIF_QUAD_IOREAD_CMD;
+			m_quad_mode = EQSPIF_QMODE_QSPI_ADDR;
 			break;
 		default:
 			printf("EQSPI: UNRECOGNIZED SPI FLASH CMD: %02x\n", m_ireg&0x0ff);
@@ -508,13 +507,13 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			}
 			break;
 		case EQSPIF_WRCR: // Write volatile config register, 0x81
-			if (m_count == 8+8) {
+			if (m_count == 8+8+8) {
 				m_vconfig = m_ireg & 0x0ff;
 				printf("Setting volatile config register to %08x\n", m_vconfig);
 				assert((m_vconfig & 0xfb)==0x8b);
 			} break;
 		case EQSPIF_WRNVCONFIG: // Write nonvolatile config register
-			if (m_count == 8+8) {
+			if (m_count == 8+8+8) {
 				m_nvconfig = m_ireg & 0x0ffdf;
 				printf("Setting nonvolatile config register to %08x\n", m_nvconfig);
 				assert((m_nvconfig & 0xffc5)==0x8fc5);
@@ -596,7 +595,6 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			break;
 		case EQSPIF_FAST_READ:
 			if (m_count < 32) {
-				if (m_debug) printf("FAST READ, WAITING FOR FULL COMMAND (count = %d)\n", m_count);
 				QOREG(0x0c3);
 			} else if (m_count == 32) {
 				m_addr = m_ireg & 0x0ffffff;
@@ -613,11 +611,26 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				if (m_debug) printf("CANNOT READ WHEN WRITE IN PROGRESS, m_sreg = %02x\n", m_sreg);
 			} else printf("How did I get here, m_count = %d\n", m_count);
 			break;
-		case EQSPIF_QUAD_READ_CMD:
-			// The command to go into quad read mode took 8 bits
-			// that changes the timings, else we'd use quad_Read
-			// below
-			if (m_count == 32) {
+		case EQSPIF_QUAD_IOREAD_CMD:
+			if (m_count == 8+24) {
+				m_addr = m_ireg & 0x0ffffff;
+				printf("EQSPI: QUAD I/O READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
+					(m_addr<0x1000000)?(m_mem[m_addr]&0x0ff):0,
+					(m_addr<0x0ffffff)?(m_mem[m_addr+1]&0x0ff):0,
+					(m_addr<0x0fffffe)?(m_mem[m_addr+2]&0x0ff):0,
+					(m_addr<0x0fffffd)?(m_mem[m_addr+3]&0x0ff):0);
+				assert((m_addr & (~(MEMBYTES-1)))==0);
+			} else if (m_count == 8+24+8*4) {
+				QOREG(m_mem[m_addr++]);
+				m_quad_mode = EQSPIF_QMODE_QSPI_ADDR;
+				m_mode_byte = (m_ireg & 0x080);
+				m_state = EQSPIF_QUAD_READ;
+			} else {
+				m_oreg = 0;
+			}
+			break;
+		case EQSPIF_QUAD_OREAD_CMD:
+			if (m_count == 8+24) {
 				m_addr = m_ireg & 0x0ffffff;
 				// printf("FAST READ, ADDR = %08x\n", m_addr);
 				printf("EQSPI: QUAD READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
@@ -626,26 +639,16 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 					(m_addr<0x0fffffe)?(m_mem[m_addr+2]&0x0ff):0,
 					(m_addr<0x0fffffd)?(m_mem[m_addr+3]&0x0ff):0);
 				assert((m_addr & (~(MEMBYTES-1)))==0);
-			} else if (m_count == 32+8) {
-				QOREG(m_mem[m_addr++]);
-				m_quad_mode = true;
+			} else if (m_count == 8+24+4*8) {
+				QOREG(m_mem[m_addr]);
+				m_quad_mode = EQSPIF_QMODE_SPI_ADDR;
 				m_mode_byte = (m_ireg & 0x080);
 				printf("EQSPI: (QUAD) MODE BYTE = %02x\n", m_mode_byte);
-			} else if ((m_count > 32+8)&&(0 == (m_sreg&0x01))) {
-				QOREG(m_mem[m_addr++]);
-				// printf("EQSPIF[%08x]/QR = %02x\n",
-					// m_addr-1, m_oreg);
-			} else {
-				// printf("ERR: EQSPIF--TRYING TO READ WHILE BUSY! (count = %d)\n", m_count);
-				m_oreg = 0;
+				m_state = EQSPIF_QUAD_READ;
 			}
 			break;
 		case EQSPIF_QUAD_READ:
-			if (m_count == 24+8*4) {// Requires 8 QUAD clocks
-				m_mode_byte = (m_ireg>>24) & 0x10;
-				printf("EQSPI/QR: MODE BYTE = %02x\n", m_mode_byte);
-				QOREG(m_mem[m_addr++]);
-			} else if ((m_count >= 64)&&(0 == (m_sreg&0x01))) {
+			if ((m_count >= 64)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
 				printf("EQSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			} else {
@@ -669,21 +672,20 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		case EQSPIF_QPP:
 			if (m_count == 32) {
 				m_addr = m_ireg & 0x0ffffff;
-				m_quad_mode = true;
+				m_quad_mode = EQSPIF_QMODE_SPI_ADDR;
 				if (m_debug) printf("EQSPI/QR: PAGE-PROGRAM ADDR = %06x\n", m_addr);
 				assert((m_addr & 0xfc00000)==0);
-				// m_page = m_addr >> 8;
 				for(int i=0; i<256; i++)
 					m_pmem[i] = 0x0ff;
 			} else if (m_count >= 40) {
+				printf("EQSPI: PROGRAM[%06x] = %02x\n", m_addr, m_ireg & 0x0ff);
 				m_pmem[m_addr & 0x0ff] = m_ireg & 0x0ff;
-				// printf("EQSPI/QR: PMEM[%02x] = 0x%02x -> %02x\n", m_addr & 0x0ff, m_ireg & 0x0ff, (m_pmem[(m_addr & 0x0ff)]&0x0ff));
 				m_addr = (m_addr & (~0x0ff)) | ((m_addr+1)&0x0ff);
 			} break;
 		case EQSPIF_SUBSECTOR_ERASE:
 			if (m_count == 32) {
 				m_addr = m_ireg & 0x0fff000;
-				if (m_debug) printf("SUBSECTOR_ERASE ADDRESS = %08x\n", m_addr);
+				if (m_debug) printf("SUBSUBSECTOR_ERASE ADDRESS = %08x\n", m_addr);
 				assert((m_addr & 0xff000000)==0);
 			} break;
 		case EQSPIF_SECTOR_ERASE:

@@ -66,11 +66,12 @@ public:
 	}
 
 	void	tick(void) {
-		m_core->i_clk_200mhz = 1;
-
+		m_core->i_clk_82mhz = 0;
+		m_core->eval();
 		m_core->i_qspi_dat = (*m_flash)(m_core->o_qspi_cs_n,
 			m_core->o_qspi_sck, m_core->o_qspi_dat);
 
+		m_core->i_clk_82mhz = 1;
 		printf("%08lx-WB: %s %s/%s %s %s[%s%s%s%s%s] %s %s@0x%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -171,7 +172,7 @@ public:
 			(m_core->v__DOT__ctproc__DOT__accepted)?"CT-ACC":"");
 
 
-		printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+		printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 			(m_core->v__DOT__preproc__DOT__pending)?" PENDING":"",
 			(m_core->v__DOT__preproc__DOT__lcl_key)?" KEY":"",
 			(m_core->v__DOT__preproc__DOT__ctreg_stb)?" CTSTB":"",
@@ -182,7 +183,7 @@ public:
 			// (m_core->v__DOT__preproc__DOT__lcl_reg)?" LCLREG":"",
 			// (m_core->v__DOT__w_xip)?" XIP":"",
 			// (m_core->v__DOT__w_quad)?" QUAD":"",
-			// (m_core->v__DOT__bus_piperd)?" RDPIPE":"",
+			(m_core->v__DOT__bus_piperd)?" RDPIPE":"",
 			(m_core->v__DOT__preproc__DOT__wp)?" WRWP":"",
 			(m_core->v__DOT__ewproc__DOT__cyc)?" WRCYC":"",
 			(m_core->v__DOT__bus_pipewr)?" WRPIPE":"",
@@ -209,7 +210,7 @@ public:
 		printf("\n");
 
 		m_core->eval();
-		m_core->i_clk_200mhz = 0;
+		m_core->i_clk_82mhz = 0;
 		m_core->eval();
 
 		m_tickcount++;
@@ -579,7 +580,13 @@ int main(int  argc, char **argv) {
 	} printf("VECTOR TEST PASSES! (QUAD)\n");
 
 	printf("Attempting to switch to Quad mode with XIP\n");
-	tb->wb_write(3, tb->wb_read(3)|0x08);
+	{
+		int	nv;
+		nv = tb->wb_read(3);
+		printf("READ VCONF = %02x\n", nv);
+		printf("WRITING VCONF= %02x\n", nv | 0x08);
+		tb->wb_write(3, nv|0x08);
+	}
 	// tb->wb_write(0, 0x22000000);
 
 	printf("Attempting to read in Quad mode, using XIP mode\n");

@@ -102,7 +102,7 @@
 //
 //
 // `define	QSPI_READ_ONLY
-module	eqspiflash(i_clk_200mhz, i_rst,
+module	eqspiflash(i_clk_82mhz, i_rst,
 		// Incoming wishbone connection(s)
 		//	The two strobe lines allow the data to live on a
 		//	separate part of the master bus from the control 
@@ -120,7 +120,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 		// Debug the interface
 		o_dbg);
 
-	input			i_clk_200mhz, i_rst;
+	input			i_clk_82mhz, i_rst;
 	// Wishbone bus inputs
 	input			i_wb_cyc, i_wb_data_stb, i_wb_ctrl_stb, i_wb_we;
 	input		[21:0]	i_wb_addr;	// 24 bits of addr space
@@ -142,7 +142,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	output	wire	[31:0]	o_dbg;
 
 	initial	o_cmd_accepted = 1'b0;
-	always @(posedge i_clk_200mhz)
+	always @(posedge i_clk_82mhz)
 		o_cmd_accepted=((i_wb_data_stb)||(i_wb_ctrl_stb))&&(~o_wb_stall);
 	//
 	// lleqspi
@@ -154,7 +154,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	reg	[1:0]	spi_len;
 	wire	[31:0]	spi_out;
 	wire		spi_valid, spi_busy, spi_stopped;
-	lleqspi	lowlvl(i_clk_200mhz, spi_wr, spi_hold, spi_word, spi_len,
+	lleqspi	lowlvl(i_clk_82mhz, spi_wr, spi_hold, spi_word, spi_len,
 			spi_spd, spi_dir, spi_recycle, spi_out, spi_valid, spi_busy,
 		o_qspi_sck, o_qspi_cs_n, o_qspi_mod, o_qspi_dat, i_qspi_dat);
 	assign	spi_stopped = (o_qspi_cs_n)&&(~spi_busy)&&(~spi_wr);
@@ -181,7 +181,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	// Live parameters
 			w_xip, w_quad, w_idloaded, w_leave_xip;
 	reg		bus_wip;
-	qspibus	preproc(i_clk_200mhz, i_rst,
+	qspibus	preproc(i_clk_82mhz, i_rst,
 			i_wb_cyc, i_wb_data_stb, i_wb_ctrl_stb,
 				i_wb_we, i_wb_addr, i_wb_data,
 				bus_wb_ack, bus_wb_stall, bus_wb_data,
@@ -211,7 +211,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	wire	[31:0]	rd_spi_word;
 	wire	[1:0]	rd_spi_len;
 	//
-	readqspi	rdproc(i_clk_200mhz, bus_readreq, bus_piperd,
+	readqspi	rdproc(i_clk_82mhz, bus_readreq, bus_piperd,
 					bus_other_req,
 				bus_addr, rd_bus_ack,
 				rd_qspi_req, rd_qspi_grant,
@@ -241,7 +241,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	//
 	wire		w_ew_wip;
 	//
-	writeqspi	ewproc(i_clk_200mhz, bus_wreq,bus_ereq,
+	writeqspi	ewproc(i_clk_82mhz, bus_wreq,bus_ereq,
 					bus_pipewr, bus_endwr,
 					bus_addr, bus_data,
 				ew_bus_ack, ew_qspi_req, ew_qspi_grant,
@@ -268,7 +268,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	wire	[31:0]	ct_spi_word;
 	wire	[1:0]	ct_spi_len;
 	//
-	ctrlspi		ctproc(i_clk_200mhz,
+	ctrlspi		ctproc(i_clk_82mhz,
 				bus_ctreq, bus_wr, bus_addr[3:0], bus_data, bus_sector,
 				ct_qspi_req, ct_grant,
 				ct_spi_wr, ct_spi_hold, ct_spi_word, ct_spi_len,
@@ -299,7 +299,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	//
 	wire		w_id_wip;
 	//
-	idotpqspi	idotp(i_clk_200mhz, bus_idreq,
+	idotpqspi	idotp(i_clk_82mhz, bus_idreq,
 				bus_wr, bus_pipewr, bus_addr[4:0], bus_data, id_bus_ack,
 				id_qspi_req, id_qspi_grant,
 				id_spi_wr, id_spi_hold, id_spi_word, id_spi_len,
@@ -311,7 +311,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	reg		owned;
 	reg	[1:0]	owner;
 	initial		owned = 1'b0;
-	always @(posedge i_clk_200mhz) // 7 inputs (spi_stopped is the CE)
+	always @(posedge i_clk_82mhz) // 7 inputs (spi_stopped is the CE)
 		if ((~owned)&&(spi_stopped))
 		begin
 			casez({rd_qspi_req,ew_qspi_req,id_qspi_req,ct_qspi_req})
@@ -338,7 +338,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	assign	ct_grant      = (owned)&&(owner == 2'b11);
 
 	// Module controller
-	always @(posedge i_clk_200mhz)
+	always @(posedge i_clk_82mhz)
 	case(owner)
 	2'b00: begin
 		spi_wr      <= (owned)&&(rd_spi_wr);
@@ -382,7 +382,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 	initial	bus_wip = 1'b0;
 	initial	last_wip = 1'b0;
 	initial o_interrupt = 1'b0;
-	always @(posedge i_clk_200mhz)
+	always @(posedge i_clk_82mhz)
 	begin
 		bus_wip <= w_ew_wip || w_id_wip;
 		last_wip <= bus_wip;
@@ -391,7 +391,7 @@ module	eqspiflash(i_clk_200mhz, i_rst,
 
 
 	// Now, let's return values onto the wb bus
-	always @(posedge i_clk_200mhz)
+	always @(posedge i_clk_82mhz)
 	begin
 		// Ack our internal bus controller.  This means the command was
 		// accepted, and the bus can go on to looking for the next 
@@ -451,7 +451,7 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 	//
 	reg	pending, lcl_wrreq, lcl_ctreq, lcl_ack, ack, wp_err, wp;
 	reg	lcl_reg;
-	reg	[14:0]	esector;
+	reg	[12:0]	esector;
 	reg	[21:0]	next_addr;
 
 
@@ -505,13 +505,14 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 				||(pending)&&(ctreg_stb)&&(~lcl_ack)&&(~i_ack);
 		if (~o_wb_stall)
 		begin // Bus command accepted!
+			if (i_data_stb)
+				next_addr <= i_addr + 22'h1;
 			if ((i_data_stb)||(i_ctrl_stb))
 			begin
 				pending <= 1'b1;
 				o_addr <= i_addr;
 				o_data <= i_data;
 				o_wr   <= i_we;
-				next_addr <= i_addr + 22'h1;
 			end
 
 			if ((i_data_stb)&&(~i_we))
@@ -560,9 +561,9 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 			lcl_wrreq <= 1'b0;
 		end
 
-		if ((i_data_stb)&&(~o_wb_stall))
-			o_piperd <= ((~i_we)&&(~o_wb_stall)&&(pipeable)&&(i_addr == next_addr));
-		else if ((i_ack)||(((i_ctrl_stb)||(i_data_stb))&&(~o_wb_stall)))
+		if ((i_data_stb)&&((~o_wb_stall)||(i_ack)))
+			o_piperd <= ((~i_we)&&(pipeable)&&(i_addr == next_addr));
+		else if ((i_ack)&&(~i_data_stb))
 			o_piperd <= 1'b0;
 		if ((i_data_stb)&&(~o_wb_stall))
 			pipeable <= (~i_we);
@@ -582,7 +583,7 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 	wire	new_req;
 	assign	new_req = (pending)&&(~last_pending);
 
-	initial	esector   = 15'h00;
+	initial	esector   = 13'h00;
 	initial	o_wrreq   = 1'b0;
 	initial	o_erreq   = 1'b0;
 	initial	wp_err    = 1'b0;
@@ -612,9 +613,9 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 
 		if (set_sector)
 		begin
-			esector[13:0] <= { o_data[23:14], 4'h0 };
+			esector[11:0] <= { o_data[21:14], 4'h0 };
 			wp <= (o_data[30])&&(new_req)||(wp)&&(~new_req);
-			esector[14] <= o_data[28]; // Subsector
+			esector[12] <= o_data[28]; // Subsector
 			if (o_data[28])
 			begin
 				esector[3:0] <= o_data[13:10];
@@ -678,10 +679,10 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 	end
 
 
-	assign o_wb_data[31:0] = { i_wip, ~wp, i_quad, esector[14],
+	assign o_wb_data[31:0] = { i_wip, ~wp, i_quad, esector[12],
 			i_idloaded, wp_err, i_xip, i_spi_stopped,
-			esector[13:0], 10'h00 };
-	assign	o_sector = { esector[13:0], 8'h00 }; // 22 bits
+			2'b00, esector[11:0], 10'h00 };
+	assign	o_sector = { 2'b00, esector[11:0], 8'h00 }; // 22 bits
 	assign	o_other = (r_other)||(o_idreq);
 
 endmodule
@@ -697,6 +698,7 @@ endmodule
 `define	RD_XIP			4'h7
 `define	RD_GO_TO_IDLE		4'h8
 `define	RD_GO_TO_XIP		4'h9
+`define RD_IDLE_QUAD_PORT	4'ha
 
 module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 		o_qspi_req, i_grant,
@@ -745,11 +747,16 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 		`RD_IDLE: begin
 			r_requested <= 1'b0;
 			o_qspi_req <= 1'b0;
-			o_spi_word <= { ((i_quad)? 8'h6B: 8'h0b), i_addr, 2'b00 };
+			// 0x0b is a fast read, uses all SPI protocol
+			// 0x6b is a Quad output fast read, uses SPI cmd,
+			//			SPI address, QSPI data
+			// 0xeb is a Quad I/O fast read, using SPI cmd,
+			//			QSPI address and data
+			o_spi_word <= { ((i_quad)? 8'hEB: 8'h0b), i_addr, 2'b00 };
 			o_spi_wr <= 1'b0;
 			o_spi_dir <= 1'b0;
 			o_spi_spd <= 1'b0;
-			o_spi_len <= 2'b11;
+			o_spi_len <= (i_quad)? 2'b00 : 2'b11;
 			r_xip <= (i_xip)&&(i_quad);
 			r_leave_xip <= 1'b0; // Not in it, so can't leave it
 			r_quad <= i_quad;
@@ -762,15 +769,30 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 			o_spi_wr <= 1'b1; // Write the address
 			o_qspi_req <= 1'b1;
 			if (accepted)
+			begin
+				rd_state <= (r_quad) ? `RD_IDLE_QUAD_PORT : `RD_SLOW_DUMMY;
+				o_spi_word[31:8] <= o_spi_word[23:0];
+			end end
+		`RD_IDLE_QUAD_PORT: begin
+			o_spi_wr <= 1'b1; // Write the command
+			o_qspi_req <= 1'b1;
+			o_spi_spd <= 1'b1;
+			o_spi_dir <= 1'b0;
+			o_spi_len <= 2'b10;
+
+			// We haven't saved our address any where but in the
+			// SPI word we just sent.  Hence, let's just
+			// grab it from there.
+			if (accepted)
 				rd_state <= `RD_SLOW_DUMMY;
 			end
 		`RD_SLOW_DUMMY: begin
-			o_spi_wr <= 1'b1; // Write 8 dummy clocks
-			o_qspi_req <= 1'b1;
+			o_spi_wr <= 1'b1; // Write 8 dummy clocks--this is the same for
+			o_qspi_req <= 1'b1; // both Quad I/O, Quad O, and fast-read commands
 			o_spi_dir <= 1'b0;
-			o_spi_spd <= 1'b0;
-			o_spi_word[31:24] <= (r_xip) ? 8'h00 : 8'hff;
-			o_spi_len  <= 2'b00; // 8 clocks = 8-bits
+			o_spi_spd <= r_quad;
+			o_spi_word[31:0] <= (r_xip) ? 32'h00 : 32'hffffffff;
+			o_spi_len  <= (r_quad)? 2'b11:2'b00; // 8 clocks
 			if (accepted)
 				rd_state <= (r_quad)?`RD_QUAD_READ_DATA
 						: `RD_SLOW_READ_DATA;
@@ -789,13 +811,13 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 				rd_state <= `RD_GO_TO_IDLE;
 			end
 		`RD_QUAD_READ_DATA: begin
-			o_qspi_req <= 1'b1;
-			o_spi_dir <= 1'b1;
-			o_spi_spd <= 1'b1;
-			o_spi_len <= 2'b11;
+			o_qspi_req <= 1'b1; // Insist that we keep the port
+			o_spi_dir <= 1'b1;  // Read
+			o_spi_spd <= 1'b1;  // Read at Quad rates
+			o_spi_len <= 2'b11; // Read 4-bytes
 			o_spi_recycle <= (r_leave_xip)? 1'b1: 1'b0;
 			invalid_ack_pipe[0] <= (!r_requested);
-			r_requested <= (r_requested)||(accepted);
+			r_requested <= (r_requested)||(accepted); // Make sure at least one request goes through
 			o_data_ack <=  (!invalid_ack_pipe[3])&&(i_spi_valid)&&(r_requested)&&(~r_leave_xip);
 			o_bus_ack  <= (r_requested)&&(accepted)&&(i_piperd)&&(~r_leave_xip);
 			o_spi_wr <= (~r_requested)||(i_piperd);
@@ -810,7 +832,7 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 			o_qspi_req <= 1'b1;
 			o_spi_wr <= 1'b1;
 			o_spi_dir <= 1'b0; // Write the address
-			o_spi_spd <= 1'b0;
+			o_spi_spd <= 1'b1; // High speed
 			o_spi_word[31:0] <= { i_addr, 2'b00, 8'h00 };
 			o_spi_len  <= 2'b10; // 24 bits, High speed, 6 clocks
 			if (accepted)
@@ -833,7 +855,7 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 			o_spi_word <= { i_addr, 2'b00, 8'h00 };
 			o_spi_wr <= 1'b0;
 			o_spi_dir <= 1'b0; // Write to SPI
-			o_spi_spd <= 1'b0;
+			o_spi_spd <= 1'b1; // High speed
 			o_spi_len <= 2'b11;
 			r_leave_xip <= i_other_req;
 			r_xip <= (~i_other_req);

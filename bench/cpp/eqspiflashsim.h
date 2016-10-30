@@ -63,7 +63,8 @@ class	EQSPIFLASHSIM {
 		EQSPIF_RDID,
 		EQSPIF_RELEASE,
 		EQSPIF_FAST_READ,
-		EQSPIF_QUAD_READ_CMD,
+		EQSPIF_QUAD_OREAD_CMD,
+		EQSPIF_QUAD_IOREAD_CMD,
 		EQSPIF_QUAD_READ,
 		EQSPIF_PP,
 		EQSPIF_QPP,
@@ -84,7 +85,14 @@ class	EQSPIFLASHSIM {
 	unsigned	m_write_count, m_ireg, m_oreg, m_sreg, m_addr,
 			m_count, m_vconfig, m_mode_byte, m_creg,
 			m_nvconfig, m_evconfig, m_flagreg, m_nxtout[4];
-	bool		m_quad_mode, m_debug, m_otp_wp;
+	bool		mode, m_debug, m_otp_wp;
+
+	typedef enum {
+		EQSPIF_QMODE_SPI = 0,
+		EQSPIF_QMODE_QSPI_ADDR,
+		EQSPIF_QMODE_SPI_ADDR
+	} QUAD_MODE;
+	QUAD_MODE	m_quad_mode;
 
 public:
 	EQSPIFLASHSIM(void);
