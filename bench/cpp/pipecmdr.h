@@ -62,10 +62,7 @@
 //
 // At 4MBaud, each bit takes 25 clocks.  10 bits would thus take 250 clocks
 //		
-// #define	UARTLEN		250 // Minimum ticks per character, 4M Baud
-// #define	UARTLEN		1000 // Minimum ticks per character, 1M Hz
-// #define	UARTLEN		8 // Minimum ticks per character
-#define	UARTLEN		4096	//
+#define	UARTLEN		732	// Ticks per character: 1MBaud, 81.25MHz clock
 
 template <class VA>	class	PIPECMDR : public TESTB<VA> {
 	void	setup_listener(const int port) {

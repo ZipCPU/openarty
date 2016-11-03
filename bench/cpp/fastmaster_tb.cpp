@@ -63,9 +63,9 @@
 #include "uartsim.h"
 #include "enetctrlsim.h"
 #include "memsim.h"
-// #ifdef	OLEDSIM
+#ifdef	OLEDSIM
 #include "oledsim.h"
-// #endif
+#endif
 
 #include "port.h"
 
@@ -209,10 +209,13 @@ public:
 		} if (m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out != m_gps_newstep)
 			writeout = true;
 		*/
+
+		/*
 		m_gps_step = m_core->v__DOT__gps_step;
 		m_gps_err  = m_core->v__DOT__gps_err;
 		m_gps_stepc= m_core->v__DOT__ppsck__DOT__step_correction;
 		m_gps_newstep=m_core->v__DOT__ppsck__DOT__getnewstep__DOT__genblk2__DOT__genblk1__DOT__r_out;
+		*/
 
 		if (m_core->o_oled_cs_n == 0)
 			writeout = true;
@@ -340,7 +343,7 @@ public:
 			printf("|%s%s%s%s%s",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__alu_ce)?"a":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__alu_stall)?"s":"-",
-				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__doalu__DOT__genblk2__DOT__r_busy)?"B":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__doalu__DOT__r_busy)?"B":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_alu_gie)?"G":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_alu_illegal)?"i":"-");
 			printf("|%s%s%s%2x %s%s%s %2d %2d",
@@ -406,9 +409,23 @@ public:
 //				m_core->v__DOT__zippy__DOT__thecpu__DOT__opn,
 //				m_core->v__DOT__zippy__DOT__thecpu__DOT__opR);
 
-			printf(" %s[%02x]=%08x(%08x)",
-				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_ce?"WR":"--",
-				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_id,
+			printf(" %s[",
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_ce?"WR":"--");
+			{	int	reg;
+				const static char	*rnames[] = {
+						"sR0", "sR1", "sR2", "sR3",
+						"sR4", "sR5", "sR6", "sR7",
+						"sR8", "sR9", "sRa", "sRb",
+						"sRc", "sSP", "sCC", "sPC",
+						"uR0", "uR1", "uR2", "uR3",
+						"uR4", "uR5", "uR6", "uR7",
+						"uR8", "uR9", "uRa", "uRb",
+						"uRc", "uSP", "uCC", "uPC"
+				};
+				reg = m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_reg_id & 0x01f;
+				printf("%s", rnames[reg]);
+			}
+			printf("]=%08x(%08x)",
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_gpreg_vl,
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_spreg_vl
 				);
@@ -417,7 +434,7 @@ public:
 				(m_core->v__DOT__zippy__DOT__dbg_cyc)?"CYC":"   ",
 				(m_core->v__DOT__zippy__DOT__dbg_stb)?"STB":((m_core->v__DOT__zippy__DOT__dbg_ack)?"ACK":"   "),
 				((m_core->v__DOT__zippy__DOT__dbg_cyc)&&(m_core->v__DOT__zippy__DOT__dbg_stb))?((m_core->v__DOT__zippy__DOT__dbg_we)?"-W":"-R"):"  ",
-				(m_core->v__DOT__zippy__DOT__dbg_cyc)?" ":((m_core->v__DOT__zippy__DOT__dbg_addr)?"D":"C"),
+				(!m_core->v__DOT__zippy__DOT__dbg_cyc)?" ":((m_core->v__DOT__zippy__DOT__dbg_addr)?"D":"C"),
 				(m_core->v__DOT__zippy__DOT__cmd_addr),
 				(m_core->v__DOT__zippy__DOT__dbg_idata),
 				m_core->v__DOT__zip_dbg_data);
@@ -629,6 +646,7 @@ public:
 			*/
 
 
+			/*
 			// Debug the OLED
 
 			{ const char *pwr; int pwrk;
@@ -639,9 +657,9 @@ public:
 					pwr = "ON ";
 				else
 					pwr = "VIO";
-			} else if (m_core->o_oled_vccen) {
+			} else if (m_core->o_oled_vccen)
 				pwr = "ERR";
-			} else
+			else
 				pwr = "OFF";
 			pwrk = (m_core->o_oled_reset_n)?4:0;
 			pwrk|= (m_core->o_oled_vccen)?2:0;
@@ -679,7 +697,9 @@ public:
 				m_core->v__DOT__rgbctrl__DOT__r_len,
 				m_core->v__DOT__rgbctrl__DOT__dev_len);
 			printf((m_core->v__DOT__oled_int)?"I":" "); // And the interrupt
+			*/
 
+			/*
 			// Debug the DMA
 			printf(" DMAC[%d]: %08x/%08x/%08x(%03x)%d%d%d%d -- (%d,%d,%c)%c%c:@%08x-[%4d,%4d/%4d,%4d-#%4d]%08x",
 				m_core->v__DOT__zippy__DOT__dma_controller__DOT__dma_state,
@@ -714,6 +734,7 @@ public:
 			printf("%s[%2x]",
 				(m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_on_dev_trigger)?"!":" ",
 				(m_core->v__DOT__zippy__DOT__dma_controller__DOT__cfg_dev_trigger));
+			*/
 
 			printf(" INT:0x%08x/0x%08x",
 				m_core->v__DOT__zippy__DOT__main_int_vector,
