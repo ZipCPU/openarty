@@ -85,7 +85,7 @@ typedef	struct	{
 #define	SCOPE_NO_RESET	0x80000000
 #define	SCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
 #define	SCOPE_MANUAL	SCOPE_TRIGGER
-#define	SCOPE_DISABLE	0x04000000
+#define	SCOPE_DISABLE	0x04000000	// Disable the scope trigger
 
 typedef	struct	{
 	unsigned	sd_ctrl, sd_data, sd_fifo[2];
