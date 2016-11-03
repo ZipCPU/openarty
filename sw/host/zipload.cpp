@@ -350,7 +350,7 @@ void	usage(void) {
 
 int main(int argc, char **argv) {
 	int		skp=0;
-	bool		start_when_finished = false;
+	bool		start_when_finished = false, verbose = false;
 	unsigned	entry = 0;
 	FLASHDRVR	*flash = NULL;
 	const char	*bitfile = NULL, *altbitfile = NULL;
@@ -370,6 +370,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'r':
 				start_when_finished = true;
+				break;
+			case 'v':
+				verbose = true;
 				break;
 			default:
 				fprintf(stderr, "Unknown option, -%c\n\n",
@@ -477,28 +480,36 @@ int main(int argc, char **argv) {
 				||((secp->m_start >= MEMBASE)
 				  &&(secp->m_start+secp->m_len
 						<= MEMBASE+MEMWORDS)) ) {
-				for(int i=0; (unsigned)i<secp->m_len; i++) {
-					m_fpga->writei(secp->m_start,
-						secp->m_len,
+				if (verbose)
+					printf("Writing to MEM: %08x-%08x\n",
+						secp->m_start,
+						secp->m_start+secp->m_len);
+				m_fpga->writei(secp->m_start, secp->m_len,
 						secp->m_data);
-				}
 			} else {
 				if (secp->m_start < startaddr) {
 					codelen += (startaddr-secp->m_start);
 					startaddr = secp->m_start;
 				} if (secp->m_start+secp->m_len > startaddr+codelen) {
 					codelen = secp->m_start+secp->m_len-startaddr;
-				} memcpy(&fbuf[secp->m_start-EQSPIFLASH],
+				} if (verbose)
+					printf("Sending to flash: %08x-%08x\n",
+						secp->m_start,
+						secp->m_start+secp->m_len);
+				memcpy(&fbuf[secp->m_start-EQSPIFLASH],
 					secp->m_data, 
 					secp->m_len*sizeof(FPGA::BUSW));
 			}
 		}
-		if ((flash)&&(!flash->write(startaddr, codelen, &fbuf[startaddr-EQSPIFLASH], true))) {
+
+		if ((flash)&&(codelen>0)&&(!flash->write(startaddr, codelen, &fbuf[startaddr-EQSPIFLASH], true))) {
 			fprintf(stderr, "ERR: Could not write program to flash\n");
 			exit(EXIT_FAILURE);
-		} else if (!flash)
-			printf("flash->write(%08x, %d, ... );\n", startaddr,
-				codelen);
+		} else if ((!flash)&&(codelen > 0)) {
+			fprintf(stderr, "ERR: Cannot write to flash: Driver didn\'t load\n");
+			// fprintf(stderr, "flash->write(%08x, %d, ... );\n", startaddr,
+			//	codelen);
+		}
 		if (m_fpga) m_fpga->readio(R_VERSION); // Check for bus errors
 
 		// Now ... how shall we start this CPU?
@@ -506,15 +517,16 @@ int main(int argc, char **argv) {
 			printf("Clearing the CPUs registers\n");
 			for(int i=0; i<32; i++) {
 				m_fpga->writeio(R_ZIPCTRL, CPU_HALT|i);
-				if (i == CPU_sPC)
-					m_fpga->writeio(R_ZIPDATA, entry);
-				else
-					m_fpga->writeio(R_ZIPDATA, 0);
+				m_fpga->writeio(R_ZIPDATA, 0);
 			}
+
+			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_CLRCACHE);
+			printf("Setting PC to %08x\n", entry);
+			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_sPC);
+			m_fpga->writeio(R_ZIPDATA, entry);
 
 			m_fpga->writeio(R_CPUSCOPE, 25);
 			printf("Starting the CPU\n");
-			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_CLRCACHE|CPU_RESET);
 			m_fpga->writeio(R_ZIPCTRL, CPU_GO|CPU_sPC);
 		} else {
 			printf("The CPU should be fully loaded, you may now\n");
