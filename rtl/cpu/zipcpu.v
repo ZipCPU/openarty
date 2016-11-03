@@ -139,8 +139,8 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		, o_debug
 `endif
 		);
-	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=24,
-			LGICACHE=6;
+	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=32,
+			LGICACHE=8;
 `ifdef	OPT_MULTIPLY
 	parameter	IMPLEMENT_MPY = `OPT_MULTIPLY;
 `else
@@ -162,7 +162,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 `else
 	parameter	EARLY_BRANCHING = 0;
 `endif
-	parameter	AW=ADDRESS_WIDTH;
+	localparam	AW=ADDRESS_WIDTH;
 	input			i_clk, i_rst, i_interrupt;
 	// Debug interface -- inputs
 	input			i_halt, i_clear_pf_cache;
@@ -325,7 +325,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 	wire		alu_valid, alu_busy;
 	wire		set_cond;
 	reg		alu_wr, alF_wr;
-	wire		alu_gie, alu_illegal_op, alu_illegal;
+	wire		alu_gie, alu_illegal;
 
 
 
@@ -483,7 +483,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 				&&(~clear_pipeline);
 `else
 	assign	alu_stall = (opvalid_alu)&&((~master_ce)||(op_break));
-	assign	alu_ce = (master_ce)&&((opvalid_alu)||(op_illegal))&&(~alu_stall)&&(~clear_pipeline);
+	assign	alu_ce = (master_ce)&&(opvalid_alu)&&(~alu_stall)&&(~clear_pipeline);
 `endif
 	//
 
@@ -1132,17 +1132,9 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 	//	PIPELINE STAGE #4 :: Apply Instruction
 	//
 	//
-`ifdef	OPT_NEW_INSTRUCTION_SET
-	cpuops	#(IMPLEMENT_MPY) doalu(i_clk, i_rst, alu_ce,
-			(opvalid_alu), opn, opA, opB,
-			alu_result, alu_flags, alu_valid, alu_illegal_op,
-			alu_busy);
-`else
-	cpuops_deprecated	#(IMPLEMENT_MPY) doalu(i_clk, i_rst, alu_ce,
-			(opvalid_alu), opn, opA, opB,
-			alu_result, alu_flags, alu_valid, alu_illegal_op);
-	assign	alu_busy = 1'b0;
-`endif
+	cpuops	#(IMPLEMENT_MPY) doalu(i_clk, (i_rst)||(clear_pipeline),
+			alu_ce, opn, opA, opB,
+			alu_result, alu_flags, alu_valid, alu_busy);
 
 	generate
 	if (IMPLEMENT_DIVIDE != 0)
@@ -1267,7 +1259,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 			r_alu_illegal <= op_illegal;
 		else
 			r_alu_illegal <= 1'b0;
-	assign	alu_illegal = (alu_illegal_op)||(r_alu_illegal);
+	assign	alu_illegal = (r_alu_illegal);
 `else
 	assign	alu_illegal = 1'b0;
 `endif
@@ -1469,7 +1461,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		if ((i_rst)||(clear_pipeline)||(~opvalid))
 			r_break_pending <= 1'b0;
 		else if (op_break)
-			r_break_pending <= (~alu_busy)&&(~div_busy)&&(~fpu_busy)&&(~mem_busy);
+			r_break_pending <= (~alu_busy)&&(~div_busy)&&(~fpu_busy)&&(~mem_busy)&&(!wr_reg_ce);
 		else
 			r_break_pending <= 1'b0;
 	assign	break_pending = r_break_pending;
@@ -1483,7 +1475,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 			||((~alu_gie)&&(bus_err))
 			||((~alu_gie)&&(div_error))
 			||((~alu_gie)&&(fpu_error))
-			||((~alu_gie)&&(alu_illegal));
+			||((~alu_gie)&&(alu_illegal)&&(!clear_pipeline));
 
 	// The sleep register.  Setting the sleep register causes the CPU to
 	// sleep until the next interrupt.  Setting the sleep register within
@@ -1513,12 +1505,10 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 			sleep <= wr_spreg_vl[`CPU_SLEEP_BIT];
 
 	always @(posedge i_clk)
-		if ((i_rst)||(w_switch_to_interrupt))
+		if (i_rst)
 			step <= 1'b0;
 		else if ((wr_reg_ce)&&(~alu_gie)&&(wr_write_ucc))
 			step <= wr_spreg_vl[`CPU_STEP_BIT];
-		else if (((alu_pc_valid)||(mem_pc_valid))&&(step)&&(gie))
-			step <= 1'b0;
 
 	// The GIE register.  Only interrupts can disable the interrupt register
 	assign	w_switch_to_interrupt = (gie)&&(
@@ -1531,7 +1521,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 			||((master_ce)&&(break_pending)&&(~break_en))
 `ifdef	OPT_ILLEGAL_INSTRUCTION
 			// On an illegal instruction
-			||(alu_illegal)
+			||((alu_illegal)&&(!clear_pipeline))
 `endif
 			// On division by zero.  If the divide isn't
 			// implemented, div_valid and div_error will be short
@@ -1588,7 +1578,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		// Only the debug interface can clear this bit
 		else if ((dbgv)&&(wr_write_scc))
 			ill_err_i <= (ill_err_i)&&(wr_spreg_vl[`CPU_ILL_BIT]);
-		else if ((alu_illegal)&&(~alu_gie))
+		else if ((alu_illegal)&&(~alu_gie)&&(!clear_pipeline))
 			ill_err_i <= 1'b1;
 	initial	ill_err_u = 1'b0;
 	always @(posedge i_clk)
@@ -1600,7 +1590,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		// clearing the bit, then clear it
 		else if (((~alu_gie)||(dbgv))&&(wr_reg_ce)&&(wr_write_ucc))
 			ill_err_u <=((ill_err_u)&&(wr_spreg_vl[`CPU_ILL_BIT]));
-		else if ((alu_illegal)&&(alu_gie))
+		else if ((alu_illegal)&&(alu_gie)&&(!clear_pipeline))
 			ill_err_u <= 1'b1;
 `else
 	assign ill_err_u = 1'b0;
@@ -1734,7 +1724,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		if ((wr_reg_ce)&&(wr_reg_id[4])&&(wr_write_pc))
 			upc <= wr_spreg_vl[(AW-1):0];
 		else if ((alu_gie)&&
-				(((alu_pc_valid)&&(~clear_pipeline))
+				(((alu_pc_valid)&&(~clear_pipeline)&&(!alu_illegal))
 				||(mem_pc_valid)))
 			upc <= alu_pc;
 
