@@ -115,7 +115,7 @@ typedef	struct	{
 #define	CC_EXCEPTION	(CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_MMUERR)
 #define	CC_FAULT	(CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR)
 
-// extern void	zip_break(void);
+extern void	zip_break(void);
 extern void	zip_rtu(void);
 extern void	zip_halt(void);
 extern void	zip_idle(void);

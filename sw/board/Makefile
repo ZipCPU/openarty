@@ -31,13 +31,15 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 CC := zip-gcc
 OBJDUMP := zip-objdump
 SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c
 HEADERS := artyboard.h zipsys.h
+DUMPRTL := -fdump-rtl-all
+DUMPTREE:= -fdump-tree-all
 #
 # For source analysis, the following macros are defined:
 
@@ -46,6 +48,8 @@ HEADERS := artyboard.h zipsys.h
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.c
 	$(CC) -O3 -c -fno-builtin $< -o $@
+$(OBJDIR)/%.s: %.c
+	$(CC) -O3 -S -fno-builtin $< -o $@
 %.txt: %
 	$(OBJDUMP) -S -D $^ > $@
 
@@ -58,6 +62,9 @@ oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDI
 
 exmulti: $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o arty.ld 
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exmulti.map $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o -o $@
+
+cputest: $(OBJDIR)/cputest.o artyram.ld 
+	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=cputest.map $(OBJDIR)/cputest.o -o $@
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
