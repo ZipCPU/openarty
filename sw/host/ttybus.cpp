@@ -1,8 +1,8 @@
-//
+////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	ttybus.cpp
 //
-// Project:	UART to WISHBONE FPGA library
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This is the C++ program on the command side that will interact
 //		with a UART on an FPGA, to command the WISHBONE on that same
@@ -12,10 +12,33 @@
 //		is it a simulator.  It is a portion of a command program
 //		for commanding an FPGA.
 //
-// Creator:	Dan Gisselquist
-//		Gisselquist Tecnology, LLC
+// Creator:	Dan Gisselquist, Ph.D.
+//		Gisselquist Technology, LLC
 //
-// Copyright:	2015
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+//
+// This program is free software (firmware): you can redistribute it and/or
+// modify it under the terms of  the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
+// License:	GPL, v3, as defined and found on www.gnu.org,
+//		http://www.gnu.org/licenses/gpl.html
+//
+//
+////////////////////////////////////////////////////////////////////////////////
 //
 //
 #include <sys/socket.h>
@@ -199,6 +222,7 @@ void	TTYBUS::writev(const BUSW a, const int p, const int len, const BUSW *buf) {
 		if ((unsigned)ln > MAXWRLEN)
 			ln = MAXWRLEN;
 
+		DBGPRINTF("WRITEV-SUB(%08x%s,#%d,&buf[%d])\n", a+nw, (p)?"++":"", ln, nw);
 		for(int i=0; i<ln; i++) {
 			BUSW	val = buf[nw+i];
 
@@ -272,36 +296,10 @@ void	TTYBUS::writev(const BUSW a, const int p, const int len, const BUSW *buf) {
 }
 
 void	TTYBUS::writez(const BUSW a, const int len, const BUSW *buf) {
-/*
-	int	ln = len;
-	const TTYBUS::BUSW *bptr = buf;
-	TTYBUS::BUSW addr = a;
-
-	while((unsigned)ln > MAXWRLEN) {
-		writev(addr, 0, MAXWRLEN, bptr);
-		bptr += MAXWRLEN;
-		ln   -= MAXWRLEN;
-		// addr += MAXWRLEN;
-	} if ((unsigned)ln > 0)
-		writev(addr, 0, ln, bptr);
-*/
 	writev(a, 0, len, buf);
 }
 
 void	TTYBUS::writei(const BUSW a, const int len, const BUSW *buf) {
-/*
-	int	ln = len;
-	const TTYBUS::BUSW *bptr = buf;
-	TTYBUS::BUSW addr = a;
-
-	while((unsigned)ln > MAXWRLEN) {
-		writev(addr, 1, MAXWRLEN, bptr);
-		bptr += MAXWRLEN;
-		ln   -= MAXWRLEN;
-		addr += MAXWRLEN;
-	} if ((unsigned)ln > 0)
-		writev(addr, 1, ln, bptr);
-*/
 	writev(a, 1, len, buf);
 }
 
@@ -500,7 +498,7 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 		do {
 			nr = lclreadcode(&m_buf[0], 1);
 		} while (nr < 1);
-		DBGPRINTF("READWORD: -- lclreadcode, nr = %d, m_buf[0] = %c\n", m_buf[0]);
+		DBGPRINTF("READWORD: -- lclreadcode, nr = %d, m_buf[0] = %c\n", nr, m_buf[0]);
 
 		sixbits = chardec(m_buf[0]);
 
