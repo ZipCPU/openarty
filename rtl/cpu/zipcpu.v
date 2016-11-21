@@ -903,7 +903,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 	initial	r_op_break = 1'b0;
 	always @(posedge i_clk)
 		if (i_rst)	r_op_break <= 1'b0;
-		else if (op_ce)	r_op_break <= (dcd_break); //||dcd_illegal &&(dcdvalid)
+		else if (op_ce)	r_op_break <= (dcd_break);
 		else if ((clear_pipeline)||(~opvalid))
 				r_op_break <= 1'b0;
 	assign	op_break = r_op_break;
@@ -1734,7 +1734,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		else if ((wr_reg_ce)&&(~wr_reg_id[4])&&(wr_write_pc))
 			ipc <= wr_spreg_vl[(AW-1):0];
 		else if ((~alu_gie)&&
-				(((alu_pc_valid)&&(~clear_pipeline))
+				(((alu_pc_valid)&&(~clear_pipeline)&&(!alu_illegal))
 				||(mem_pc_valid)))
 			ipc <= alu_pc;
 
