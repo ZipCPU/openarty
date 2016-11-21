@@ -200,8 +200,10 @@ module	enetpackets(i_wb_clk, i_reset,
 	reg	[(MAW+1):0]	tx_len;
 
 `ifdef	RX_SYNCHRONOUS_WITH_WB_CLK
+	wire	rx_broadcast;
 	wire	[(MAW+1):0]	rx_len;
 `else
+	(* ASYNC_REG = "TRUE" *) reg	rx_broadcast;
 	(* ASYNC_REG = "TRUE" *) reg	[(MAW+1):0]	rx_len;
 `endif
 
@@ -303,7 +305,9 @@ module	enetpackets(i_wb_clk, i_reset,
 	wire	[3:0]	w_maw;
 
 	assign	w_maw = MAW+2; // Number of bits in the packet length field
-	assign	w_rx_ctrl = { 4'h0, w_maw, {(24-19){1'b0}}, rx_crcerr, rx_err,
+	assign	w_rx_ctrl = { 4'h0, w_maw, {(24-20){1'b0}},
+			(rx_valid)&&(rx_broadcast)&&(!rx_clear),
+			rx_crcerr, rx_err,
 			rx_miss, rx_busy, (rx_valid)&&(!rx_clear),
 			{(14-MAW-2){1'b0}}, rx_len };
 
@@ -683,6 +687,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	rx_busy  = n_rx_busy;
 	assign	rx_valid = n_rx_valid;
 	assign	rx_len   = n_rx_len;
+	assign	rx_broadcast = n_rx_broadcast;
 `else
 	reg	r_rx_busy, r_rx_valid;
 	always @(posedge i_wb_clk)
@@ -694,6 +699,7 @@ module	enetpackets(i_wb_clk, i_reset,
 		rx_busy <= r_rx_busy;
 
 		rx_len <= n_rx_len;
+		rx_broadcast <= n_rx_broadcast;
 	end
 
 `endif
