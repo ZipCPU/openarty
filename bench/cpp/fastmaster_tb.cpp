@@ -233,6 +233,7 @@ public:
 
 
 		/*
+		// GPS Tracking triggers
 		if (m_core->v__DOT__ppsck__DOT__err_tick)
 			writeout = true;
 		if (m_core->v__DOT__ppsck__DOT__sub_tick)
@@ -256,6 +257,7 @@ public:
 		// if (m_core->v__DOT__dwb_cyc)
 			// writeout = true;
 
+		// CPU Debugging triggers
 		// Write out if the CPU is active at all
 		if (m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__master_ce)
 			writeout = true;
@@ -304,7 +306,6 @@ public:
 					(m_core->v__DOT____Vcellinp__genbus____pinNumber10)?'s':' ',
 				(m_core->v__DOT__wb_err)?'E':'.');
 
-			/*
 			// CPU Pipeline debugging
 			printf("%s%s%s%s%s%s%s%s%s%s%s",
 				// (m_core->v__DOT__zippy__DOT__dbg_ack)?"A":"-",
@@ -314,7 +315,7 @@ public:
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_halted)?"Z":"-",
 				(m_core->v__DOT__zippy__DOT__cpu_break)?"!":"-",
 				(m_core->v__DOT__zippy__DOT__cmd_halt)?"H":"-",
-				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__gie)?"G":"-",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_gie)?"G":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_cyc)?"P":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_valid)?"V":"-",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_illegal)?"i":" ",
@@ -353,7 +354,7 @@ public:
 				(m_core->v__DOT__zippy__DOT__cmd_addr),
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__bus_err)?"BE":"  ",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ibus_err_flag)?"IB":"  ",
-				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ubus_err_flag)?"UB":"  ",
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_ubus_err_flag)?"UB":"  ",
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__rdaddr,
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__domem__DOT__wraddr);
 			printf("|%s%s",
@@ -366,16 +367,18 @@ public:
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__wr_gpreg_vl);
 
 			// Program counter debugging
-			printf(" PC0x%08x/%08x/%08x-%08x %s0x%08x", 
+			printf(" PC0x%08x/%08x/%08x-I:%08x %s0x%08x%s", 
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__pf_pc,
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__ipc,
-				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__upc,
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_upc,
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction,
-				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_early_branch)?"EB":"  ",
-				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_branch_pc
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_early_branch)?"EB":
+				((m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_ljmp)?"JM":"  "),
+				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_branch_pc,
+				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_clear_icache)?"-CLRC":"     "
 				);
 			// More in-depth
-			printf("[%c%08x,%c%08x,%c%08x]",
+			printf(" [%c%08x,%c%08x,%c%08x]",
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__r_dcdvalid)?'D':'-',
 				m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__dcd_pc,
 				(m_core->v__DOT__zippy__DOT__genblk11__DOT__thecpu__DOT__opvalid)?'O':'-',
@@ -440,7 +443,6 @@ public:
 				m_core->v__DOT__zip_dbg_data);
 
 			printf(" %s,0x%08x", (m_core->i_ram_ack)?"RCK":"   ", m_core->i_ram_rdata);
-			*/
 
 
 			/*
