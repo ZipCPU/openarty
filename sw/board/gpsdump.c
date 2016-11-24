@@ -35,6 +35,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "zipcpu.h"
 #include "zipsys.h"
 #include "artyboard.h"
 
@@ -62,14 +63,16 @@ void main(int argc, char **argv) {
 	// Method three: Use the DMA
 	zip->z_dma.d_ctrl = DMACLEAR;
 	while(1) {
-		zip->z_dma.d_rd = &sys->io_gps_rx;
-		zip->z_dma.d_wr = &sys->io_uart_tx;
+		zip->z_dma.d_rd = (int *)&sys->io_gps_rx;
+		zip->z_dma.d_wr = (int *)&sys->io_uart_tx;
 		zip->z_dma.d_len = 0x01000000; // More than we'll ever do ...
 		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
 
-		while(zip->z_dma.d_ctrl & DMA_BUSY)
+		while(zip->z_dma.d_ctrl & DMA_BUSY) {
+			zip_idle();
 			if (zip->z_dma.d_ctrl & DMA_ERR)
-				zip_halt();;
+				zip_halt();
+		}
 	}
 	*/
 }
