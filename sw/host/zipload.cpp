@@ -525,7 +525,6 @@ int main(int argc, char **argv) {
 			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_sPC);
 			m_fpga->writeio(R_ZIPDATA, entry);
 
-			m_fpga->writeio(R_CPUSCOPE, 25);
 			printf("Starting the CPU\n");
 			m_fpga->writeio(R_ZIPCTRL, CPU_GO|CPU_sPC);
 		} else {
