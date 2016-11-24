@@ -34,6 +34,8 @@
 PROGRAMS := exstartup oledtest gpsdump exmulti cputest
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
+NM := zip-nm
+RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
 SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c
@@ -50,13 +52,19 @@ $(OBJDIR)/%.o: %.c
 	$(CC) -O3 -c -fno-builtin $< -o $@
 $(OBJDIR)/%.s: %.c
 	$(CC) -O3 -S -fno-builtin $< -o $@
+$(OBJDIR)/%.txt: $(OBJDIR)/%.o
+	bash -c "$(RDELF) -a $^ ; $(OBJDUMP) -S -D $^ " | tee $@
 %.txt: %
 	$(OBJDUMP) -S -D $^ > $@
 
-exstartup: exstartup.c artyboard.h zipsys.h arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map exstartup.c -o exstartup
+
+
+exstartup: $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o -o exstartup
+
 gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o -o $@
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/bootloader.o $(OBJDIR)/gpsdump.o -o $@
+
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
 
@@ -85,6 +93,10 @@ tags: $(SOURCES) $(HEADERS)
 	@ctags $(SOURCES) $(HEADERS)
 
 $(OBJDIR)/depends.txt: $(OBJDIR)/
+	$(build-depends)
+
+.PHONY: depends
+depends:
 	$(build-depends)
 
 $(OBJDIR)/:
