@@ -59,20 +59,15 @@
 #define	BUS_ZIP		0x4000
 
 // DMA Interrupt parameters
-#define	DMA_JIFFIES	(DMA_TRIGGER|0x0400)
-#define	DMA_TMC		(DMA_TRIGGER|0x0800)
-#define	DMA_TMB		(DMA_TRIGGER|0x0c00)
-#define	DMA_TMA		(DMA_TRIGGER|0x1000)
-#define	DMA_AUX		(DMA_TRIGGER|0x1400)
-#define	DMA_PPS		(DMA_TRIGGER|0x1800)
-#define	DMA_NETRX	(DMA_TRIGGER|0x1c00)
-#define	DMA_NETTX	(DMA_TRIGGER|0x2000)
-#define	DMA_UARTRX	(DMA_TRIGGER|0x2400)
-#define	DMA_UARTTX	(DMA_TRIGGER|0x2800)
-#define	DMA_GPSRX	(DMA_TRIGGER|0x2c00)
-#define	DMA_GPSTX	(DMA_TRIGGER|0x3000)
-#define	DMA_SDCARD	(DMA_TRIGGER|0x3400)
-#define	DMA_OLED	(DMA_TRIGGER|0x3800)
+#define	DMA_ONPPS	DMA_ONINT(6)
+#define	DMA_ONNETRX	DMA_ONINT(7)
+#define	DMA_ONNETTX	DMA_ONINT(8)
+#define	DMA_ONUARTRX	DMA_ONINT(9)
+#define	DMA_ONUARTTX	DMA_ONINT(10)
+#define	DMA_ONGPSRX	DMA_ONINT(11)
+#define	DMA_ONGPSTX	DMA_ONINT(12)
+#define	DMA_ONSDCARD	DMA_ONINT(13)
+#define	DMA_ONOLED	DMA_ONINT(14)
 
 // That's our maximum number of interrupts.  Any more, and we'll need to 
 // remove one.  Don't forget, the primary interrupt source will be the SYS_
@@ -90,6 +85,17 @@ typedef	struct	{
 typedef	struct	{
 	unsigned	sd_ctrl, sd_data, sd_fifo[2];
 } SDCARD;
+#define	SD_SETAUX	0x0ff
+#define	SD_READAUX	0x0bf
+#define	SD_CMD		0x040
+#define	SD_FIFO_OP	0x0800	// Read only
+#define	SD_WRITEOP	0x0c00	// Write to the FIFO
+#define	SD_ALTFIFO	0x1000
+#define	SD_BUSY		0x4000
+#define	SD_ERROR	0x8000
+#define	SD_CLEARERR	0x8000
+#define	SD_READ_SECTOR	((SD_CMD|SD_CLEARERR|SD_FIFO_OP)+17)
+#define	SD_WRITE_SECTOR	((SD_CMD|SD_CLEARERR|SD_WRITEOP)+24)
 
 typedef	struct	{
 	unsigned	r_clock, r_stopwach, r_timer, r_alarm;
@@ -99,10 +105,6 @@ typedef	struct	{
 	unsigned	g_alpha, g_beta, g_gamma, g_step;
 } GPSTRACKER;
 
-typedef	struct	{
-	unsigned	rxcmd, txcmd;
-	unsigned	mac[2];
-	unsigned	rxmiss, rxerr, rxcrc, txcol;
 #define	ENET_TXGO	0x004000
 #define	ENET_TXBUSY	0x004000
 #define	ENET_NOHWCRC	0x008000
@@ -122,8 +124,24 @@ typedef	struct	{
 #define	ENET_RXCLRERR	0x078000
 #define	ENET_TXBUFLN(NET)	(1<<(NET.txcmd>>24))
 #define	ENET_RXBUFLN(NET)	(1<<(NET.rxcmd>>24))
+typedef	struct	{
+	unsigned	rxcmd, txcmd;
+	unsigned long	mac;
+	unsigned	rxmiss, rxerr, rxcrc, txcol;
 } ENETPACKET;
 
+
+#define	OLED_PMODEN		0x0010001
+#define	OLED_PMODEN_OFF		0x0010000
+#define	OLED_IOPWR		OLED_PMODEN
+#define	OLED_VCCEN		0x0020002
+#define	OLED_VCC_DISABLE	0x0020000
+#define	OLED_RESET		0x0040000
+#define	OLED_RESET_CLR		0x0040004
+#define	OLED_FULLPOWER		(OLED_PMODEN|OLED_VCCEN|OLED_RESET_CLR)
+#define	OLED_POWER_DOWN		(OLED_PMODEN_OFF|OLED_VCCEN|OLED_RESET_CLR)
+#define	OLED_BUSY(dev)		(dev.o_ctrl & 1)
+#define	OLED_DISPLAYON		0x0af	// To be sent over the control channel
 typedef	struct {
 	unsigned	o_ctrl, o_a, o_b, o_data;
 } OLEDRGB;
@@ -137,12 +155,44 @@ typedef	struct {
 	unsigned	e_v[32];
 } ENETMDIO;
 
+#define	MDIO_BMCR	0x00
+#define	MDIO_BMSR	0x01
+#define	MDIO_PHYIDR1	0x02
+#define	MDIO_PHYIDR2	0x03
+#define	MDIO_ANAR	0x04
+#define	MDIO_ANLPAR	0x05
+#define	MDIO_ANLPARNP	0x05	// Duplicate register address
+#define	MDIO_ANER	0x06
+#define	MDIO_ANNPTR	0x07
+#define	MDIO_PHYSTS	0x10
+#define	MDIO_FCSCR	0x14
+#define	MDIO_RECR	0x15
+#define	MDIO_PCSR	0x16
+#define	MDIO_RBR	0x17
+#define	MDIO_LEDCR	0x18
+#define	MDIO_PHYCR	0x19
+#define	MDIO_BTSCR	0x1a
+#define	MDIO_CDCTRL	0x1b
+#define	MDIO_EDCR	0x1d
+
 typedef struct {
 	unsigned	f_ereg, f_status, f_nvconfig, f_vconfig,
 			f_evconfig, f_flags, f_lock, f_;
 	unsigned	f_id[5], f_unused[3];
 	unsigned	f_otpc, f_otp[16];
 } EFLASHCTRL;
+
+#define	EQSPI_SZPAGE	64
+#define	EQSPI_NPAGES	256
+#define	EQSPI_NSECTORS	256
+#define	EQSPI_SECTORSZ	(EQSPI_SZPAGE * EQSPI_NPAGES)
+#define	EQSPI_SECTOROF(A)	((A)& (-EQSPI_SECTORSZ))
+#define	EQSPI_SUBSECTOROF(A)	((A)& (-1<<10))
+#define	EQSPI_PAGEOF(A)		((A)& (-SZPAGE))
+#define	EQSPI_ERASEFLAG	0xc00001be
+#define	EQSPI_ERASECMD(A)	(EQSPI_ERASEFLAG | EQSPI_SECTOROF(A))
+#define	EQSPI_ENABLEWP	0x00000000
+#define	EQSPI_DISABLEWP	0x40000000
 
 typedef	struct	{
 	int		io_version, io_pic;
@@ -151,13 +201,37 @@ typedef	struct	{
 	unsigned	io_btnsw;
 	unsigned	io_ledctrl;
 	unsigned	io_auxsetup, io_gpssetup;
+#define	UART_PARITY_NONE	0
+#define	UART_PARITY_ODD		0x04000000
+#define	UART_PARITY_EVEN	0x05000000
+#define	UART_PARITY_SPACE	0x06000000
+#define	UART_PARITY_MARK	0x07000000
+#define	UART_STOP_ONEBIT	0
+#define	UART_STOP_TWOBITS	0x08000000
+#define	UART_DATA_8BITS		0
+#define	UART_DATA_7BITS		0x10000000
+#define	UART_DATA_6BITS		0x20000000
+#define	UART_DATA_5BITS		0x30000000
 	unsigned	io_clrled[4];
 	unsigned	io_rtcdate;
 	unsigned	io_gpio;
+#define	GPIO_SET(X)	(X |(X<<16))
+#define	GPIO_CLEAR(X)	(X<<16)
 	unsigned	io_uart_rx, io_uart_tx;
 	unsigned	io_gps_rx, io_gps_tx;
+#define	UART_RX_BREAK		0x0800
+#define	UART_RX_FRAMEERR	0x0400
+#define	UART_RX_PARITYERR	0x0200
+#define	UART_RX_NOTREADY	0x0100
+#define	UART_RX_ERR		(-256)
+#define	UART_TX_BUSY		0x0100
+#define	UART_TX_BREAK		0x0200
+	union {
+		unsigned long now;
+		struct { unsigned sec; unsigned sub; };
+	} io_tim;
 	unsigned	io_gps_sec, io_gps_sub, io_gps_step;
-	unsigned		io_reserved[32-21];
+	unsigned		io_reserved[32-23];
 	SCOPE			io_scope[4];
 	RTC			io_rtc;
 	SDCARD			io_sd;
@@ -182,6 +256,9 @@ static volatile SDCARD	* const sd = (SDCARD *)0x0120;
 #define	SDRAM	(void *)0x4000000
 #define	CLOCKFREQHZ	81250000
 #define	CLOCKFREQ_HZ	CLOCKFREQHZ
-#define	RAMWORDS	0x800000
+//
+#define	MEMWORDS	0x0008000
+#define	FLASHWORDS	0x0400000
+#define	SDRAMWORDS	0x4000000
 
 #endif

@@ -40,16 +40,17 @@
 #define	ZIPSYS_H
 
 typedef	struct	{
-	unsigned	ck, mem, pf, icnt;
+	unsigned	ac_ck, ac_mem, ac_pf, ac_icnt;
 } ZIPTASKCTRS;
 
 typedef	struct	{
-	int	ctrl, len;
-	int	*rd, *wr;
+	int	d_ctrl, d_len;
+	int	*d_rd, *d_wr;
 } ZIPDMA;
 
 #define	DMA_TRIGGER	0x00008000
-#define	DMACLEAR	0xffed0000
+#define	DMACABORT	0xffed0000
+#define	DMACLEAR	0xafed0000
 #define	DMACCOPY	0x0fed0000
 #define	DMACERR		0x40000000
 #define	DMA_CONSTSRC	0x20000000
@@ -57,15 +58,22 @@ typedef	struct	{
 #define	DMAONEATATIME	0x0fed0001
 #define	DMA_BUSY	0x80000000
 #define	DMA_ERR		0x40000000
+#define	DMA_ONINT(INT)	(DMA_TRIGGER|((INT&15)<<10))
+#define	DMA_ONJIFFIES	DMA_ONINT(1)
+#define	DMA_ONTMC	DMA_ONINT(2)
+#define	DMA_ONTMB	DMA_ONINT(3)
+#define	DMA_ONTMA	DMA_ONINT(4)
+#define	DMA_ONAUX	DMA_ONINT(5)
 
+#define	TMR_INTERVAL	0x80000000
 typedef	struct	{
-	int	pic, wdt, err, apic, tma, tmb, tmc,
-		jiffies;
-	ZIPTASKCTRS	m, u;
-	ZIPDMA		dma;
+	int	z_pic, z_wdt, z_wbus, z_apic, z_tma, z_tmb, z_tmc,
+		z_jiffies;
+	ZIPTASKCTRS	z_m, z_u;
+	ZIPDMA		z_dma;
 } ZIPSYS;
 
-#define	ZIPSYS_ADDR	0xc0000000
+#define	ZIPSYS_ADDR	0xff000000
 
 #define	SYSINT_DMAC	0x0001
 #define	SYSINT_JIFFIES	0x0002
@@ -96,59 +104,28 @@ typedef	struct	{
 #define	ALTINT_SCOPE	0x1000
 #define	ALTINT_GPIO	0x2000
 
-
-#define	CC_Z		0x0001
-#define	CC_C		0x0002
-#define	CC_N		0x0004
-#define	CC_V		0x0008
-#define	CC_SLEEP	0x0010
-#define	CC_GIE		0x0020
-#define	CC_STEP		0x0040
-#define	CC_BREAK	0x0080
-#define	CC_ILL		0x0100
-#define	CC_TRAPBIT	0x0200
-#define	CC_BUSERR	0x0400
-#define	CC_DIVERR	0x0800
-#define	CC_FPUERR	0x1000
-#define	CC_IPHASE	0x2000
-#define	CC_MMUERR	0x8000
-#define	CC_EXCEPTION	(CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_MMUERR)
-#define	CC_FAULT	(CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR)
-
-extern void	zip_break(void);
-extern void	zip_rtu(void);
-extern void	zip_halt(void);
-extern void	zip_idle(void);
-extern void	zip_syscall(void);
-extern void	zip_restore_context(int *);
-extern void	zip_save_context(int *);
-extern int	zip_bitrev(int v);
-extern unsigned	zip_cc(void);
-extern unsigned	zip_ucc(void);
-
-extern	int	_top_of_heap[1];
-
-extern	void	save_context(int *);
-extern	void	restore_context(int *);
-extern	int	syscall(int,int,int,int);
-
-#ifndef	NULL
-#define	NULL	((void *)0)
-#endif
-
 #define	EINT(A)	(0x80000000|(A<<16))
 #define	DINT(A)	(0x00000000|(A<<16))
 #define	CLEARPIC	0x7fff7fff
 #define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
+#define	INTNOW		0x08000
 
 static	volatile ZIPSYS *const zip = (ZIPSYS *)(ZIPSYS_ADDR);
 
 static inline void	DISABLE_INTS(void) {
-	zip->pic = 0;
+	zip->z_pic = 0;
 }
 
 static inline void	ENABLE_INTS(void) {
-	zip->pic = 0x80000000;
+	zip->z_pic = 0x80000000;
 }
+
+typedef	struct	{
+	int	c_r[16];
+	unsigned long	c_ck, c_mem, c_pf, c_icnt;
+} ZSYSCONTEXT;
+
+void	save_contextncntrs(ZSYSCONTEXT *c);
+void	restore_contextncntrs(ZSYSCONTEXT *c);
 
 #endif
