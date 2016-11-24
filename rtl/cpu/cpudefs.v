@@ -281,4 +281,7 @@
 //
 `define	DEBUG_SCOPE
 //
+// The following is experimental:
+// `define	OPT_NO_USERMODE	// Savings: about 143 LUTs or so
+//
 `endif	// CPUDEFS_H

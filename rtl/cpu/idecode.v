@@ -96,13 +96,14 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 
 
 	wire	[4:0]	w_op;
-	wire		w_ldi, w_mov, w_cmptst, w_ldilo, w_ALU, w_brev, w_noop;
+	wire		w_ldi, w_mov, w_cmptst, w_ldilo, w_ALU, w_brev, w_noop,
+			w_mpy;
 	wire	[4:0]	w_dcdR, w_dcdB, w_dcdA;
 	wire		w_dcdR_pc, w_dcdR_cc;
 	wire		w_dcdA_pc, w_dcdA_cc;
 	wire		w_dcdB_pc, w_dcdB_cc;
 	wire	[3:0]	w_cond;
-	wire		w_wF, w_dcdM, w_dcdDV, w_dcdFP;
+	wire		w_wF, w_dcdM, w_dcdDV, w_dcdFP, w_sto;
 	wire		w_wR, w_rA, w_rB, w_wR_n;
 	wire		w_ljmp, w_ljmp_dly;
 	wire	[31:0]	iword;
@@ -133,16 +134,21 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 	assign	w_brev   = (w_op      == 5'hc);
 	assign	w_cmptst = (w_op[4:1] == 4'h8);
 	assign	w_ldilo  = (w_op[4:0] == 5'h9);
+	assign	w_mpy    = ((w_op[4:1]==4'h5)||(w_op[4:0]==5'h08));
 	assign	w_ALU    = (~w_op[4]);
 
 	// 4 LUTs
 	//
 	// Two parts to the result register: the register set, given for
-	// moves in i_word[18] but only for the supervisor, and the other
+	// moves in iword[18] but only for the supervisor, and the other
 	// four bits encoded in the instruction.
 	//
+`ifdef	OPT_NO_USERMODE
+	assign	w_dcdR = { 1'b0, iword[30:27] };
+`else
 	assign	w_dcdR = { ((~iword[31])&&(w_mov)&&(~i_gie))?iword[18]:i_gie,
 				iword[30:27] };
+`endif
 	// 2 LUTs
 	//
 	// If the result register is either CC or PC, and this would otherwise
@@ -152,9 +158,13 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			((IMPLEMENT_FPU>0)&&(w_dcdR[3:1] == 3'h7))
 			||(IMPLEMENT_FPU==0));
 
+`ifdef	OPT_NO_USERMODE
+	assign	w_dcdB = { 1'b0, iword[17:14] };
+`else
 	// 4 LUTs
 	assign	w_dcdB = { ((~iword[31])&&(w_mov)&&(~i_gie))?iword[13]:i_gie,
 				iword[17:14] };
+`endif
 
 	// 0 LUTs
 	assign	w_dcdA = w_dcdR;
@@ -180,6 +190,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 
 	// 1 LUT
 	assign	w_dcdM    = (w_op[4:1] == 4'h9);
+	assign	w_sto     = (w_dcdM)&&(w_op[0]);
 	// 1 LUT
 	assign	w_dcdDV   = (w_op[4:1] == 4'ha);
 	// 1 LUT
@@ -191,18 +202,17 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 				||(w_dcdDV)
 				// ALU read's A, unless it's a MOV to A
 				// This includes LDIHI/LDILO
-				||((~w_op[4])&&(w_op[3:0]!=4'hf))
+				||((~w_op[4])&&(w_op[3:0]!=4'hf)&&(!w_brev))
 				// STO's read A
 				||((w_dcdM)&&(w_op[0]))
 				// Test/compares
-				||(w_op[4:1]== 4'h8);
+				||(w_cmptst);
 	// 1 LUTs -- do we read a register for operand B?  Specifically, do
 	// we need to stall if the register is not (yet) ready?
 	assign	w_rB     = (w_mov)||((iword[18])&&(~w_ldi));
 	// 1 LUT: All but STO, NOOP/BREAK/LOCK, and CMP/TST write back to w_dcdR
-	assign	w_wR_n   = ((w_dcdM)&&(w_op[0]))
-				||((w_op[4:3]==2'b11)&&(w_dcdR[3:1]==3'h7))
-				||(w_cmptst);
+	assign	w_wR_n   = (w_sto)||(w_cmptst)
+				||((w_op[4:3]==2'b11)&&(w_dcdR[3:1]==3'h7));
 	assign	w_wR     = ~w_wR_n;
 	//
 	// 1-output bit (5 Opcode bits, 4 out-reg bits, 3 condition bits)
@@ -279,7 +289,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 `else
 			o_illegal <= ((i_illegal) || (i_instruction[31]));
 `endif
-			if ((IMPLEMENT_MPY==0)&&((w_op[4:1]==4'h5)||(w_op[4:0]==5'h08)))
+			if ((IMPLEMENT_MPY==0)&&(w_mpy))
 				o_illegal <= 1'b1;
 
 			if ((IMPLEMENT_DIVIDE==0)&&(w_dcdDV))
@@ -425,7 +435,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			begin
 				if (r_ljmp)
 					r_branch_pc <= iword[(AW-1):0];
-				else if (w_op[4:1] == 4'hb) // LDI
+				else if (w_ldi) // LDI
 					r_branch_pc <= {{(AW-23){iword[22]}},iword[22:0]};
 				else // Add x,PC
 				r_branch_pc <= i_pc
