@@ -39,7 +39,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-
+#include "zipcpu.h"
 #include "zipsys.h"
 #include "artyboard.h"
 
@@ -50,21 +50,8 @@ void	idle_task(void) {
 
 extern int	splash[], mug[];
 
-#define	OLED_PMODEN		0x0010001
-#define	OLED_PMODEN_OFF		0x0010000
-#define	OLED_IOPWR		OLED_PMODEN
-#define	OLED_VCCEN		0x0020002
-#define	OLED_VCC_DISABLE	0x0020000
-#define	OLED_RESET		0x0040000
-#define	OLED_RESET_CLR		0x0040004
-#define	OLED_FULLPOWER		(OLED_PMODEN|OLED_VCCEN|OLED_RESET_CLR)
-#define	OLED_POWER_DOWN		(OLED_PMODEN_OFF|OLED_VCC_DISABLE)
-#define	OLED_BUSY		1
 #define	OLED_DISPLAYON		0x0af
-
-
 #define	MICROSECOND		(CLOCKFREQ_HZ/1000000)
-
 #define	OLED_DISPLAY_OFF
 
 
@@ -78,23 +65,23 @@ extern int	splash[], mug[];
  */
 void	timer_delay(int counts) {
 	// Clear the PIC.  We want to exit from here on timer counts alone
-	zip->pic = CLEARPIC;
+	zip->z_pic = CLEARPIC;
 
 	if (counts > 10) {
 		// Set our timer to count down the given number of counts
-		zip->tma = counts;
-		zip->pic = EINT(SYSINT_TMA);
+		zip->z_tma = counts;
+		zip->z_pic = EINT(SYSINT_TMA);
 		zip_rtu();
-		zip->pic = CLEARPIC;
+		zip->z_pic = CLEARPIC;
 	} // else anything less has likely already passed
 }
 
 void	wait_on_interrupt(int mask) {
 	// Clear our interrupt only, but disable all others
-	zip->pic = DALLPIC|mask;
-	zip->pic = EINT(mask);
+	zip->z_pic = DALLPIC|mask;
+	zip->z_pic = EINT(mask);
 	zip_rtu();
-	zip->pic = DINT(mask)|mask;
+	zip->z_pic = DINT(mask)|mask;
 }
 
 void oled_clear(void);
@@ -170,7 +157,7 @@ void	oled_init(void) {
 	int	i;
 
 	for(i=0; i<sizeof(init_sequence); i++) {
-		while(sys->io_oled.o_ctrl & OLED_BUSY)
+		while(OLED_BUSY(sys->io_oled))
 			;
 		sys->io_oled.o_ctrl = init_sequence[i];
 	}
@@ -204,11 +191,11 @@ void	oled_init(void) {
  * (4+5), so the OLEDrgb should see: 0x25,0x00,0x00,0x5f,0x3f.
  */
 void	oled_clear(void) {
-	while(sys->io_oled.o_ctrl & OLED_BUSY)
+	while(OLED_BUSY(sys->io_oled))
 		;
 	sys->io_oled.o_a = 0x5f3f0000;
 	sys->io_oled.o_ctrl = 0x40250000;
-	while(sys->io_oled.o_ctrl & OLED_BUSY)
+	while(OLED_BUSY(sys->io_oled))
 		;
 }
 
@@ -230,7 +217,7 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	if (r+h > 63) h = 63-r;
 
 	// Enable the fill rectangle function, rather than just the outline
-	while(sys->io_oled.o_ctrl & OLED_BUSY)
+	while(OLED_BUSY(sys->io_oled))
 		;
 	sys->io_oled.o_ctrl = 0x12601;
 
@@ -253,7 +240,7 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	sys->io_oled.o_b|= ((pix      ) & 0x01f)<< 1;
 
 	// Make certain we had finished with the port
-	while(sys->io_oled.o_ctrl & OLED_BUSY)
+	while(OLED_BUSY(sys->io_oled))
 		;
 
 	// and send our new command.  Note that o_a and o_b were already set
@@ -263,7 +250,7 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 
 	// To be nice to whatever routine follows, we'll wait 'til the port
 	// is clear again.
-	while(sys->io_oled.o_ctrl & OLED_BUSY)
+	while(OLED_BUSY(sys->io_oled))
 		;
 }
 
@@ -284,13 +271,13 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 void	oled_show_image(int *img) {
 #define	USE_DMA
 #ifdef	USE_DMA
-		zip->dma.len= 6144;
-		zip->dma.rd = img;
-		zip->dma.wr = (int *)&sys->io_oled.o_data;
-		zip->dma.ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_OLED;
+		zip->z_dma.d_len= 6144;
+		zip->z_dma.d_rd = img;
+		zip->z_dma.d_wr = (int *)&sys->io_oled.o_data;
+		zip->z_dma.d_ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_ONOLED;
 #else
 		for(int i=0; i<6144; i++) {
-			while(sys->io_oled.o_ctrl & OLED_BUSY)
+			while(OLED_BUSY(sys->io_oled))
 				;
 			sys->io_oled.o_data = img[i];
 		}
@@ -305,7 +292,7 @@ void	oled_show_image(int *img) {
  * in the bootstrap.c file, but that calls us here.
  *
  */
-void	entry(void) {
+void	main(int argc, char **argv) {
 
 	// Since we'll be returning to userspace via zip_rtu() in order to
 	// wait for an interrupt, let's at least place a valid program into
@@ -318,7 +305,7 @@ void	entry(void) {
 
 	// Clear the PIC.  We'll come back and use it later.  We clear it here
 	// partly in order to avoid a race condition later.
-	zip->pic = CLEARPIC;
+	zip->z_pic = CLEARPIC;
 
 	// Wait till we've had power for at least a quarter second
 	if (0) {
@@ -402,14 +389,14 @@ void	entry(void) {
 
 		// Let's start our writes at the top left of the GDDRAM
 		// (screen memory)
-		while(sys->io_oled.o_ctrl & OLED_BUSY)
+		while(OLED_BUSY(sys->io_oled))
 			;
 		sys->io_oled.o_ctrl = 0x2015005f; // Sets column min/max address
 
-		while(sys->io_oled.o_ctrl & OLED_BUSY)
+		while(OLED_BUSY(sys->io_oled))
 			;
 		sys->io_oled.o_ctrl = 0x2075003f; // Sets row min/max address
-		while(sys->io_oled.o_ctrl & OLED_BUSY)
+		while(OLED_BUSY(sys->io_oled))
 			;
 
 		// Now ... finally ... we can send our image.
