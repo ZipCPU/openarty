@@ -35,13 +35,41 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "zipsys.h"
 #include "artyboard.h"
 
-void entry(void) {
+void main(int argc, char **argv) {
+	/*
+	// Method one: direct polling
 	while(1) {
 		int	ch;
 		ch = sys->io_gps_rx;
-		if ((ch&-256)==0)
+		if ((ch&UART_RX_ERR)==0)
 			sys->io_uart_tx = ch;
 	}
+	*/
+
+	// Method two: Waiting on interrupts
+	zip->z_pic = SYSINT_GPSRX;
+	while(1) {
+		while((zip->z_pic & SYSINT_GPSRX)==0)
+			;
+		sys->io_uart_tx = sys->io_gps_rx;
+		zip->z_pic = SYSINT_GPSRX;
+	}
+
+	/*
+	// Method three: Use the DMA
+	zip->z_dma.d_ctrl = DMACLEAR;
+	while(1) {
+		zip->z_dma.d_rd = &sys->io_gps_rx;
+		zip->z_dma.d_wr = &sys->io_uart_tx;
+		zip->z_dma.d_len = 0x01000000; // More than we'll ever do ...
+		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
+
+		while(zip->z_dma.d_ctrl & DMA_BUSY)
+			if (zip->z_dma.d_ctrl & DMA_ERR)
+				zip_halt();;
+	}
+	*/
 }
