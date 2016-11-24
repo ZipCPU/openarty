@@ -288,6 +288,16 @@ file.  This will recover all but the logic used by the PModUSBUART and PModGPS
 serial ports, while replacing the registers with read--only memory values of
 zero.
 
+The {\tt arty.xdc} file is designed so that these PMods can be connected as
+shown in Fig.~\ref{fig:pmod-pic}.
+\begin{figure}\begin{center}
+\includegraphics[width=4in]{../gfx/openarty.eps}
+\caption{Showing how the PMods are Connected}\label{fig:pmod-pic}
+\end{center}\end{figure}
+In this example, the PModOLED is connected to PMod port JB, and the PModSD is
+connected to PMod port JD.  Both the PModGPS and the PModUSBUART are both
+connected to port JC, with the GPS connected on top and the USBUART on the
+bottom.
 
 \section{Testing the peripherals}
 OpenArty has been designed so that all of the peripherals live on a 

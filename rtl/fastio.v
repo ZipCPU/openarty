@@ -4,7 +4,12 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	This file is used to group all of the simple I/O registers
+//		together.  These are the I/O registers whose values can be
+//	read without requesting it of any submodules, and that are guaranteed
+//	not to stall the bus.  In general, these are items that can be read
+//	or written in one clock (two, if an extra delay is needed to match
+//	timing requirements).
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -159,9 +164,26 @@ module	fastio(i_clk,
 	initial	pwr_counter = 32'h00;
 	always @(posedge i_clk)
 		if (pwr_counter[31])
-			pwr_counter[30:0] <= pwr_counter[30:0] + 31'h001;
+			pwr_counter[30:0] <= pwr_counter[30:0] + 1'b1;
 		else
-			pwr_counter[31:0] <= pwr_counter[31:0] + 31'h001;
+			pwr_counter[31:0] <= pwr_counter[31:0] + 1'b1;
+
+	//
+	// These pwr_counter bits are used for generating a PWM modulated
+	// color LED output--allowing us to create multiple different, varied,
+	// color LED "colors".  Here, we reverse the bits, to make their
+	// transitions and PWM that much *less* noticable.  (a 50%
+	// value, thus, is now an on-off-on-off-etc sequence, vice a 
+	// sequence of 256 ons followed by a sequence of 256 offs --- it
+	// places the transitions into a higher frequency bracket, and costs
+	// us no logic to do--only a touch more pain to understand on behalf
+	// of the programmer.)
+	wire	[8:0]	rev_pwr_counter;
+	assign rev_pwr_counter[8:0] = { pwr_counter[0],
+			pwr_counter[1], pwr_counter[2],
+			pwr_counter[3], pwr_counter[4],
+			pwr_counter[5], pwr_counter[6],
+			pwr_counter[7], pwr_counter[8] };
 
 	//
 	// BTNSW
@@ -269,9 +291,9 @@ module	fastio(i_clk,
 			r_clr_led0_r[7:0], r_clr_led0_g[7:0], r_clr_led0_b[7:0]
 		};
 	always @(posedge i_clk)
-		o_clr_led0 <= {	(pwr_counter[8:0] < r_clr_led0_r),
-				(pwr_counter[8:0] < r_clr_led0_g),
-				(pwr_counter[8:0] < r_clr_led0_b) };
+		o_clr_led0 <= {	(rev_pwr_counter[8:0] < r_clr_led0_r),
+				(rev_pwr_counter[8:0] < r_clr_led0_g),
+				(rev_pwr_counter[8:0] < r_clr_led0_b) };
 
 	// CLR LED 1
 	wire	[31:0]	w_clr_led1;
@@ -291,9 +313,9 @@ module	fastio(i_clk,
 			r_clr_led1_r[7:0], r_clr_led1_g[7:0], r_clr_led1_b[7:0]
 		};
 	always @(posedge i_clk)
-		o_clr_led1 <= {	(pwr_counter[8:0] < r_clr_led1_r),
-				(pwr_counter[8:0] < r_clr_led1_g),
-				(pwr_counter[8:0] < r_clr_led1_b) };
+		o_clr_led1 <= {	(rev_pwr_counter[8:0] < r_clr_led1_r),
+				(rev_pwr_counter[8:0] < r_clr_led1_g),
+				(rev_pwr_counter[8:0] < r_clr_led1_b) };
 	// CLR LED 0
 	wire	[31:0]	w_clr_led2;
 	reg	[8:0]	r_clr_led2_r, r_clr_led2_g, r_clr_led2_b;
@@ -312,9 +334,9 @@ module	fastio(i_clk,
 			r_clr_led2_r[7:0], r_clr_led2_g[7:0], r_clr_led2_b[7:0]
 		};
 	always @(posedge i_clk)
-		o_clr_led2 <= {	(pwr_counter[8:0] < r_clr_led2_r),
-				(pwr_counter[8:0] < r_clr_led2_g),
-				(pwr_counter[8:0] < r_clr_led2_b) };
+		o_clr_led2 <= {	(rev_pwr_counter[8:0] < r_clr_led2_r),
+				(rev_pwr_counter[8:0] < r_clr_led2_g),
+				(rev_pwr_counter[8:0] < r_clr_led2_b) };
 	// CLR LED 3
 	wire	[31:0]	w_clr_led3;
 	reg	[8:0]	r_clr_led3_r, r_clr_led3_g, r_clr_led3_b;
@@ -333,9 +355,9 @@ module	fastio(i_clk,
 			r_clr_led3_r[7:0], r_clr_led3_g[7:0], r_clr_led3_b[7:0]
 		};
 	always @(posedge i_clk)
-		o_clr_led3 <= {	(pwr_counter[8:0] < r_clr_led3_r),
-				(pwr_counter[8:0] < r_clr_led3_g),
-				(pwr_counter[8:0] < r_clr_led3_b) };
+		o_clr_led3 <= {	(rev_pwr_counter[8:0] < r_clr_led3_r),
+				(rev_pwr_counter[8:0] < r_clr_led3_g),
+				(rev_pwr_counter[8:0] < r_clr_led3_b) };
 
 	//
 	// The Calendar DATE
@@ -463,6 +485,22 @@ module	fastio(i_clk,
 		r_gpstx_data };
 	assign	gpstx_int = !gpstx_busy;
 
+	reg	[32:0]	sec_step;
+	initial	sec_step = 33'h1;
+	always @(posedge i_clk)
+		if ((w_wb_stb)&&(w_wb_addr == 5'h12))
+			sec_step <= { 1'b1, w_wb_data };
+		else if (!pps_int)
+			sec_step <= 33'h1;
+
+	reg	[31:0]	time_now_secs;
+	initial	time_now_secs = 32'h00;
+	always @(posedge i_clk)
+		if (pps_int)
+			time_now_secs <= time_now_secs + sec_step[31:0];
+		else if (sec_step[32])
+			time_now_secs <= time_now_secs + sec_step[31:0];
+
 	always @(posedge i_clk)
 		case(i_wb_addr)
 		5'h00: o_wb_data <= `DATESTAMP;
@@ -483,13 +521,9 @@ module	fastio(i_clk,
 		5'h0f: o_wb_data <= auxtx_data;
 		5'h10: o_wb_data <= gpsrx_data;
 		5'h11: o_wb_data <= gpstx_data;
-		// 5'h12: o_wb_data <= i_gps_secs;
+		5'h12: o_wb_data <= time_now_secs;
 		5'h13: o_wb_data <= i_gps_sub;
 		5'h14: o_wb_data <= i_gps_step;
-		// 5'hf: UART_SETUP
-		// 4'h6: GPIO
-		// ?? : GPS-UARTRX
-		// ?? : GPS-UARTTX
 		default: o_wb_data <= 32'h00;
 		endcase
 
