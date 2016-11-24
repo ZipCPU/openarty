@@ -13,9 +13,10 @@
 //	This particular implementation depends upon the following symbols
 //	being defined:
 //
-//	void entry(void)
+//	int main(int argc, char **argv)
 //		The location where your program will start from, once fully
-//		loaded.
+//		loaded.  argc will always be set to zero, and ARGV to a pointer
+//		to zero.
 //
 //	_top_of_stack:
 //		A pointer to a location in memory which we can use for a stack.
@@ -56,6 +57,15 @@
 //		This is one past the last address in SDRAM that needs to be
 //		set with valid data.
 //
+//		This pointer is made even more confusing by the fact that,
+//		if there is nothing allocated in SDRAM, this pointer will
+//		still point to block RAM.  To make matters worse, the MAP
+//		file won't match the pointer in memory.  (I spent three days
+//		trying to chase this down, and came up empty.  Basically,
+//		the BFD structures may set this to point to block RAM, whereas
+//		the MAP--which uses different data and different methods of
+//		computation--may leave this pointing to SDRAM.  Go figure.)
+//
 //	_bss_image_end:
 //		This is the last address of memory that must be cleared upon
 //		startup, for which the program is assuming that it is zero.
@@ -63,6 +73,8 @@
 //		BSS memory is always zero on power up, this bootloader does so
 //		anyway--since we might be starting from a reset instead of power
 //		up.
+//
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -93,8 +105,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "zipcpu.h"
 #include "zipsys.h"
+#include "artyboard.h"
+#include "bootloader.h"
 
 // A bootloader is about nothing more than copying memory from a couple
 // particular locations (Flash/ROM) to other locations in memory (BLKRAM
@@ -133,32 +147,35 @@
 //
 asm("\t.section\t.start\n"
 	"\t.global\t_start\n"
-"_start:\n"
-	"\tLDI\t_top_of_stack,SP\n"
-	"\tMOV\t_after_bootloader(PC),R0\n"
-	"\tBRA\tbootloader\n"
+"_start:"	"\t; Here's the global ZipCPU entry point upon reset/reboot\n"
+	"\tLDI\t_top_of_stack,SP"	"\t; Set up our supervisor stack ptr\n"
+	"\tMOV\t_kernel_exit(PC),uPC"	"\t; Set user PC pointer to somewhere valid\n"
+#ifndef	SKIP_BOOTLOADER
+	"\tMOV\t_after_bootloader(PC),R0" " ; JSR to the bootloader routine\n"
+	"\tBRA\t_bootloader\n"
 "_after_bootloader:\n"
-	"\tLDI\t_top_of_stack,SP\n"
-	"\tOR\t0x4000,CC\n"	// Clear the data cache
-	"\tMOV\t_kernel_exit(PC),R0\n"
-	"\tBRA\tentry\n"
-"_kernel_exit:\n"
+	"\tLDI\t_top_of_stack,SP"	"\t; Set up our supervisor stack ptr\n"
+	"\tOR\t0x4000,CC"		"\t; Clear the data cache\n"
+#endif
+	"\tCLR\tR1\n"			"\t; argc = 0\n"
+	"\tMOV\t_argv(PC),R2\n"		"\t; argv = &0\n"
+	"\tMOV\t_kernel_exit(PC),R0"	"\t; Create somewhere the kernel can return to\n"
+	"\tBRA\tmain"	"\t; Call the user main() function\n"
+"_kernel_exit:"		"\t; Main should never return.  Halt here if it does\n"
 	"\tHALT\n"
-	"\tBRA\t_kernel_exit\n"
+	"\tBRA\t_kernel_exit"	"\t; We should *never* continue following a halt, do something useful if so ??\n"
+"_argv:\n"
+	"\t.WORD\t0,0\n"
 	"\t.section\t.text");
-
-extern int	_sdram_image_end, _sdram_image_start, _sdram,
-	_blkram, _flash, _bss_image_end,
-	_kernel_image_start, _kernel_image_end;
 
 //
 // We need to insist that the bootloader be kept in Flash, else it would depend
 // upon running a routine from memory that ... wasn't in memory yet.  For this
 // purpose, we place the bootloader in a special .boot section.  We'll also tell
-// the linker, via the arty.ld file, that thsi .boot section needs to be placed
+// the linker, via the linker script, that this .boot section needs to be placed
 // into flash.
 //
-extern	void	bootloader(void) __attribute__ ((section (".boot")));
+extern	void	_bootloader(void) __attribute__ ((section (".boot")));
 
 //
 // bootloader()
@@ -169,45 +186,52 @@ extern	void	bootloader(void) __attribute__ ((section (".boot")));
 //	3. The third area isn't copied from flash, but rather it is just set to
 //		zero.  This is sometimes called the BSS segment.
 //
-void	bootloader(void) {
-	int	zero = 0;
+#ifndef	SKIP_BOOTLOADER
+void	_bootloader(void) {
+	int *sdend = _sdram_image_end, *bsend = _bss_image_end;
+	if (sdend < _sdram)
+		sdend = _sdram;
+	if (bsend < sdend)
+		bsend = sdend;
 
 #ifdef	USE_DMA
-	zip->dma.ctrl= DMACLEAR;
-	zip->dma.rd = &_kernel_image_start;
-	if (&_kernel_image_end != &_sdram_image_start) {
-		zip->dma.len = &_kernel_image_end - &_blkram;
-		zip->dma.wr  = &_blkram;
-		zip->dma.ctrl= DMACCOPY;
+	zip->z_dma.d_ctrl= DMACLEAR;
+	zip->z_dma.d_rd = _kernel_image_start;
+	if (_kernel_image_end != _blkram) {
+		zip->z_dma.d_len = _kernel_image_end - _blkram;
+		zip->z_dma.d_wr  = _blkram;
+		zip->z_dma.d_ctrl= DMACCOPY;
 
-		zip->pic = SYSINT_DMAC;
-		while((zip->pic & SYSINT_DMAC)==0)
+		zip->z_pic = SYSINT_DMAC;
+		while((zip->z_pic & SYSINT_DMAC)==0)
 			;
 	}
 
-	// zip->dma.rd // Keeps the same value
-	zip->dma.wr  = &_sdram;
-	if (&_sdram_image_end != &_sdram) {
-		zip->dma.len = &_sdram_image_end - &_sdram;
-		zip->dma.ctrl= DMACCOPY;
+	// zip->z_dma.d_rd // Keeps the same value
+	zip->z_dma.d_wr  = _sdram;
+	if (sdend != _sdram) {
+		zip->z_dma.d_len = sdend - _sdram;
+		zip->z_dma.d_ctrl= DMACCOPY;
+
+		zip->z_pic = SYSINT_DMAC;
+		while((zip->z_pic & SYSINT_DMAC)==0)
+			;
 	}
 
-	zip->pic = SYSINT_DMAC;
-	while((zip->pic & SYSINT_DMAC)==0)
-		;
+	if (bsend != sdend) {
+		int	zero = 0;
 
-	if (&_bss_image_end != &_sdram_image_end) {
-		zip->dma.len = &_bss_image_end - &_sdram_image_end;
-		zip->dma.rd  = &zero;
-		// zip->dma.wr // Keeps the same value
-		zip->dma.ctrl = DMACCOPY;
+		zip->z_dma.d_len = bsend - sdend;
+		zip->z_dma.d_rd  = &zero;
+		// zip->z_dma.wr // Keeps the same value
+		zip->z_dma.d_ctrl = DMACCOPY;
 
-		zip->pic = SYSINT_DMAC;
-		while((zip->pic & SYSINT_DMAC)==0)
+		zip->z_pic = SYSINT_DMAC;
+		while((zip->z_pic & SYSINT_DMAC)==0)
 			;
 	}
 #else
-	int	*rdp = &_kernel_image_start, *wrp = &_blkram;
+	int	*rdp = _kernel_image_start, *wrp = _blkram;
 
 	//
 	// Load any part of the image into block RAM, but *only* if there's a
@@ -216,8 +240,8 @@ void	bootloader(void) {
 	// It starts at _kernel_image_start --- our last valid address within
 	// the flash address region.
 	//
-	if (&_kernel_image_end != &_sdram_image_start) {
-		for(int i=0; i< &_kernel_image_end - &_blkram; i++)
+	if (_kernel_image_end != _blkram) {
+		for(int i=0; i< _kernel_image_end - _blkram; i++)
 			*wrp++ = *rdp++;
 	}
 
@@ -227,8 +251,8 @@ void	bootloader(void) {
 	// As with the last pointer, this one is also created for us by the
 	// linker.
 	// 
-	wrp = &_sdram;
-	for(int i=0; i< &_sdram_image_end - &_sdram; i++)
+	wrp = _sdram;
+	for(int i=0; i< sdend - _sdram; i++)
 		*wrp++ = *rdp++;
 
 	//
@@ -237,8 +261,10 @@ void	bootloader(void) {
 	// initialization is expected within it.  We start writing where
 	// the valid SDRAM context, i.e. the non-zero contents, end.
 	//
-	for(int i=0; i<&_bss_image_end - &_sdram_image_end; i++)
+	for(int i=0; i<bsend - sdend; i++)
 		*wrp++ = 0;
+
 #endif
 }
+#endif
 
