@@ -37,8 +37,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "zipcpu.h"
 #include "zipsys.h"
+#include "artyboard.h"
 
 void	idle_task(void) {
 	while(1)
@@ -46,8 +47,8 @@ void	idle_task(void) {
 }
 
 void	wait_on_interrupt(int mask) {
-	zip->pic = DALLPIC|mask;
-	zip->pic = EINT(mask);
+	zip->z_pic = DALLPIC|mask;
+	zip->z_pic = EINT(mask);
 	zip_rtu();
 }
 
@@ -111,10 +112,10 @@ int	hexdigit(int v) {
 
 int	errstring[128];
 
-void	entry(void) {
+void	main(int argc, char **argv) {
 	const unsigned red = 0x0ff0000, green = 0x0ff00, blue = 0x0ff,
 		white = 0x070707, black = 0, dimgreen = 0x1f00,
-		second = 81250000;
+		second = CLOCKFREQHZ;
 	int	i, sw;
 
 	// Start the GPS converging ...
@@ -136,12 +137,12 @@ void	entry(void) {
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
-	zip->pic = 0x7fff7fff;
+	zip->z_pic = CLEARPIC;
 	while(sys->io_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
-	zip->tma = (second/4) | 0x80000000;
+	zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
 	sys->io_clrled[0] = green;
@@ -151,7 +152,7 @@ void	entry(void) {
 
 	sys->io_clrled[0] = dimgreen;
 	sys->io_clrled[1] = green;
-	sys->io_scope[0].s_ctrl = 32 | 0x80000000; // SCOPE_TRIGGER;
+	sys->io_scope[0].s_ctrl = SCOPE_NO_RESET | 32;
 	sys->io_ledctrl = 0x020;
 
 	wait_on_interrupt(SYSINT_TMA);
@@ -199,12 +200,12 @@ void	entry(void) {
 
 	do {
 		wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
-	} while((zip->pic & SYSINT_PPS)==0);
+	} while((zip->z_pic & SYSINT_PPS)==0);
 	
 	while(1) {
 		int	*s = errstring;
 
-		zip->wdt = CLOCKFREQ_HZ*4;
+		zip->z_wdt = CLOCKFREQ_HZ*4;
 		sys->io_ledctrl = 0x088;
 
 		// 1. Read and report the GPS tracking err
@@ -321,27 +322,27 @@ void	entry(void) {
 		*s++ = '\0';
 
 		/*
-		zip->dma.ctrl = DMACLEAR;
-		zip->dma.rd = errstring;
-		zip->dma.wr = &sys->io_uart_tx;
-		zip->dma.len = s - errstring-1;
-		zip->dma.ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_GPSRX);
+		zip->z_dma.d_ctrl = DMACLEAR;
+		zip->z_dma.d_rd = errstring;
+		zip->z_dma.d_wr = &sys->io_uart_tx;
+		zip->z_dma.d_len = s - errstring-1;
+		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_GPSRX);
 		wait_on_interrupt(SYSINT_DMAC);
 		*/
 
 		for(int i=0; errstring[i]; i++) {
 			wait_on_interrupt(SYSINT_UARTTX);
 			sys->io_uart_tx = errstring[i];
-			zip->pic = SYSINT_UARTTX;
+			zip->z_pic = SYSINT_UARTTX;
 		}
 
 		sys->io_ledctrl = 0x080;
 
 		/*		
-		zip->dma.rd = &sys->io_gps_rx;
-		zip->dma.wr = &sys->io_uart_tx;
-		zip->dma.len = 0x01000000;
-		zip->dma.ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_GPSRX);
+		zip->z_dma.d_rd = &sys->io_gps_rx;
+		zip->z_dma.d_wr = &sys->io_uart_tx;
+		zip->z_dma.d_len = 0x01000000;
+		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
 		wait_on_interrupt(SYSINT_PPS);
 		*/
 
@@ -354,17 +355,17 @@ void	entry(void) {
 		}
 		*/
 
-		zip->pic = SYSINT_GPSRX | SYSINT_PPS;
+		zip->z_pic = SYSINT_GPSRX | SYSINT_PPS;
 		do {
 			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRX);
-			if (zip->pic & SYSINT_GPSRX) {
+			if (zip->z_pic & SYSINT_GPSRX) {
 				sys->io_uart_tx = sys->io_gps_rx;
-				zip->pic = SYSINT_GPSRX;
+				zip->z_pic = SYSINT_GPSRX;
 			}
-		} while((zip->pic & SYSINT_PPS)==0);
+		} while((zip->z_pic & SYSINT_PPS)==0);
 
 		// wait_on_interrupt(SYSINT_PPS);
-		// zip->dma.ctrl= DMACLEAR;
+		// zip->z_dma.d_ctrl= DMACLEAR;
 	}
 
 	zip_halt();
