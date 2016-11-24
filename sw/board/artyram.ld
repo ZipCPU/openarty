@@ -52,6 +52,7 @@ SECTIONS
 		*(.start) *(.boot)
 		_kernel_image_start = . ;
 		*(.kernel)
+		*(.text.startup)
 		*(.text)
 		*(.rodata*) *(.strings)
 		*(.data) *(COMMON) *(.bss)

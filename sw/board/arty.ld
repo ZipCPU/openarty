@@ -50,6 +50,7 @@ SECTIONS
 	.rocode 0x4e0000 : {
 		_boot_address = .;
 		*(.start) *(.boot)
+		*(.text.startup)
 		} > flash
 	_kernel_image_start = . ;
 	.fastcode : {
@@ -58,9 +59,10 @@ SECTIONS
 		}> blkram AT> flash
 	_sdram_image_start = . ;
 	.ramcode : {
+		*(.text.startup)
 		*(.text)
 		*(.rodata*) *(.strings)
-		*(.data) *(COMMON) *(.bss)
+		*(.data) *(COMMON)
 		}> sdram AT> flash
 	_sdram_image_end = . ;
 	.bss : {
