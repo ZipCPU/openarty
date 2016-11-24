@@ -671,7 +671,8 @@ module	busmaster(i_clk, i_rst,
 			wb_cyc, (io_sel)&&(wb_stb), wb_we, wb_addr[4:0],
 				wb_data, io_ack, io_stall, io_data,
 			rtc_ppd,
-			bus_err_addr, gps_now[63:32], gps_step[47:16], master_ints, w_interrupt,
+			bus_err_addr, gps_now[63:32], gps_step[47:16],
+			master_ints, w_interrupt,
 			board_ints);
 	assign	{ gpio_int, auxrx_int, auxtx_int, gpsrx_int, gpstx_int, sw_int, btn_int } = board_ints;
 
