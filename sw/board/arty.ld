@@ -50,7 +50,6 @@ SECTIONS
 	.rocode 0x4e0000 : {
 		_boot_address = .;
 		*(.start) *(.boot)
-		*(.text.startup)
 		} > flash
 	_kernel_image_start = . ;
 	.fastcode : {
