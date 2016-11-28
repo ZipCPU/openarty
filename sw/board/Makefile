@@ -31,14 +31,14 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest simple_ping # hello
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
 RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c
+SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c # hello.c
 HEADERS := artyboard.h zipsys.h
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
@@ -59,20 +59,26 @@ $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 
 
 
+cputest: $(OBJDIR)/cputest.o artyram.ld 
+	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=cputest.map $(OBJDIR)/cputest.o -o $@
+
 exstartup: $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o arty.ld
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o -o exstartup
-
-gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/bootloader.o $(OBJDIR)/gpsdump.o -o $@
-
-oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
 
 exmulti: $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o arty.ld 
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exmulti.map $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o -o $@
 
-cputest: $(OBJDIR)/cputest.o artyram.ld 
-	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=cputest.map $(OBJDIR)/cputest.o -o $@
+gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/bootloader.o $(OBJDIR)/gpsdump.o -o $@
+
+hello: $(OBJDIR)/hello.o $(OBJDIR)/bootloader.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=hello.map $(OBJDIR)/bootloader.o $(OBJDIR)/hello.o -o $@
+
+oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
+
+simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=simple_ping.map $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o -o simple_ping
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
