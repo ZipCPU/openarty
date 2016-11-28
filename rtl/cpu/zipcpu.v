@@ -1688,6 +1688,8 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 			r_ill_err_u <=((ill_err_u)&&(wr_spreg_vl[`CPU_ILL_BIT]));
 		else if ((alu_illegal)&&(alu_gie)&&(!clear_pipeline))
 			r_ill_err_u <= 1'b1;
+
+	assign	ill_err_u = r_ill_err_u;
 `endif
 `else
 	assign ill_err_u = 1'b0;
