@@ -48,14 +48,14 @@
 #define	CC_STEP		0x0040
 #define	CC_BREAK	0x0080
 #define	CC_ILL		0x0100
-#define	CC_TRAPBIT	0x0200
+#define	CC_TRAP		0x0200
 #define	CC_BUSERR	0x0400
 #define	CC_DIVERR	0x0800
 #define	CC_FPUERR	0x1000
 #define	CC_IPHASE	0x2000
 #define	CC_MMUERR	0x8000
-#define	CC_EXCEPTION	(CC_BREAK|CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_MMUERR)
 #define	CC_FAULT	(CC_ILL|CC_BUSERR|CC_DIVERR|CC_FPUERR)
+#define	CC_EXCEPTION	(CC_BREAK|CC_FAULT|CC_MMUERR)
 
 // extern void	zip_break(void);
 // #define	BREAK(ID)	asm("BREAK " ##ID "\n")
