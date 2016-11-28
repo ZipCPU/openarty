@@ -33,6 +33,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "zipcpu.h"
 #include "zipsys.h"
 #include "artyboard.h"
 
@@ -40,11 +41,11 @@
 #define NULL	(void *)0
 #endif
 
-volatile	int	*const UARTTX = &((IOSPACE *)0x0100)->io_uart_tx,
+static volatile	int	*const UARTTX = &((IOSPACE *)0x0100)->io_uart_tx,
 			*const UART_CTRL = &((IOSPACE *)0x0100)->io_auxsetup;
-volatile	int * const PIC = (volatile int *)0xc0000000;
-const int	INT_UARTTX = SYSINT_UARTTX; // 0x2000;
-volatile	int	*const COUNTER = &((ZIPSYS *)ZIPSYS_ADDR)->m.ck;
+static volatile	int * const PIC = (volatile int *)0xff000000;
+static const int	INT_UARTTX = SYSINT_UARTTX; // 0x2000;
+static volatile	int	*const COUNTER = &((ZIPSYS *)ZIPSYS_ADDR)->z_m.ac_ck;
 
 #define	HAVE_COUNTER
 #define	HAVE_SCOPE
@@ -54,6 +55,7 @@ volatile	int	*const COUNTER = &((ZIPSYS *)ZIPSYS_ADDR)->m.ck;
 #define	PREPARE_SCOPE		SCOPE_DELAY
 
 unsigned	zip_ucc(void);
+unsigned	zip_cc(void);
 void		zip_save_context(int *);
 void		zip_halt(void);
 
@@ -119,8 +121,8 @@ asm("\t.text\n\t.global\trun_test\n"
 	"\tMOV\tR3,uR8\n"
 	"\tMOV\tR3,uR9\n"
 	"\tMOV\tR3,uR10\n"
-	"\tMOV\tR3,uR11\n"	// uR11 = pc
-	"\tMOV\tR3,uR12\n"	// uR12 = pc
+	"\tMOV\tR3,uR11\n"
+	"\tMOV\tR3,uR12\n"
 	"\tMOV\tR2,uSP\n"	// uSP = stack
 	"\tMOV\t0x20+R3,uCC\n"	// Clear uCC of all but the GIE bit
 	"\tMOV\tR1,uPC\n"	// uPC = pc
@@ -178,6 +180,15 @@ asm("\t.text\n\t.global\tbreak_two\n"
 "break_two:\n"
 	"\tLDI\t0,R1\n"
 	"\tJMP\tR0\n"
+	"\tBREAK\n");
+
+void	break_three(void);
+	// Can we jump to a break, and still have the uPC match
+asm("\t.text\n\t.global\tbreak_three\n"
+	"\t.type\tbreak_three,@function\n"
+	// R1 = 0 by default from calling.  This will return as though
+	// we had succeeded.
+"break_three:\n"
 	"\tBREAK\n");
 
 void	early_branch_test(void);
@@ -1137,6 +1148,10 @@ void	test_fails(int start_time, int *listno) {
 	txreg("uPC : ", context[15]);
 	txstr("\r\n\r\n");
 
+	// While previous versions of cputest.c called zip_busy(), here we
+	// reject that notion for the simple reason that zip_busy may not
+	// necessarily halt any Verilator simulation.  Instead, we try to 
+	// halt the CPU.
 	while(1)
 		zip_halt();
 }
@@ -1159,6 +1174,8 @@ void entry(void) {
 	int	context[16];
 	int	user_stack[256], *user_stack_ptr = &user_stack[256];
 	int	start_time, i;
+	int	cc_fail;
+
 
 	for(i=0; i<32; i++)
 		testlist[i] = -1;
@@ -1178,7 +1195,7 @@ void entry(void) {
 	//
 
 	txstr("\r\n");
-	txstr("Running CPU self-test\n");
+	txstr("Running CPU self-test\r\n");
 	txstr("-----------------------------------\r\n");
 
 	int	tnum = 0;
@@ -1187,147 +1204,163 @@ void entry(void) {
 	// Make sure the break works as designed
 	testid("Break test #1"); MARKSTART;
 
-	if ((run_test(break_one, user_stack_ptr))||(zip_ucc()&0x1f50))
+	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_TRAP|CC_ILL|CC_STEP|CC_SLEEP;
+	if ((run_test(break_one, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
 
 	save_context(context);
-	if ((context[15] != (int)break_one+1)||(0==(zip_ucc()&0x80)))
+	if ((context[15] != (int)break_one+1)||(0==(zip_ucc()&CC_BREAK)))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// 0
 
 	// Test break instruction in user mode
 	// Make sure that a decision on the clock prior won't still cause a 
 	// break condition
+	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_ILL|CC_BREAK|CC_STEP|CC_SLEEP;
 	testid("Break test #2"); MARKSTART;
-	if ((run_test(break_two, user_stack_ptr))||(zip_ucc()&0x1d90))
+	if ((run_test(break_two, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #1
+
+	// Test break instruction in user mode
+	// Make sure that a decision on the clock prior won't still cause a 
+	// break condition
+	cc_fail = (CC_FAULT)|CC_MMUERR|CC_TRAP|CC_STEP|CC_SLEEP;
+	testid("Break test #3"); MARKSTART;
+	run_test(break_three, user_stack_ptr);
+	save_context(context);
+	if ((context[15] != (int)break_three)	// Insist we stop at the break
+			||(0==(zip_ucc()&CC_BREAK))//insn,that the break flag is
+			||(zip_ucc()&cc_fail))	// set, and no other excpt flags
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
 
 	// LJMP test ... not (yet) written
 
 	// Test the early branching capability
 	//	Does it successfully clear whatever else is in the pipeline?
 	testid("Early Branch test"); MARKSTART;
-	if ((run_test(early_branch_test, user_stack_ptr))||(zip_ucc()&0x01d90))
-		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
-
-	// TRAP test
-	testid("Trap test/AND"); MARKSTART;
-	if ((run_test(trap_test_and, user_stack_ptr))||(zip_ucc()&0x01d90))
-		test_fails(start_time, &testlist[tnum]);
-	if ((zip_ucc() & 0x0200)==0)
+	if ((run_test(early_branch_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
 
-	testid("Trap test/CLR"); MARKSTART;
-	if ((run_test(trap_test_clr, user_stack_ptr))||(zip_ucc()&0x01d90))
+	// TRAP test
+	testid("Trap test/AND"); MARKSTART;
+	if ((run_test(trap_test_and, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
 
-	// Overflow test
-	testid("Overflow test"); MARKSTART;
-	if ((run_test(overflow_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	testid("Trap test/CLR"); MARKSTART;
+	if ((run_test(trap_test_clr, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #5
 
-	// Carry test
-	testid("Carry test"); MARKSTART;
-	if ((run_test(carry_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	// Overflow test
+	testid("Overflow test"); MARKSTART;
+	if ((run_test(overflow_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
 
+	// Carry test
+	testid("Carry test"); MARKSTART;
+	if ((run_test(carry_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7
+
 	// LOOP_TEST
 	testid("Loop test"); MARKSTART;
-	if ((run_test(loop_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(loop_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7 -- FAILS
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
 
 	// SHIFT_TEST
 	testid("Shift test"); MARKSTART;
-	if ((run_test(shift_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(shift_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
 
 	// BREV_TEST
 	//testid("BREV/stack test"); MARKSTART;
 	//if ((run_test(brev_test, user_stack_ptr))||(zip_ucc()&0x01d90))
-		//test_fails(start_time);
+		//test_fails(start_time);		// #10
 	//txstr("Pass\r\n");
 
 	// PIPELINE_TEST
 	testid("Pipeline test"); MARKSTART;
-	if ((run_test(pipeline_test, user_stack_ptr))||(zip_ucc()&0x01d90))
-		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #10
-
-	// MEM_PIPELINE_STACK_TEST
-	testid("Mem-Pipeline test"); MARKSTART;
-	if ((run_test(mempipe_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(pipeline_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #11
 
+	// MEM_PIPELINE_STACK_TEST
+	testid("Mem-Pipeline test"); MARKSTART;
+	if ((run_test(mempipe_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #12
+
 	// CONDITIONAL EXECUTION test
 	testid("Conditional Execution test"); MARKSTART;
-	if ((run_test(cexec_test, user_stack_ptr))||(zip_ucc()&0x01d90))
-		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #12 -- FAILS
-
-	// NOWAIT pipeline test
-	testid("No-waiting pipeline test"); MARKSTART;
-	if ((run_test(nowaitpipe_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(cexec_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #13
 
-	// BCMEM test
-	testid("Conditional Branching test"); MARKSTART;
-	if ((run_test(bcmem_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	// NOWAIT pipeline test
+	testid("No-waiting pipeline test"); MARKSTART;
+	if ((run_test(nowaitpipe_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #14
 
-	// Illegal Instruction test
-	testid("Ill Instruction test, NULL PC"); MARKSTART;
-	if ((run_test(NULL, user_stack_ptr))||((zip_ucc()^0x100)&0x01d90))
+	// BCMEM test
+	testid("Conditional Branching test"); MARKSTART;
+	if ((run_test(bcmem_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #15
 
 	// Illegal Instruction test
+	testid("Ill Instruction test, NULL PC"); MARKSTART;
+	if ((run_test(NULL, user_stack_ptr))||((zip_ucc()^CC_ILL)&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #16
+
+	// Illegal Instruction test
+	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR;
 	testid("Ill Instruction test, two"); MARKSTART;
-	if ((run_test(ill_test, user_stack_ptr))||((zip_ucc()^0x100)&0x01d90))
+	if ((run_test(ill_test, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
 	save_context(context);
 	if (context[15] != (int)&ill_test)
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #17
 
 	// Pipeline memory race condition test
 	// DIVIDE test
 
 	// CC Register test
 	testid("CC Register test"); MARKSTART;
-	if ((run_test(ccreg_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(ccreg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
 
 	// Multiple argument test
 	testid("Multi-Arg test"); MARKSTART;
-	if ((run_test(multiarg_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(multiarg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
 
 	// MPY_TEST
 	testid("Multiply test"); MARKSTART;
-	if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
 
 	// MPYxHI_TEST
 	testid("Multiply HI-word test"); MARKSTART;
-	if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&0x01d90))
+	if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
 
 	txstr("\r\n");
 	txstr("-----------------------------------\r\n");
