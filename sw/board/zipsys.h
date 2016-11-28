@@ -58,7 +58,7 @@ typedef	struct	{
 #define	DMAONEATATIME	0x0fed0001
 #define	DMA_BUSY	0x80000000
 #define	DMA_ERR		0x40000000
-#define	DMA_ONINT(INT)	(DMA_TRIGGER|((INT&15)<<10))
+#define	DMA_ONINT(INT)	(DMA_TRIGGER|(((INT)&15)<<10))
 #define	DMA_ONJIFFIES	DMA_ONINT(1)
 #define	DMA_ONTMC	DMA_ONINT(2)
 #define	DMA_ONTMB	DMA_ONINT(3)
@@ -104,8 +104,8 @@ typedef	struct	{
 #define	ALTINT_SCOPE	0x1000
 #define	ALTINT_GPIO	0x2000
 
-#define	EINT(A)	(0x80000000|(A<<16))
-#define	DINT(A)	(0x00000000|(A<<16))
+#define	EINT(A)	(0x80000000|((A)<<16))
+#define	DINT(A)	(0x00000000|((A)<<16))
 #define	CLEARPIC	0x7fff7fff
 #define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
 #define	INTNOW		0x08000
