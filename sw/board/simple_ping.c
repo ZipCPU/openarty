@@ -10,6 +10,41 @@
 //	2. Replying to ARP requests
 //	3. Replying to external 'pings' requests
 //
+//	To configure this for your network, you will need to adjust the
+//	following constants within this file:
+//
+//	my_ip_addr
+//		This is the (fixed) IP address of your Arty board.  The first
+//		octet of the IP address is kept in the high order word.
+//
+//	my_mac_addr[2]
+//		This is the fixed MAC address of your Arty board.  The first
+//		two octets appear in the low order 16-bits of my_mac_addr[0],
+//		the other four in my_mac_addr[1].  Since the Arty PHY does not
+//		come with a designated MAC address, I generated one for my
+//		PHY using /dev/rand.  The key to this, though, is that the
+//		second nibble (bits 8..12) in my_mac_addr[0] must be set to
+//		4'h2 to reflect this fact.
+//
+//	ping_ip_addr
+//		This is the IP address of the computer you wish to ping.
+//
+//	my_ip_router
+//		In case the computer you wish to ping is not your
+//		router/gateway, and worse that it is not on your network, then
+//		you will need to fill this value in with the IP address of a
+//		gateway server that is accessable from this network.  Place
+//		that IP address into this variable.
+//		
+//	my_ip_mask
+//		The IP mask is used to determine what is on your subnet, versus
+//		what needs to be sent to your router/gateway.  Set this mask
+//		such that a '1' is placed in every network bit of your IP
+//		address, and '0' in every host bit.  For me, I am using a
+//		network of 192.168.10.x, where x is the computer on the network,
+//		so I set this to 0xffffff00.
+//
+//
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
