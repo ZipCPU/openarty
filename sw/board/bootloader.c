@@ -219,12 +219,12 @@ void	_bootloader(void) {
 	}
 
 	if (bsend != sdend) {
-		int	zero = 0;
+		volatile int	zero = 0;
 
 		zip->z_dma.d_len = bsend - sdend;
-		zip->z_dma.d_rd  = &zero;
+		zip->z_dma.d_rd  = (unsigned *)&zero;
 		// zip->z_dma.wr // Keeps the same value
-		zip->z_dma.d_ctrl = DMACCOPY;
+		zip->z_dma.d_ctrl = DMACCOPY|DMA_CONSTSRC;
 
 		zip->z_pic = SYSINT_DMAC;
 		while((zip->z_pic & SYSINT_DMAC)==0)
