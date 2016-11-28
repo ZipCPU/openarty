@@ -394,16 +394,23 @@ void	send_arp_reply(unsigned machi, unsigned maclo, unsigned ipaddr) {
 
 unsigned	rxpkt[2048];
 void	user_task(void) {
+	unsigned	rtc = sys->io_rtc.r_clock;
+
 	while(1) {
-		{
+		do {
 			unsigned	mac[2];
+
+			// Rate limit our ARP searching to one Hz
+			rtc = sys->io_rtc.r_clock;
 
 			if (arp_lookup(ping_ip_addr, mac) == 0)
 				arp_lookup(my_ip_router, mac);
-		}
 
-		while((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0)
-			user_heartbeats++;
+			while(((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0)
+					&&(sys->io_rtc.r_clock == rtc))
+				user_heartbeats++;
+		} while((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0);
+
 		// Okay, now we have a receive packet ... let's process it
 		int	etype = sys->io_enet_rx[1] & 0x0ffff;
 		unsigned *epayload; //  = (unsigned *)&sys->io_enet_rx[2];
@@ -565,6 +572,11 @@ int main(int argc, char **argv) {
 	// Start up the network interface
 	if ((sys->io_enet.n_txcmd & ENET_RESET)!=0)
 		sys->io_enet.n_txcmd = 0; // Turn on all our features
+	{
+		volatile unsigned *emac = (volatile unsigned *)&sys->io_enet.n_mac;
+		emac[0] = my_mac_addr[0];
+		emac[1] = my_mac_addr[1];
+	}
 
 	// Turn off our right-hand LED, first part of startup is complete
 	sys->io_ledctrl = 0x010;
@@ -643,6 +655,9 @@ int main(int argc, char **argv) {
 					// receive another packet
 					zip->z_pic = EINT(SYSINT_NETTX|SYSINT_NETRX);
 				}
+
+				user_context[14] &= ~CC_TRAP;
+				restore_context(user_context);
 			} else if ((picv & INTNOW)==0) {
 				sys->io_ledctrl = 0x0ff;
 				sys->io_clrled[0] = RED;
