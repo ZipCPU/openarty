@@ -105,29 +105,30 @@ typedef	struct	{
 	unsigned	g_alpha, g_beta, g_gamma, g_step;
 } GPSTRACKER;
 
-#define	ENET_TXGO	0x004000
-#define	ENET_TXBUSY	0x004000
-#define	ENET_NOHWCRC	0x008000
-#define	ENET_NOHWMAC	0x010000
-#define	ENET_RESET	0x020000
-#define	ENET_NOHWIPCHK	0x040000
-#define	ENET_TXCMD(LEN)	((LEN)|ENET_TXBIT)
-#define	ENET_TXCLR	0x038000
-#define	ENET_TXCANCEL	0x000000
-#define	ENET_RXAVAIL	0x004000
-#define	ENET_RXBUSY	0x008000
-#define	ENET_RXERR	0x010000
-#define	ENET_RXMISS	0x020000
-#define	ENET_RXCRC	0x040000	// Set on a CRC error
-#define	ENET_RXLEN	rxcmd & 0x0ffff
-#define	ENET_RXCLR	0x004000
-#define	ENET_RXCLRERR	0x078000
+#define	ENET_TXGO		0x004000
+#define	ENET_TXBUSY		0x004000
+#define	ENET_NOHWCRC		0x008000
+#define	ENET_NOHWMAC		0x010000
+#define	ENET_RESET		0x020000
+#define	ENET_NOHWIPCHK		0x040000
+#define	ENET_TXCMD(LEN)		((LEN)|ENET_TXGO)
+#define	ENET_TXCLR		0x038000
+#define	ENET_TXCANCEL		0x000000
+#define	ENET_RXAVAIL		0x004000
+#define	ENET_RXBUSY		0x008000
+#define	ENET_RXMISS		0x010000
+#define	ENET_RXERR		0x020000
+#define	ENET_RXCRC		0x040000	// Set on a CRC error
+#define	ENET_RXLEN		rxcmd & 0x0ffff
+#define	ENET_RXCLR		0x004000
+#define	ENET_RXBROADCAST	0x080000
+#define	ENET_RXCLRERR		0x078000
 #define	ENET_TXBUFLN(NET)	(1<<(NET.txcmd>>24))
 #define	ENET_RXBUFLN(NET)	(1<<(NET.rxcmd>>24))
 typedef	struct	{
-	unsigned	rxcmd, txcmd;
-	unsigned long	mac;
-	unsigned	rxmiss, rxerr, rxcrc, txcol;
+	unsigned	n_rxcmd, n_txcmd;
+	unsigned long	n_mac;
+	unsigned	n_rxmiss, n_rxerr, n_rxcrc, n_txcol;
 } ENETPACKET;
 
 
@@ -242,9 +243,10 @@ typedef	struct	{
 	unsigned		io_ignore_1[8+16+64];
 	ENETMDIO		io_netmdio;
 	EFLASHCTRL		io_eflash;
-	unsigned	io_icape2[32];
-	unsigned	io_enet_rx[1024];
-	unsigned	io_enet_tx[1024];
+	unsigned		io_icape2[32];
+	unsigned		io_ignore_2[0x800-0x1e0-32-1];
+	unsigned		io_enet_rx[1024];
+	unsigned		io_enet_tx[1024];
 } IOSPACE;
 
 static volatile IOSPACE	* const sys = (IOSPACE *)0x0100;
