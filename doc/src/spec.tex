@@ -231,7 +231,12 @@ designed to run from a Linux command line.  The C++ source code for these
 programs can be found in the sw/host directory.  These programs have two
 dependencies: the ZipCPU load program depends upon libelf, and the ZipCPU
 debugger depends upon the ncurses library.  If you have these two libraries,
-your build should proceed without problems.
+your build should proceed without problems.  If now, you may get them simply
+by ussuing a:
+\begin{lstlisting}[language=bash]
+% sudo apt-get install ncurses-dev libelf-dev
+\end{lstlisting}
+
 
 % TODO: Remove the dependency on ZIPD.
 
@@ -263,6 +268,21 @@ These include:
 	the CPU, as well as to inspect the state of the CPU following any
 	unexpected halt.
 \end{itemize}
+
+\section{Building the Verilator Simulation}
+If you are at all interested in building the verilator simulation, you will 
+also need Verilator and GTKMM-3.0.  To get these, you may type:
+\begin{lstlisting}[language=bash]
+% sudo apt-get install verilator libgtkmm-3.0-dev
+\end{lstlisting}
+At this point, a {\tt make} in the {\tt rtl} directory, followed by a
+{\tt make} in the {\tt bench/cpp} directory will build a Verilator simulation
+named {\tt busmaster\_tb}.  You may run this program in place of {\tt netuart},
+and then access the simulated Arty using the regular board support packages.
+This simulation will use the TCP/IP port given in {\tt bench/cpp/port.h}, which
+should be set identically to the port given in {\tt sw/host/port.h} used by
+{\tt netuart}.
+
 
 
 
@@ -431,14 +451,22 @@ can be used to load subsequent configurations into the FLASH.
 \section{Building the ZipCPU tool-chain}
 At this point, you should have some confidence that your configuration and
 hardware are working.  Therefore, let's transition to getting the ZipCPU
-on the hardware up and running.  To do this, we'll start with getting a copy
+on the hardware up and running. 
+To do this, we'll start with getting a copy
 of the ZipCPU toolchain and building it.  Pick a directory to work in, and
 then issue:
 \begin{lstlisting}[language=bash]
 % git clone https://github.com/ZipCPU/zipcpu
 \end{lstlisting}
-to get a copy of the ZipCPU project, together with toolchain, and then
-in the master directory, type:
+to get a copy of the ZipCPU project, together with toolchain.  You'll also
+need to double check that you have the pre-requisite packages to build this
+tool chain, so on an Ubuntu~14 machine you would issue:
+\begin{lstlisting}[language=bash]
+% sudo apt-get install flex bison libbison-dev
+% sudo apt-get install libgmp10 libgmp-dev libmpfr-dev libmpc-dev libelf-dev
+\end{lstlisting}
+Once these are all in place, you can then switch to the master ZipCPU
+directory and type,
 \begin{lstlisting}[language=bash]
 % cd zipcpu; make
 \end{lstlisting}
@@ -1569,6 +1597,12 @@ RXCRC&\scalebox{0.8}{\tt 0x013e} & 32 & R & Packets received with CRC errors\\\h
 \end{reglist}
 \caption{Network Packet control registers}\label{tbl:netpkt}
 \end{center}\end{table}
+shows the eight registers used by the packet interface.  The first two of these
+are used for receiving and sending packets respectively.  We'll discuss these
+two in a moment.  The next two locations allow you to set your own MAC address.
+Doing so will allow the network interface, if so configured, to insert your
+MAC address into packets and filter incoming packets for only those containing
+your MAC.  The last four values are reserved for internal performance counters.
 
 From the standpoint of configuring this interface, the network transmit
 control register needs to be configured first.  The bits in this register
