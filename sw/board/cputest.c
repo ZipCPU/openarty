@@ -655,13 +655,11 @@ int	mpyhi_test(void) {
 }
 
 unsigned	soft_mpyuhi(unsigned a, unsigned b) {
-	unsigned	alo, ahi, blo, bhi;
+	unsigned	alo, ahi;
 	unsigned	rhi, rlhi, rllo;
 
 	alo = (a     & 0x0ffff);
 	ahi = (a>>16)& 0x0ffff;
-	blo = (b     & 0x0ffff);
-	bhi = (b>>16)& 0x0ffff;
 
 	rhi = 0;
 	rlhi = 0;
