@@ -38,7 +38,7 @@ NM := zip-nm
 RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c # hello.c
+SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c ntpserver.c # hello.c
 HEADERS := artyboard.h zipsys.h
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
@@ -77,8 +77,9 @@ hello: $(OBJDIR)/hello.o $(OBJDIR)/bootloader.o arty.ld
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
 	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
 
-simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=simple_ping.map $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o -o simple_ping
+simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o
+simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o arty.ld
+	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=simple_ping.map $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o -o simple_ping
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@

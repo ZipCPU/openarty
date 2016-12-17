@@ -17,14 +17,14 @@
 //		This is the (fixed) IP address of your Arty board.  The first
 //		octet of the IP address is kept in the high order word.
 //
-//	my_mac_addr[2]
+//	my_mac_addr	(unsigned long, 64 bits)
 //		This is the fixed MAC address of your Arty board.  The first
-//		two octets appear in the low order 16-bits of my_mac_addr[0],
-//		the other four in my_mac_addr[1].  Since the Arty PHY does not
-//		come with a designated MAC address, I generated one for my
-//		PHY using /dev/rand.  The key to this, though, is that the
-//		second nibble (bits 8..12) in my_mac_addr[0] must be set to
-//		4'h2 to reflect this fact.
+//		two octets appear in bits 47:32 (MSB #s are high), and the other
+//		four in bits 31:0. Since the Arty PHY does not come with a
+//		designated MAC address, I generated one for my PHY using
+//		/dev/rand.  The key to this, though, is that the second nibble
+//		(bits 8..12) in my_mac_addr[0] must be set to 4'h2 to reflect
+//		this fact.
 //
 //	ping_ip_addr
 //		This is the IP address of the computer you wish to ping.
@@ -76,7 +76,13 @@
 //
 #include "zipcpu.h"
 #include "zipsys.h"
+#define	KTRAPID_SENDPKT	0
 #include "artyboard.h"
+#include "etcnet.h"
+#include "protoconst.h"
+#include "ledcolors.h"
+#include "ipcksum.h"
+#include "arp.h"
 
 unsigned	pkts_received = 0, replies_received=0, arp_requests_received=0,
 		arp_pkt_count =0, arp_pkt_invalid =0,
@@ -86,10 +92,8 @@ unsigned	pkts_received = 0, replies_received=0, arp_requests_received=0,
 		ping_reply_address_not_found = 0, ping_replies_sent = 0,
 		ping_reply_err = 0, user_tx_packets = 0,
 		user_heartbeats = 0;
-static	const	unsigned RED = 0x0ff0000, GREEN = 0x0700, WHITE=0x070707;
 
-extern	unsigned	my_ip_addr, ping_ip_addr;
-extern	unsigned my_mac_addr[2], ping_mac_addr[2];
+unsigned long ping_mac_addr;
 
 // These two numbers will allow us to keep track of how many ping's we've
 // sent and how many we've received the returns for.
@@ -103,202 +107,20 @@ unsigned	ping_tx_count = 0, ping_rx_count = 0;
 // 2. Later, check if the IP address is not on our subnet, and if not then
 //	look up the MAC address of the router and use that MAC address when
 //	sending (no change to the IP)
-unsigned	ping_ip_addr  = (192<<24)|(168<<16)|(10<<8)|1;
-unsigned	ping_mac_addr[2]	= { 0, 0 }; // { 0xc83a, 0x35d207b1 };
-unsigned	router_mac_addr[2]	= { 0, 0 }; // { 0xc83a, 0x35d207b1 };
+unsigned	ping_ip_addr  = IPADDR(192,168,10,1);
+unsigned long	ping_mac_addr = 0;
 
 // My network ID.  The 192.168.10 part comes from the fact that this is a
 // local network.  The .22 (last octet) is due to the fact that this is
 // an unused ID on my network.
-unsigned	my_ip_addr  = (192<<24)|(168<<16)|(10<<8)|22;
+unsigned	my_ip_addr  = DEFAULTIP;
 // Something from /dev/rand
 //	Only ... the second nibble must be two.  Hence we start with d(2)d8.
-unsigned	my_mac_addr[2] = { 0xd2d8, 0x28e8b096 };
-unsigned	my_ip_mask = 0xffffff00,
-		my_ip_router = (192<<24)|(168<<16)|(10<<8)|1;
+unsigned long	my_mac_addr = DEFAULTMAC, router_mac_addr = 0;
+unsigned	my_ip_mask = LCLNETMASK,
+		my_ip_router = DEFAULT_ROUTERIP;
 
-#define	ETHERTYPE_IP		0x0800
-#define	ETHERTYPE_ARP		0x0806
-#define	ETHERTYPE_IPV6		0x86dd
-#define	ETHERTYPE_LOOPBACK	0x9000
-
-#define	IPPROTO_IP	0
-#define	IPPROTO_ICMP	1
-#define	IPPROTO_UDP	17
-#define	IPPROTO_TCP	6
-
-#define	ICMP_ECHOREPLY	0
-#define	ICMP_ECHO	8
-
-
-#define	BIG_PRIME	0x0134513b
 unsigned	pkt_id = 0;
-
-
-///////////
-//
-//
-// Simplified ARP table and ARP requester
-//
-//
-///////////
-
-
-
-
-/*
-void	get_mac_addr(unsigned ip) {
-	if (mac_known(ip))
-		return;
-	else {
-		send_arp_request(ip);
-		// Wat on an arp return
-	}
-}
-*/
-typedef	struct	{
-	int		valid;
-	unsigned	age, ipaddr, mac[2];
-} ARP_TABLE_ENTRY;
-
-#define	NUM_ARP_ENTRIES	8
-ARP_TABLE_ENTRY	arp_table[NUM_ARP_ENTRIES];
-
-void	init_arp_table(void) {
-	for(int k=0; k<NUM_ARP_ENTRIES; k++)
-		arp_table[k].valid = 0;
-}
-
-int	get_next_arp_index(void) {
-	int	eid, eldest = 0, unused_id = -1, oldage = 0, found=-1;
-	for(eid=0; eid<NUM_ARP_ENTRIES; eid++) {
-		if (!arp_table[eid].valid) {
-			unused_id = eid;
-			break;
-		} else if (arp_table[eid].age > oldage) {
-			oldage = arp_table[eid].age;
-			eldest = eid;
-		}
-	}
-
-	if (unused_id >= 0)
-		return unused_id;
-	return eldest;
-}
-
-void	send_arp_request(int ipaddr) {
-	unsigned	pkt[9];
-
-	pkt[0] = 0xffffffff;
-	pkt[1] = 0xffff0000 | ETHERTYPE_ARP;
-	pkt[2] = 0x010800;	// hardware type (enet), proto type (inet)
-	pkt[3] = 0x06040001;	// 6 octets in enet addr, 4 in inet addr,request
-	pkt[4] = (my_mac_addr[0]<<16)|(my_mac_addr[1]>>16);
-	pkt[5] = (my_mac_addr[1]<<16)|(my_ip_addr>>16);
-	pkt[6] = (my_ip_addr<<16);
-	pkt[7] = 0;
-	pkt[8] = ipaddr;
-
-	// Send our packet
-	syscall(0,0,(unsigned)pkt, 9*4);
-}
-
-int	arp_lookup(unsigned ipaddr, unsigned *mac) {
-	int	eid, eldest = 0, unused_id = -1, oldage = 0, found=-1;
-
-	if (ipaddr == ping_ip_addr) {
-		mac[0] = ping_mac_addr[0];
-		mac[1] = ping_mac_addr[1];
-		if (mac[0]|mac[1])
-			return 0;
-	} if ((ipaddr & my_ip_mask) != my_ip_addr) {
-		mac[0] = router_mac_addr[0];
-		mac[1] = router_mac_addr[1];
-		if (mac[0]|mac[1])
-			return 0;
-	}
-
-	for(eid=0; eid<NUM_ARP_ENTRIES; eid++) {
-		if((arp_table[eid].valid)&&(arp_table[eid].ipaddr == ipaddr)) {
-			arp_table[eid].age = 0;
-			mac[0] = arp_table[eid].mac[0];
-			mac[1] = arp_table[eid].mac[1];
-			found = eid;
-		} else if (!arp_table[eid].valid) {
-			unused_id = eid;
-		} else if (arp_table[eid].age > oldage) {
-			oldage = arp_table[eid].age++;
-			eldest = eid;
-			if (oldage >= 0x010000)
-				arp_table[eid].valid = 0;
-		} else
-			arp_table[eid].age++;
-	}
-
-	if (found >= 0) {
-		// We found the entry we needed
-		eid = found;
-		return 0;
-	} send_arp_request(ipaddr);
-	return 1;
-}
-
-typedef struct	{
-	unsigned ipaddr, mac[2];
-} ARP_TABLE_LOG_ENTRY;
-
-int	arp_logid = 0;
-ARP_TABLE_LOG_ENTRY	arp_table_log[32];
-
-void	arp_table_add(unsigned ipaddr, unsigned *mac) {
-	unsigned	lclmac[2];
-	int		eid;
-
-	arp_table_log[arp_logid].ipaddr = ipaddr;
-	arp_table_log[arp_logid].mac[0] = mac[0];
-	arp_table_log[arp_logid].mac[1] = mac[1];
-	arp_logid++;
-	arp_logid&= 31;
-	
-
-	if (ipaddr == my_ip_addr)
-		return;
-	else if (ipaddr == ping_ip_addr) {
-		ping_mac_addr[0] = mac[0];
-		ping_mac_addr[1] = mac[1];
-		if (ipaddr == my_ip_router) {
-			router_mac_addr[0] = mac[0];
-			router_mac_addr[1] = mac[1];
-		}
-	} else if (ipaddr == my_ip_router) {
-		router_mac_addr[0] = mac[0];
-		router_mac_addr[1] = mac[1];
-	} else if (arp_lookup(ipaddr, lclmac)==0) {
-		if ((mac[0] != lclmac[0])||(mac[1] != lclmac[1])) {
-			for(eid=0; eid<NUM_ARP_ENTRIES; eid++) {
-				if ((arp_table[eid].valid)&&
-					(arp_table[eid].ipaddr == ipaddr)) {
-					arp_table[eid].valid = 0;
-					arp_table[eid].age = 0;
-					arp_table[eid].mac[0] = mac[0];
-					arp_table[eid].mac[1] = mac[1];
-					arp_table[eid].valid = 1;
-				}
-			}
-		}
-	} else {
-		eid = get_next_arp_index();
-
-		arp_table[eid].valid = 0;
-		arp_table[eid].age = 0;
-		arp_table[eid].ipaddr = ipaddr;
-		arp_table[eid].mac[0] = mac[0];
-		arp_table[eid].mac[1] = mac[1];
-		arp_table[eid].valid = 1;
-	}
-}
-
-
 
 ///////////
 //
@@ -319,7 +141,7 @@ const int *user_sp = &user_stack[USER_STACK_SIZE];
 
 void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 	unsigned	pkt[2048];
-	unsigned	hwaddr[2];
+	unsigned long	hwaddr;
 	int		maxsz = 2048;
 
 	maxsz = 1<<((sys->io_enet.n_rxcmd>>24)&0x0f);
@@ -327,7 +149,7 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 		maxsz = 2048;
 	int pktln = (icmp_request[0] & 0x0ffff)+8, pktlnw = (pktln+3)>>2;
 
-	if (arp_lookup(ipaddr, hwaddr)!=0) {
+	if (arp_lookup(ipaddr, &hwaddr)!=0) {
 		// Couldn't find the address -- don't reply, but send an arp
 		// request.
 		//
@@ -336,11 +158,10 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 		ping_reply_address_not_found++;
 	} else if ((pktlnw < maxsz)
 			&&((icmp_request[0]>>24)==0x045)) {
-		unsigned	checksum;
 		int		id;
 
-		pkt[0] = (hwaddr[0]<<16)|(hwaddr[1]>>16);
-		pkt[1] = (hwaddr[1]<<16)|ETHERTYPE_IP;
+		pkt[0] = (unsigned)(hwaddr>>16);
+		pkt[1] = ((unsigned)(hwaddr<<16))|ETHERTYPE_IP;
 		pkt[2] = icmp_request[0] & 0xff00ffff;
 		id = pkt_id + sys->io_tim.sub;
 		pkt[3] = (id&0x0ffff)<<16; // no fragments
@@ -355,41 +176,16 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 			pkt[pktlnw-1] &= ~((1<<((4-(pktln&3))<<3))-1);
 
 		// Now, let's go fill in the IP and ICMP checksums
-		checksum = 0;
-		for(int i=0; i<5; i++)
-			checksum += (pkt[i+2] & 0x0ffff) + (pkt[i+2]>>16);
-		while(checksum & ~0x0ffff)
-			checksum  = (checksum & 0x0ffff) + (checksum >> 16);
-		pkt[4] |= checksum ^ 0x0ffff;
+		pkt[4] |= ipcksum(5, &pkt[2]);
 
 		pkt[7] &= 0xffff0000;
-		checksum = 0;
-		for(int k=7; k<pktlnw; k++)
-			checksum += (pkt[k] & 0x0ffff) + (pkt[k]>>16);
-		while(checksum & ~0x0ffff)
-			checksum  = (checksum & 0x0ffff) + (checksum >> 16);
-		pkt[7] |= checksum ^ 0x0ffff;
+		pkt[7] |= ipcksum(pktlnw-7, &pkt[7]);
 
 		ping_replies_sent++;
 		
-		syscall(0,0,(unsigned)pkt, pktln);
+		syscall(KTRAPID_SENDPKT,0,(unsigned)pkt, pktln);
 	} else
 		ping_reply_err ++;
-}
-
-void	send_arp_reply(unsigned machi, unsigned maclo, unsigned ipaddr) {
-	unsigned pkt[9];
-	pkt[0] = (machi<<16)|(maclo>>16);
-	pkt[1] = (maclo<<16)|ETHERTYPE_ARP;
-	pkt[2] = 0x010800;	// hardware type (enet), proto type (inet)
-	pkt[3] = 0x06040002;
-	pkt[4] = (my_mac_addr[0]<<16)|(my_mac_addr[1]>>16);
-	pkt[5] = (my_mac_addr[1]<<16)|(my_ip_addr>>16);
-	pkt[6] = (my_ip_addr<<16)|(machi);
-	pkt[7] = maclo;
-	pkt[8] = ipaddr;
-
-	syscall(0, 0, (int)pkt, 9*4);
 }
 
 unsigned	rxpkt[2048];
@@ -398,13 +194,13 @@ void	user_task(void) {
 
 	while(1) {
 		do {
-			unsigned	mac[2];
+			unsigned long	mac;
 
 			// Rate limit our ARP searching to one Hz
 			rtc = sys->io_rtc.r_clock;
 
-			if (arp_lookup(ping_ip_addr, mac) == 0)
-				arp_lookup(my_ip_router, mac);
+			if (arp_lookup(ping_ip_addr, &ping_mac_addr) == 0)
+				arp_lookup(my_ip_router, &mac);
 
 			while(((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0)
 					&&(sys->io_rtc.r_clock == rtc))
@@ -445,7 +241,7 @@ void	user_task(void) {
 				unsigned icmp_type = ippayload[0]>>24;
 				if (icmp_type == ICMP_ECHOREPLY) {
 					// We got our ping response
-					sys->io_clrled[3] = GREEN;
+					sys->io_clrled[3] = LEDC_GREEN;
 					sys->io_ledctrl = 0x80;
 					ping_rx_count++;
 				} else if (icmp_type == ICMP_ECHO) {
@@ -477,13 +273,14 @@ void	user_task(void) {
 			} else if ((epayload[1] == 0x06040002) // Reply
 				&&((rxcmd & ENET_RXBROADCAST)==0)
 				&&(epayload[6] == my_ip_addr)) {
-				unsigned sha[2], sip;
+				unsigned	sip;
+				unsigned long	sha;
 
-				sha[0] = epayload[2];
-				sha[1] = epayload[3]>>16;
-				sha[1] |= sha[0]<<16;
-				sha[0] >>= 16;
+				sha = *(unsigned long *)(&epayload[2]);
+				sha >>= 16;
 				sip = (epayload[3]<<16)|(epayload[4]>>16);
+				if (sip == ping_ip_addr)
+					ping_mac_addr = sha;
 				arp_table_add(sip, sha);
 			}
 		}
@@ -501,11 +298,13 @@ void	user_task(void) {
 
 
 void	send_ping(void) {
-	unsigned checksum, *pkt;
+	unsigned *pkt;
 
 	// If we don't know our destination MAC address yet, just return
-	if ((ping_mac_addr[0]|ping_mac_addr[1])==0)
+	if (ping_mac_addr==0) {
+		sys->io_clrled[1] = LEDC_YELLOW;
 		return;
+	}
 
 	// If the network is busy transmitting, wait for it to finish
 	if (sys->io_enet.n_txcmd & ENET_TXBUSY) {
@@ -515,8 +314,8 @@ void	send_ping(void) {
 
 	// Form a packet to transmit
 	pkt = (unsigned *)&sys->io_enet_tx;
-	pkt[0] = (ping_mac_addr[0]<<16)|(ping_mac_addr[1]>>16);
-	pkt[1] = (ping_mac_addr[1]<<16)|ETHERTYPE_IP;
+	pkt[0] = (ping_mac_addr>>16);
+	pkt[1] = ((unsigned)(ping_mac_addr<<16))|ETHERTYPE_IP;
 	pkt[2] = 0x4500001c;
 	pkt_id += BIG_PRIME; // A BIG prime number
 	pkt[3] = (pkt_id&0x0ffff)<<16;;
@@ -531,19 +330,11 @@ void	send_ping(void) {
 	pkt[8] = (pkt_id + BIG_PRIME);
 
 	// Calculate the IP header checksum
-	checksum = 0;
-	for(int i=0; i<5; i++)
-		checksum += (pkt[i+2] & 0x0ffff) + (pkt[i+2]>>16);
-	while(checksum & ~0x0ffff)
-		checksum  = (checksum & 0x0ffff) + (checksum >> 16);
-	pkt[4] |= checksum ^ 0x0ffff;
+	pkt[4] |= ipcksum(5, &pkt[2]);
 
 	// Calculate the PING payload checksum
-	checksum  = (pkt[7] & 0x0ffff) + (pkt[7]>>16);
-	checksum += (pkt[8] & 0x0ffff) + (pkt[8]>>16);
-	while(checksum & ~0x0ffff)
-		checksum  = (checksum & 0x0ffff) + (checksum >> 16);
-	pkt[7] |= checksum ^ 0x0ffff;
+	pkt[7] &= 0xffff0000;
+	pkt[7] |= ipcksum(2, &pkt[7]);
 
 	// Finally, send the packet -- 9*4 = our total number of octets
 	sys->io_enet.n_txcmd = ENET_TXCMD(9*4);
@@ -566,22 +357,21 @@ int main(int argc, char **argv) {
 	init_arp_table();
 
 	for(int i=0; i<4; i++)
-		sys->io_clrled[i] = RED;
+		sys->io_clrled[i] = LEDC_BRIGHTRED;
 	sys->io_ledctrl = 0x0ff;
 
 	// Start up the network interface
 	if ((sys->io_enet.n_txcmd & ENET_RESET)!=0)
 		sys->io_enet.n_txcmd = 0; // Turn on all our features
 	{
-		volatile unsigned *emac = (volatile unsigned *)&sys->io_enet.n_mac;
-		emac[0] = my_mac_addr[0];
-		emac[1] = my_mac_addr[1];
+		volatile unsigned long *emac = (volatile unsigned long *)&sys->io_enet.n_mac;
+		*emac = my_mac_addr;
 	}
 
 	// Turn off our right-hand LED, first part of startup is complete
 	sys->io_ledctrl = 0x010;
 	// Turn our first CLR LED green as well
-	sys->io_clrled[0] = GREEN;
+	sys->io_clrled[0] = LEDC_GREEN;
 
 	// Set our timer to have us send a ping 1/sec
 	zip->z_tma = CLOCKFREQ_HZ | TMR_INTERVAL;
@@ -598,14 +388,15 @@ int main(int argc, char **argv) {
 		bmsr = sys->io_netmdio.e_v[MDIO_BMSR];
 		if ((bmsr & 4)==0) {
 			// Link is down, do nothing this time through
-			sys->io_ledctrl = 0x022;
-			sys->io_clrled[1] = RED;
+			sys->io_clrled[1] = LEDC_BRIGHTRED;
+			sys->io_clrled[2] = LEDC_BRIGHTRED;
+			sys->io_clrled[3] = LEDC_BRIGHTRED;
 		} else {
 			sys->io_ledctrl = 0x020;
-			sys->io_clrled[1] = GREEN;
+			sys->io_clrled[1] = LEDC_GREEN;
 			send_ping();
-			sys->io_clrled[2] = RED; // Have we received a response?
-			sys->io_clrled[3] = RED; // Was it our ping response?
+			sys->io_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
+			sys->io_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
 		}
 
 		// Clear any timer or PPS interrupts, disable all others
@@ -625,10 +416,10 @@ int main(int argc, char **argv) {
 
 			if (zip_ucc() & CC_FAULT) {
 				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = RED;
-				sys->io_clrled[1] = RED;
-				sys->io_clrled[2] = RED;
-				sys->io_clrled[3] = RED;
+				sys->io_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if (zip_ucc() & CC_TRAP) {
 				save_context((int *)user_context);
@@ -660,24 +451,24 @@ int main(int argc, char **argv) {
 				restore_context(user_context);
 			} else if ((picv & INTNOW)==0) {
 				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = RED;
-				sys->io_clrled[1] = WHITE;
-				sys->io_clrled[2] = RED;
-				sys->io_clrled[3] = RED;
+				sys->io_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_clrled[1] = LEDC_WHITE;
+				sys->io_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_TMA))==0) {
 				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = RED;
-				sys->io_clrled[1] = RED;
-				sys->io_clrled[2] = WHITE;
-				sys->io_clrled[3] = RED;
+				sys->io_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_clrled[2] = LEDC_WHITE;
+				sys->io_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_PPS))==0) {
 				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = RED;
-				sys->io_clrled[1] = RED;
-				sys->io_clrled[2] = RED;
-				sys->io_clrled[3] = WHITE;
+				sys->io_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_clrled[3] = LEDC_WHITE;
 				zip_halt();
 			} if (picv & SYSINT_NETRX) {
 				// This will not clear until the packet has
@@ -687,7 +478,7 @@ int main(int argc, char **argv) {
 				if (picv&(DINT(SYSINT_NETRX))) {
 					zip->z_pic = DINT(SYSINT_NETRX);
 					sys->io_ledctrl = 0x040;
-					sys->io_clrled[2] = GREEN;
+					sys->io_clrled[2] = LEDC_GREEN;
 				}
 			} else
 				zip->z_pic = EINT(SYSINT_NETRX);
