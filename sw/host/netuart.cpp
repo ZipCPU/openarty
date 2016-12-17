@@ -130,6 +130,10 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 					// assert(nw == nr);
 				}
 			}
+		} else if (nr < 0) {
+			fprintf(stderr, "ERR: Could not read from TTY\n");
+			perror("O/S Err:");
+			exit(EXIT_FAILURE);
 		} for(int i=0; i<nr; i++) {
 			lb.m_iline[lb.m_ilen++] = lb.m_buf[i];
 			if ((lb.m_iline[lb.m_ilen-1]=='\n')||(lb.m_iline[lb.m_ilen-1]=='\r')||(lb.m_ilen>=sizeof(lb.m_iline)-1)) {
@@ -143,8 +147,12 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 				lb.m_ilen = 0;
 			}
 		}
-	} else if (p[0].revents)
-		printf("UNKNOWN TTY EVENT: %d\n", p[0].revents);
+	} else if (p[0].revents) {
+		fprintf(stderr, "ERR: UNKNOWN TTY EVENT: %d\n", p[0].revents);
+		perror("O/S Err?");
+		exit(EXIT_FAILURE);
+	}
+		
 
 	if((nfds>1)&&(p[1].revents & POLLIN)) {
 		int nr = read(confd, lb.m_buf, 256);
@@ -191,7 +199,9 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 			}
 		}
 	} else if ((nfds>1)&&(p[1].revents)) {
-		printf("UNKNOWN SKT EVENT: %d\n", p[1].revents);
+		fprintf(stderr, "UNKNOWN SKT EVENT: %d\n", p[1].revents);
+		perror("O/S Err?");
+		exit(EXIT_FAILURE);
 	}
 
 	return (pv > 0);
@@ -328,9 +338,8 @@ int	main(int argc, char **argv) {
 			;
 
 		// Now, process that connection until it's gone
-		while(lb.m_connected) {
+		while(lb.m_connected)
 			check_incoming(lb, tty, con, -1);
-		}
 	}
 
 	printf("Closing our socket\n");
