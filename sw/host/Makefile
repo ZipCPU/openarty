@@ -52,7 +52,6 @@ SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 	# ziprun.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
-ZIPD := ../../../../../zipcpu/trunk/sw/zasm
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
@@ -129,23 +128,14 @@ wbuscope: $(OBJDIR)/wbuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 # to disassemble opcodes given to it.  Hence, it depends upon the zparser.cpp,
 # zopcodes.cpp, and twoc.cpp files from the ZipCPU build directory.
 #
-DBGRAW  := zparser.cpp zopcodes.cpp twoc.cpp
-DBGSRCS := $(addprefix $(ZIPD)/,$(DBGRAW))
-DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGRAW)))
-$(OBJDIR)/zipdbg.o: zipdbg.cpp
-	$(CXX) -g -I$(ZIPD) -c $< -o $@
-$(OBJDIR)/zparser.o: $(ZIPD)/zparser.cpp
-	$(CXX) -g -I$(ZIPD) -c $< -o $@
-$(OBJDIR)/zopcodes.o: $(ZIPD)/zopcodes.cpp
-	$(CXX) -g -I$(ZIPD) -c $< -o $@
-$(OBJDIR)/twoc.o: $(ZIPD)/twoc.cpp
-	$(CXX) -g -I$(ZIPD) -c $< -o $@
+DBGSRCS  := zparser.cpp zopcodes.cpp twoc.cpp
+DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGSRCS)))
 zipdbg: $(OBJDIR)/zipdbg.o $(BUSOBJS) $(DBGOBJS)
-	$(CXX) -g -I$(ZIPD) $^ -lcurses -o $@
+	$(CXX) -g $^ -lcurses -o $@
 
 define	build-depends
 	@echo "Building dependency file(s)"
-	$(CXX) $(CPPFLAGS) -I$(ZIPD) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	$(CXX) $(CPPFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
 endef
