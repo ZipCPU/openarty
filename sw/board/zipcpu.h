@@ -58,7 +58,10 @@
 #define	CC_EXCEPTION	(CC_BREAK|CC_FAULT|CC_MMUERR)
 
 // extern void	zip_break(void);
+#define	zip_break()		asm("BREAK\n")
 // #define	BREAK(ID)	asm("BREAK " ##ID "\n")
+#define	GETUREG(A,ID)	asm("MOV " ID ",%0" : "=r"(A))
+#define	SETUREG(A,ID)	asm("MOV %0," ID : : "r"(A))
 extern void	zip_rtu(void);
 extern void	zip_halt(void);
 extern void	zip_idle(void);
