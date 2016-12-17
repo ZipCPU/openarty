@@ -104,8 +104,9 @@ typedef	struct	{
 #define	ALTINT_SCOPE	0x1000
 #define	ALTINT_GPIO	0x2000
 
-#define	EINT(A)	(0x80000000|((A)<<16))
-#define	DINT(A)	(0x00000000|((A)<<16))
+#define	INT_ENABLE	0x80000000
+#define	EINT(A)	(INT_ENABLE|((A)<<16))
+#define	DINT(A)	((A)<<16)
 #define	CLEARPIC	0x7fff7fff
 #define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
 #define	INTNOW		0x08000
