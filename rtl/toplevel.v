@@ -292,6 +292,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	wire		ram_cyc, ram_stb, ram_we;
 	wire	[25:0]	ram_addr;
 	wire	[31:0]	ram_rdata, ram_wdata;
+	wire	[3:0]	ram_sel;
 	wire		ram_ack, ram_stall, ram_err;
 	wire	[31:0]	ram_dbg;
 	//
@@ -306,7 +307,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		i_sw, i_btn, w_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
-		i_aux_rx, o_aux_tx, o_aux_cts, i_gps_rx, o_gps_tx,
+		i_aux_rx, o_aux_tx, i_aux_rts, o_aux_cts, i_gps_rx, o_gps_tx,
 		// Quad SPI flash
 		w_qspi_cs_n, w_qspi_sck, qspi_dat, i_qspi_dat, qspi_bmod,
 		// DDR3 SDRAM
@@ -314,7 +315,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		// o_ddr_cs_n, o_ddr_ras_n, o_ddr_cas_n, o_ddr_we_n,
 		// o_ddr_ba, o_ddr_addr, o_ddr_odt, o_ddr_dm,
 		// io_ddr_dqs_p, io_ddr_dqs_n, io_ddr_data,
-		ram_cyc, ram_stb, ram_we, ram_addr, ram_wdata,
+		ram_cyc, ram_stb, ram_we, ram_addr, ram_wdata, ram_sel,
 			ram_ack, ram_stall, ram_rdata, ram_err,
 			ram_dbg,
 		// SD Card
@@ -429,7 +430,6 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	assign	io_eth_mdio = (w_mdwe)?w_mdio : 1'bz;
 
-
 	//
 	//
 	// Now, to set up our memory ...
@@ -440,7 +440,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		.o_sys_clk(s_clk), .i_rst(pwr_reset), .o_sys_reset(s_reset),
 		.i_wb_cyc(ram_cyc), .i_wb_stb(ram_stb), .i_wb_we(ram_we),
 			.i_wb_addr(ram_addr), .i_wb_data(ram_wdata),
-			.i_wb_sel(4'hf),
+			.i_wb_sel(ram_sel),
 		.o_wb_ack(ram_ack), .o_wb_stall(ram_stall),
 			.o_wb_data(ram_rdata), .o_wb_err(ram_err),
 		.o_ddr_ck_p(ddr3_ck_p),		.o_ddr_ck_n(ddr3_ck_n),
