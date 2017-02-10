@@ -40,32 +40,52 @@
 //
 //
 #include "verilated.h"
+#include "verilated_vcd_c.h"
 #include "Venetctrl.h"
 #include "enetctrlsim.h"
 
 const int	BOMBCOUNT = 2048;
 
 class	ENETCTRL_TB {
-	long		m_tickcount;
+	unsigned long	m_tickcount;
 	Venetctrl	*m_core;
 	ENETCTRLSIM	*m_sim;
 	bool		m_bomb;
+	VerilatedVcdC	*m_trace;
+
 public:
 
 	ENETCTRL_TB(void) {
 		m_core = new Venetctrl;
 		m_sim  = new ENETCTRLSIM;
+		Verilated::traceEverOn(true);
+		m_trace = NULL;
+		m_tickcount = 0;
+	}
+
+	~ENETCTRL_TB(void) {
+		if (m_trace) {
+			m_trace->close();
+			delete	m_trace;
+		}
 	}
 
 	int	operator[](const int index) { return (*m_sim)[index]; }
 
-	void	tick(void) {
-		m_core->i_clk = 1;
+	void	trace(const char *fname) {
+		if (!m_trace) {
+			m_trace = new VerilatedVcdC;
+			m_core->trace(m_trace, 99);
+			m_trace->open(fname);
+		}
+	}
 
+	void	tick(void) {
 		m_core->i_mdio = (*m_sim)(0, m_core->o_mdclk,
 			((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
+#ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s %s%s %s@0x%02x[%04x/%04x] -- %d[%d->(%d)->%d]",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -96,10 +116,16 @@ public:
 			m_sim->m_outreg);
 
 		printf("\n");
+#endif
 
+		if ((m_trace)&&(m_tickcount>0)) m_trace->dump(10*m_tickcount-2);
 		m_core->eval();
+		m_core->i_clk = 1;
+		m_core->eval();
+		if (m_trace) m_trace->dump(10*m_tickcount);
 		m_core->i_clk = 0;
 		m_core->eval();
+		if (m_trace) m_trace->dump(10*m_tickcount+5);
 
 		m_tickcount++;
 
@@ -130,8 +156,7 @@ public:
 		if (m_core->o_wb_stall)
 			while((errcount++ < BOMBCOUNT)&&(m_core->o_wb_stall))
 				tick();
-		else
-			tick();
+		tick();
 
 		m_core->i_wb_stb = 0;
 
@@ -289,6 +314,8 @@ int main(int  argc, char **argv) {
 	ENETCTRL_TB	*tb = new ENETCTRL_TB;
 	unsigned	v;
 	// unsigned	*rdbuf;
+
+	tb->trace("enetctrl.vcd");
 
 	tb->wb_tick();
 	tb->wb_write(0, 0x7f82);
