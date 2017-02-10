@@ -245,7 +245,7 @@
 // although we're going to do it.  They're really 2x16-bit instructions---
 // instruction words that pack two instructions into one word.  (2x14 bit
 // really--'cause you need a bit to note the instruction is a 2x instruction,
-// and then 3-bits for the condition codes ...)  Set OPT_VLIW to include these
+// and then 3-bits for the condition codes ...)  Set OPT_CIS to include these
 // double instructions as part of the new instruction set.  These allow a single
 // instruction to contain two instructions within.   These instructions are
 // designed to get more code density from the instruction set, and to hopefully
@@ -253,14 +253,14 @@
 //
 // These new instructions, however, also necessitate a change in the Zip
 // CPU--the Zip CPU can no longer execute instructions atomically.  It must
-// now execute non-VLIW instructions, or VLIW instruction pairs, atomically. 
+// now execute non-CIS instructions, or CIS instruction pairs, atomically. 
 // This logic has been added into the ZipCPU, but it has not (yet) been
 // tested thoroughly.
 //
 // Oh, and the assembler, the debugger, and the object file dumper, and the
 // simulator all need to be updated as well ....
 //
-`define OPT_VLIW
+`define OPT_CIS
 //
 //
 `endif // OPT_NEW_INSTRUCTION_SET
