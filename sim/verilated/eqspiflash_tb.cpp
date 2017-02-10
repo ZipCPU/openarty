@@ -39,6 +39,7 @@
 //
 //
 #include "verilated.h"
+#include "verilated_vcd_c.h"
 #include "Veqspiflash.h"
 #include "eqspiflashsim.h"
 
@@ -46,15 +47,19 @@
 const int	BOMBCOUNT = 2048;
 
 class	EQSPIFLASH_TB {
-	long		m_tickcount;
+	unsigned long		m_tickcount;
 	Veqspiflash	*m_core;
 	EQSPIFLASHSIM	*m_flash;
 	bool		m_bomb;
+	VerilatedVcdC*	m_trace;
+
 public:
 
 	EQSPIFLASH_TB(void) {
+		Verilated::traceEverOn(true);
 		m_core = new Veqspiflash;
-		m_flash= new EQSPIFLASHSIM;
+		m_flash= new EQSPIFLASHSIM(24,true);
+		m_trace= NULL;
 	}
 
 	unsigned operator[](const int index) { return (*m_flash)[index]; }
@@ -65,13 +70,23 @@ public:
 		m_flash->load(0,fname);
 	}
 
+	void	trace(const char *fname) {
+		if (!m_trace) {
+			m_trace = new VerilatedVcdC;
+			m_core->trace(m_trace, 99);
+			m_trace->open(fname);
+		}
+	}
+
 	void	tick(void) {
-		m_core->i_clk_82mhz = 0;
-		m_core->eval();
+		// m_core->i_clk_82mhz = 0;
+		// m_core->eval();
 		m_core->i_qspi_dat = (*m_flash)(m_core->o_qspi_cs_n,
 			m_core->o_qspi_sck, m_core->o_qspi_dat);
 
-		m_core->i_clk_82mhz = 1;
+		m_core->eval();
+#define	DEBUGGING_OUTPUT
+#ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s/%s %s %s[%s%s%s%s%s] %s %s@0x%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -208,10 +223,15 @@ public:
 
 
 		printf("\n");
+#endif
 
+		if ((m_trace)&&(m_tickcount>0))	m_trace->dump(10*m_tickcount-2);
+		m_core->i_clk_82mhz = 1;
 		m_core->eval();
+		if (m_trace)	m_trace->dump(10*m_tickcount);
 		m_core->i_clk_82mhz = 0;
 		m_core->eval();
+		if (m_trace)	m_trace->dump(10*m_tickcount+5);
 
 		m_tickcount++;
 
@@ -243,11 +263,10 @@ public:
 		m_core->i_wb_we  = 0;
 		m_core->i_wb_addr= a & 0x03fffff;
 
-		if (m_core->o_wb_stall)
+		if (m_core->o_wb_stall) {
 			while((errcount++ < BOMBCOUNT)&&(m_core->o_wb_stall))
 				tick();
-		else
-			tick();
+		} tick();
 
 		m_core->i_wb_data_stb = 0;
 		m_core->i_wb_ctrl_stb = 0;
@@ -264,7 +283,7 @@ public:
 		m_core->i_wb_ctrl_stb = 0;
 
 		if(errcount >= BOMBCOUNT) {
-			printf("SETTING ERR TO TRUE!!!!!\n");
+			printf("RD-SETTING ERR TO TRUE!!!!!\n");
 			m_bomb = true;
 		} else if (!m_core->o_wb_ack) {
 			printf("SETTING ERR TO TRUE--NO ACK, NO TIMEOUT\n");
@@ -325,7 +344,7 @@ public:
 		m_core->i_wb_cyc = 0;
 
 		if(errcount >= THISBOMBCOUNT) {
-			printf("SETTING ERR TO TRUE!!!!! (errcount=%08x, THISBOMBCOUNT=%08x)\n", errcount, THISBOMBCOUNT);
+			printf("RDI-SETTING ERR TO TRUE!!!!! (errcount=%08x, THISBOMBCOUNT=%08x)\n", errcount, THISBOMBCOUNT);
 			m_bomb = true;
 		} else if (!m_core->o_wb_ack) {
 			printf("SETTING ERR TO TRUE--NO ACK, NO TIMEOUT\n");
@@ -362,7 +381,7 @@ public:
 		m_core->i_wb_ctrl_stb = 0;
 
 		if(errcount >= BOMBCOUNT) {
-			printf("SETTING ERR TO TRUE!!!!!\n");
+			printf("WB-SETTING ERR TO TRUE!!!!!\n");
 			m_bomb = true;
 		} tick();
 	}
@@ -405,7 +424,7 @@ public:
 		m_core->i_wb_ctrl_stb = 0;
 
 		if(errcount >= BOMBCOUNT) {
-			printf("SETTING ERR TO TRUE!!!!!\n");
+			printf("WBI-SETTING ERR TO TRUE!!!!!\n");
 			m_bomb = true;
 		} tick();
 	}
@@ -462,7 +481,7 @@ public:
 		m_core->i_wb_ctrl_stb = 0;
 
 		if(errcount >= BOMBCOUNT) {
-			printf("SETTING ERR TO TRUE!!!!!\n");
+			printf("WBS-SETTING ERR TO TRUE!!!!!\n");
 			m_bomb = true;
 		} tick();
 	}
@@ -482,6 +501,8 @@ int main(int  argc, char **argv) {
 	tb->load(fname);
 	rdbuf = new unsigned[4096];
 	tb->setflash(0,0);
+
+	tb->trace("eqspi.vcd");
 
 	tb->wb_tick();
 	rdv = tb->wb_read(QSPIFLASH);
@@ -621,10 +642,12 @@ int main(int  argc, char **argv) {
 	printf("Attempting to erase subsector 1\n");
 	tb->wb_write(0, 0xf20005be);
 
-	while (tb->wb_read(0)&0x01000000)
+	while((tb->wb_read(0)&0x01000000)&&(!tb->bombed()))
 		;
-	while(tb->wb_read(0)&0x80000000)
+	while((tb->wb_read(0)&0x80000000)&&(!tb->bombed()))
 		;
+	if (tb->bombed())
+		goto test_failure;
 	if (tb->wb_read(QSPIFLASH+1023) != rdbuf[0])
 		goto test_failure;
 	if (tb->wb_read(QSPIFLASH+2048) != rdbuf[1])
