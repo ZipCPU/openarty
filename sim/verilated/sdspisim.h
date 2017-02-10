@@ -77,7 +77,7 @@ class	SDSPISIM {
 	char		m_csd[SDSPI_CSDLEN], m_cid[SDSPI_CIDLEN];
 
 public:
-	SDSPISIM(void);
+	SDSPISIM(const bool debug = false);
 	void	load(const char *fname);
 	void	debug(const bool dbg) { m_debug = dbg; }
 	bool	debug(void) const { return m_debug; }
