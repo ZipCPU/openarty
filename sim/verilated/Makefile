@@ -1,6 +1,6 @@
 ################################################################################
 ##
-## Filename: 	Makefile
+## Filename:	Makefile
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2016, Gisselquist Technology, LLC
+## Copyright (C) 2015-2017, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 ## for more details.
 ##
 ## You should have received a copy of the GNU General Public License along
-## with this program.  (It's in the $(ROOT)/doc directory, run make with no
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
 ##
@@ -35,7 +35,6 @@
 ################################################################################
 ##
 ##
-
 CXX	:= g++
 OBJDIR  := obj-pc
 RTLD	:= ../../rtl
@@ -44,25 +43,30 @@ VROOT   := $(VERILATOR_ROOT)
 GFXFLAGS:= `pkg-config gtkmm-3.0 --cflags`
 GFXLIBS := `pkg-config gtkmm-3.0 --cflags --libs`
 FLAGS	:= -Wall -Og -g
-INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VROOT)/include
+VINCD   := $(VROOT)/include
+INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
 SOURCES := fastmaster_tb.cpp eqspiflashsim.cpp eqspiflash_tb.cpp	\
-	oledsim.cpp enetctrlsim.cpp					\
+	oledsim.cpp enetctrlsim.cpp zipelf.cpp				\
 	memsim.cpp sdspisim.cpp uartsim.cpp ddrsdramsim.cpp
 HEADERS := ddrsdramsim.h enetctrlsim.h eqspiflashsim.h memsim.h	\
-	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h
+	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h
 VOBJDR	:= $(RTLD)/obj_dir
-VLIB	:= $(VROOT)/include/verilated.cpp
-SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp	\
+VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
+SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp zipelf.cpp		\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
-all:	$(OBJDIR)/ busmaster_tb eqspiflash_tb enetctrl_tb
+PROGRAMS := busmaster_tb eqspiflash_tb enetctrl_tb
+all:	$(OBJDIR)/ $(PROGRAMS)
 
 $(OBJDIR)/:
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
 
 $(OBJDIR)/%.o: %.cpp
-	$(CXX) $(FLAGS) -c $< -o $@
+	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
+
+$(OBJDIR)/%.o: $(VINCD)/%.cpp
+	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
 .PHONY: oledsim.o
 oledsim.o: $(OBJDIR)/oledsim.o
@@ -82,16 +86,20 @@ $(OBJDIR)/fastmaster_tb.o: fastmaster_tb.cpp
 
 
 
-eqspiflash_tb: eqspiflash_tb.cpp $(OBJDIR)/eqspiflashsim.o $(VOBJDR)/Veqspiflash__ALL.a
-	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Veqspiflash__ALL.a $(VLIB) -o $@
+eqspiflash_tb: $(OBJDIR)/eqspiflash_tb.o $(OBJDIR)/eqspiflashsim.o
+eqspiflash_tb: $(VOBJS) $(VOBJDR)/Veqspiflash__ALL.a
+	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Veqspiflash__ALL.a -o $@
 
-enetctrl_tb: enetctrl_tb.cpp $(OBJDIR)/enetctrlsim.o $(VOBJDR)/Venetctrl__ALL.a
-	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Venetctrl__ALL.a $(VLIB) -o $@
+enetctrl_tb: enetctrl_tb.cpp $(OBJDIR)/enetctrlsim.o
+enetctrl_tb: $(VOBJS) $(VOBJDR)/Venetctrl__ALL.a
+	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Venetctrl__ALL.a -o $@
 
-fastmaster_tb: $(OBJDIR)/fastmaster_tb.o $(SIMOBJS) $(VOBJDR)/Vfastmaster__ALL.a
-	$(CXX) $(GFXLIBS) $^ $(VOBJDR)/Vfastmaster__ALL.a $(VLIB) -o $@
-busmaster_tb: $(OBJDIR)/busmaster_tb.o $(SIMOBJS) $(VOBJDR)/Vbusmaster__ALL.a
-	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(VLIB) $(GFXLIBS) -o $@
+fastmaster_tb: $(OBJDIR)/fastmaster_tb.o $(SIMOBJS)
+fastmaster_tb: $(VOBJS) $(VOBJDR)/Vfastmaster__ALL.a
+	$(CXX) $(GFXLIBS) $^ $(VOBJDR)/Vfastmaster__ALL.a -lelf -o $@
+busmaster_tb: $(OBJDIR)/busmaster_tb.o $(SIMOBJS)
+busmaster_tb: $(VOBJS) $(VOBJDR)/Vbusmaster__ALL.a
+	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(GFXLIBS) -lelf -o $@
 
 define build-depends
 	@echo "Building dependency file(s)"
@@ -108,11 +116,10 @@ tags: $(SOURCES) $(HEADERS)
 
 .PHONY: clean
 clean:
+	rm -f *.vcd
 	rm -rf $(OBJDIR)/
-	rm -f ./eqspiflash_tb
-	rm -f ./enetctrl_tb
-	rm -f ./fastmaster_tb
-	rm -f ./busmaster_tb
+	rm -f $(PROGRAMS)
+	# rm -f ./fastmaster_tb
 
 .PHONY: depends
 depends:
