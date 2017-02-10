@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015,2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -27,7 +27,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -83,8 +83,8 @@ class	EQSPIFLASHSIM {
 	char		*m_mem, *m_pmem, *m_otp, *m_lockregs;
 	int		m_last_sck;
 	unsigned	m_write_count, m_ireg, m_oreg, m_sreg, m_addr,
-			m_count, m_vconfig, m_mode_byte, m_creg,
-			m_nvconfig, m_evconfig, m_flagreg, m_nxtout[4];
+			m_count, m_vconfig, m_mode_byte, m_creg, m_membytes,
+			m_memmask, m_nvconfig, m_evconfig, m_flagreg, m_nxtout[4];
 	bool		mode, m_debug, m_otp_wp;
 
 	typedef enum {
@@ -95,9 +95,10 @@ class	EQSPIFLASHSIM {
 	QUAD_MODE	m_quad_mode;
 
 public:
-	EQSPIFLASHSIM(void);
+	EQSPIFLASHSIM(const int lglen = 24, bool debug = false);
 	void	load(const char *fname) { load(0, fname); }
 	void	load(const unsigned addr, const char *fname);
+	void	load(const uint32_t offset, const char *data, const uint32_t len);
 	void	debug(const bool dbg) { m_debug = dbg; }
 	bool	debug(void) const { return m_debug; }
 	bool	write_enabled(void) const { return m_debug; }
