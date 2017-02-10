@@ -44,6 +44,7 @@
 //
 //
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include "memsim.h"
 
@@ -93,6 +94,10 @@ void	MEMSIM::load(const char *fname) {
 
 	for(; nr<m_len; nr++)
 		m_mem[nr] = 0l;
+}
+
+void	MEMSIM::load(const unsigned int addr, const char *buf, const size_t len) {
+	memcpy(&m_mem[addr], buf, len);
 }
 
 void	MEMSIM::apply(const unsigned char wb_cyc,

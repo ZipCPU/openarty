@@ -59,6 +59,7 @@ public:
 	MEMSIM(const unsigned int nwords, const unsigned int delay=27);
 	~MEMSIM(void);
 	void	load(const char *fname);
+	void	load(const unsigned int addr, const char *buf,const size_t len);
 	void	apply(const uchar wb_cyc, const uchar wb_stb,
 				const uchar wb_we,
 			const BUSW wb_addr, const BUSW wb_data, 
