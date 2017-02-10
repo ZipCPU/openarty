@@ -1,10 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	
+// Filename: 	zipdbg.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
-//
-// Project:	XuLA2-LX25 SoC based upon the ZipCPU
 //
 // Purpose:	Provide a debugger to step through the ZipCPU assembler,
 //		evaluate the ZipCPU's current state, modify registers as(if)
@@ -16,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -29,7 +27,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -38,6 +36,11 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
+//
+// BUGS:
+//	- No ability to verify CPU functionality (3rd party simulator)
+//	- No ability to set/clear breakpoints
 //
 //
 #include <stdlib.h>
@@ -50,7 +53,6 @@
 #include <ncurses.h>
 
 #include "zopcodes.h"
-#include "zparser.h"
 #include "devbus.h"
 #include "regdefs.h"
 
@@ -227,7 +229,8 @@ public:
 		la[0] = '\0';
 		lb[0] = '\0';
 		if (m_state.m_imem[pcidx].m_valid) {
-			zipi_to_string(m_state.m_imem[pcidx].m_d, la, lb);
+			zipi_to_double_string(m_state.m_imem[pcidx].m_a,
+				m_state.m_imem[pcidx].m_d, la, lb);
 			printw(" 0x%08x", m_state.m_imem[pcidx].m_d);
 			printw("  %-25s", la);
 			if (lb[0]) {
@@ -594,8 +597,6 @@ void	stall_screen(void) {
 int	main(int argc, char **argv) {
 	// FPGAOPEN(m_fpga);
 	ZIPPY	*zip; //
-
-	int	skp=0, port = FPGAPORT;
 
 	FPGAOPEN(m_fpga);
 	zip = new ZIPPY(m_fpga);
