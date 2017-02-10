@@ -38,7 +38,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-module rxemin(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
+module rxemin(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_err);
 	parameter	MINNIBBLES=120;
 	localparam	LGNCOUNT=(MINNIBBLES<63)? 6
 				:((MINNIBBLES<127)? 7:((MINNIBBLES<255)? 8:9));
@@ -49,15 +49,17 @@ module rxemin(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d, o_err);
 
 	reg	last_v;
 	reg	[(LGNCOUNT-1):0]	r_ncnt;
-	initial	o_v = 1'b0;
 	initial	last_v = 1'b0;
 	always @(posedge i_clk)
 	if (i_ce)
 	begin
 		last_v <= i_v;
 
-		if (((!i_v)&&(!o_v))||(i_cancel))
+		if ((!i_v)||(i_cancel))
 		begin
+			// Here's our reset.  If th input isn't valid (i.e., no
+			// packet present), or if we are cancelling the packet,
+			// then we come in here and reset our interface.
 			r_ncnt <= 0;
 			o_err  <= 0;
 		end else if (i_v)
