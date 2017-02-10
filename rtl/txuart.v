@@ -2,7 +2,7 @@
 //
 // Filename: 	txuart.v
 //
-// Project:	FPGA library
+// Project:	wbuart32, a full featured UART with simulator
 //
 // Purpose:	Transmit outputs over a single UART line.
 //
@@ -57,13 +57,12 @@
 //	32'h005161		// For 9600 baud, 8 bit, no parity
 //	
 //
-//
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -76,7 +75,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -85,7 +84,6 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
 //
 //
 `define	TXU_BIT_ZERO	4'h0
@@ -106,18 +104,20 @@
 `define	TXU_IDLE	4'hf
 //
 //
-module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
+module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,o_uart_tx, o_busy);
+	parameter	INITIAL_SETUP = 30'd868;
 	input			i_clk, i_reset;
 	input		[29:0]	i_setup;
 	input			i_break;
 	input			i_wr;
 	input		[7:0]	i_data;
-	output	reg		o_uart;
+	output	reg		o_uart_tx;
 	output	wire		o_busy;
 
 	wire	[27:0]	clocks_per_baud, break_condition;
 	wire	[1:0]	data_bits;
-	wire		use_parity, parity_even, dblstop, fixd_parity;
+	wire		use_parity, parity_even, dblstop, fixd_parity,
+			fixdp_value;
 	reg	[29:0]	r_setup;
 	assign	clocks_per_baud = { 4'h0, r_setup[23:0] };
 	assign	break_condition = { r_setup[23:0], 4'h0 };
@@ -126,13 +126,14 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
 	assign	use_parity  = r_setup[26];
 	assign	fixd_parity = r_setup[25];
 	assign	parity_even = r_setup[24];
+	assign	fixdp_value = r_setup[24];
 
 	reg	[27:0]	baud_counter;
 	reg	[3:0]	state;
 	reg	[7:0]	lcl_data;
 	reg		calc_parity, r_busy, zero_baud_counter;
 
-	initial	o_uart = 1'b1;
+	initial	o_uart_tx = 1'b1;
 	initial	r_busy = 1'b1;
 	initial	state  = `TXU_IDLE;
 	initial	lcl_data= 8'h0;
@@ -142,35 +143,23 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
 	begin
 		if (i_reset)
 		begin
-			o_uart <= 1'b1;
 			r_busy <= 1'b1;
 			state <= `TXU_IDLE;
-			lcl_data <= 8'h0;
-			calc_parity <= 1'b0;
 		end else if (i_break)
 		begin
-			o_uart <= 1'b0;
 			state <= `TXU_BREAK;
-			calc_parity <= 1'b0;
 			r_busy <= 1'b1;
-		end else if (~zero_baud_counter)
+		end else if (!zero_baud_counter)
 		begin // r_busy needs to be set coming into here
 			r_busy <= 1'b1;
 		end else if (state == `TXU_BREAK)
 		begin
 			state <= `TXU_IDLE;
 			r_busy <= 1'b1;
-			o_uart <= 1'b1;
-			calc_parity <= 1'b0;
 		end else if (state == `TXU_IDLE)	// STATE_IDLE
 		begin
-			// baud_counter <= 0;
-			r_setup <= i_setup;
-			calc_parity <= 1'b0;
-			lcl_data <= i_data;
-			if ((i_wr)&&(~r_busy))
+			if ((i_wr)&&(!r_busy))
 			begin	// Immediately start us off with a start bit
-				o_uart <= 1'b0;
 				r_busy <= 1'b1;
 				case(data_bits)
 				2'b00: state <= `TXU_BIT_ZERO;
@@ -178,11 +167,8 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
 				2'b10: state <= `TXU_BIT_TWO;
 				2'b11: state <= `TXU_BIT_THREE;
 				endcase
-				// baud_counter <= clocks_per_baud-28'h01;
 			end else begin // Stay in idle
-				o_uart <= 1'b1;
 				r_busy <= 0;
-				// state <= state;
 			end
 		end else begin
 			// One clock tick in each of these states ...
@@ -190,32 +176,22 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
 			r_busy <= 1'b1;
 			if (state[3] == 0) // First 8 bits
 			begin
-				o_uart <= lcl_data[0];
-				calc_parity <= calc_parity ^ lcl_data[0];
 				if (state == `TXU_BIT_SEVEN)
 					state <= (use_parity)?`TXU_PARITY:`TXU_STOP;
 				else
 					state <= state + 1;
-				lcl_data <= { 1'b0, lcl_data[7:1] };
 			end else if (state == `TXU_PARITY)
 			begin
 				state <= `TXU_STOP;
-				if (fixd_parity)
-					o_uart <= parity_even;
-				else
-					o_uart <= calc_parity^((parity_even)? 1'b1:1'b0);
 			end else if (state == `TXU_STOP)
 			begin // two stop bit(s)
-				o_uart <= 1'b1;
 				if (dblstop)
 					state <= `TXU_SECOND_STOP;
 				else
 					state <= `TXU_IDLE;
-				calc_parity <= 1'b0;
 			end else // `TXU_SECOND_STOP and default:
 			begin
 				state <= `TXU_IDLE; // Go back to idle
-				o_uart <= 1'b1;
 				// Still r_busy, since we need to wait
 				// for the baud clock to finish counting
 				// out this last bit.
@@ -223,28 +199,154 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data, o_uart, o_busy);
 		end 
 	end
 
+	// o_busy
+	//
+	// This is a wire, designed to be true is we are ever busy above.
+	// originally, this was going to be true if we were ever not in the
+	// idle state.  The logic has since become more complex, hence we have
+	// a register dedicated to this and just copy out that registers value.
 	assign	o_busy = (r_busy);
 
 
-	initial	zero_baud_counter = 1'b1;
-	initial baud_counter = 28'd200000; // 1ms @ 200MHz
+	// r_setup
+	//
+	// Our setup register.  Accept changes between any pair of transmitted
+	// words.  The register itself has many fields to it.  These are
+	// broken out up top, and indicate what 1) our baud rate is, 2) our
+	// number of stop bits, 3) what type of parity we are using, and 4)
+	// the size of our data word.
+	initial	r_setup = INITIAL_SETUP;
+	always @(posedge i_clk)
+		if (state == `TXU_IDLE)
+			r_setup <= i_setup;
+
+	// lcl_data
+	//
+	// This is our working copy of the i_data register which we use
+	// when transmitting.  It is only of interest during transmit, and is
+	// allowed to be whatever at any other time.  Hence, if r_busy isn't
+	// true, we can always set it.  On the one clock where r_busy isn't
+	// true and i_wr is, we set it and r_busy is true thereafter.
+	// Then, on any zero_baud_counter (i.e. change between baud intervals)
+	// we simple logically shift the register right to grab the next bit.
+	always @(posedge i_clk)
+		if (!r_busy)
+			lcl_data <= i_data;
+		else if (zero_baud_counter)
+			lcl_data <= { 1'b0, lcl_data[7:1] };
+
+	// o_uart_tx
+	//
+	// This is the final result/output desired of this core.  It's all
+	// centered about o_uart_tx.  This is what finally needs to follow
+	// the UART protocol.
+	//
+	// Ok, that said, our rules are:
+	//	1'b0 on any break condition
+	//	1'b0 on a start bit (IDLE, write, and not busy)
+	//	lcl_data[0] during any data transfer, but only at the baud
+	//		change
+	//	PARITY -- During the parity bit.  This depends upon whether or
+	//		not the parity bit is fixed, then what it's fixed to,
+	//		or changing, and hence what it's calculated value is.
+	//	1'b1 at all other times (stop bits, idle, etc)
+	always @(posedge i_clk)
+		if (i_reset)
+			o_uart_tx <= 1'b1;
+		else if ((i_break)||((i_wr)&&(!r_busy)))
+			o_uart_tx <= 1'b0;
+		else if (zero_baud_counter)
+			casez(state)
+			4'b0???:	o_uart_tx <= lcl_data[0];
+			`TXU_PARITY:	o_uart_tx <= calc_parity;
+			default:	o_uart_tx <= 1'b1;
+			endcase
+
+
+	// calc_parity
+	//
+	// Calculate the parity to be placed into the parity bit.  If the
+	// parity is fixed, then the parity bit is given by the fixed parity
+	// value (r_setup[24]).  Otherwise the parity is given by the GF2
+	// sum of all the data bits (plus one for even parity).
+	always @(posedge i_clk)
+		if (fixd_parity)
+			calc_parity <= fixdp_value;
+		else if (zero_baud_counter)
+		begin
+			if (state[3] == 0) // First 8 bits of msg
+				calc_parity <= calc_parity ^ lcl_data[0];
+			else
+				calc_parity <= parity_even;
+		end else if (!r_busy)
+			calc_parity <= parity_even;
+
+
+	// All of the above logic is driven by the baud counter.  Bits must last
+	// clocks_per_baud in length, and this baud counter is what we use to
+	// make certain of that.
+	//
+	// The basic logic is this: at the beginning of a bit interval, start
+	// the baud counter and set it to count clocks_per_baud.  When it gets
+	// to zero, restart it.
+	//
+	// However, comparing a 28'bit number to zero can be rather complex--
+	// especially if we wish to do anything else on that same clock.  For
+	// that reason, we create "zero_baud_counter".  zero_baud_counter is
+	// nothing more than a flag that is true anytime baud_counter is zero.
+	// It's true when the logic (above) needs to step to the next bit.
+	// Simple enough?
+	//
+	// I wish we could stop there, but there are some other (ugly)
+	// conditions to deal with that offer exceptions to this basic logic.
+	//
+	// 1. When the user has commanded a BREAK across the line, we need to
+	// wait several baud intervals following the break before we start
+	// transmitting, to give any receiver a chance to recognize that we are
+	// out of the break condition, and to know that the next bit will be
+	// a stop bit.
+	//
+	// 2. A reset is similar to a break condition--on both we wait several
+	// baud intervals before allowing a start bit.
+	//
+	// 3. In the idle state, we stop our counter--so that upon a request
+	// to transmit when idle we can start transmitting immediately, rather
+	// than waiting for the end of the next (fictitious and arbitrary) baud
+	// interval.
+	//
+	// When (i_wr)&&(!r_busy)&&(state == `TXU_IDLE) then we're not only in
+	// the idle state, but we also just accepted a command to start writing
+	// the next word.  At this point, the baud counter needs to be reset
+	// to the number of clocks per baud, and zero_baud_counter set to zero.
+	//
+	// The logic is a bit twisted here, in that it will only check for the
+	// above condition when zero_baud_counter is false--so as to make
+	// certain the STOP bit is complete.
+	initial	zero_baud_counter = 1'b0;
+	initial	baud_counter = 28'h05;
 	always @(posedge i_clk)
 	begin
 		zero_baud_counter <= (baud_counter == 28'h01);
 		if ((i_reset)||(i_break))
+		begin
 			// Give ourselves 16 bauds before being ready
 			baud_counter <= break_condition;
-		else if (~zero_baud_counter)
+			zero_baud_counter <= 1'b0;
+		end else if (!zero_baud_counter)
 			baud_counter <= baud_counter - 28'h01;
 		else if (state == `TXU_BREAK)
-			// Give us two stop bits before becoming available
+			// Give us four idle baud intervals before becoming
+			// available
 			baud_counter <= clocks_per_baud<<2;
 		else if (state == `TXU_IDLE)
 		begin
-			if((i_wr)&&(~r_busy))
+			baud_counter <= 28'h0;
+			zero_baud_counter <= 1'b1;
+			if ((i_wr)&&(!r_busy))
+			begin
 				baud_counter <= clocks_per_baud - 28'h01;
-			else
-				zero_baud_counter <= 1'b1;
+				zero_baud_counter <= 1'b0;
+			end
 		end else
 			baud_counter <= clocks_per_baud - 28'h01;
 	end
