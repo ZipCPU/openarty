@@ -1,25 +1,50 @@
+////////////////////////////////////////////////////////////////////////////////
 //
+// Filename:	ttybus.h
 //
-// Filename: 	ttybus.h
-//
-// Project:	UART to WISHBONE FPGA library
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This is the C++ program on the command side that will interact
 //		with a UART on an FPGA, to command the WISHBONE on that same
 //		FPGA to ... whatever we wish to command it to do.
 //
-//		This code does not run on an FPGA, is not a test bench, neither
-//		is it a simulator.  It is a portion of a command program
-//		for commanding an FPGA.
+//	This code does not run on an FPGA, is not a test bench, neither
+//	is it a simulator.  It is a portion of a command program
+//	for commanding an FPGA.
 //
-//		This particular implementation is a complete rewrite of the
-//		last implementation, adding compression into the interface that
-//		wasn't there before.
+//	This particular implementation is a complete rewrite of the
+//	last implementation, adding compression into the interface that
+//	wasn't there before.
 //
-// Creator:	Dan Gisselquist
-//		Gisselquist Tecnology, LLC
 //
-// Copyright:	2015
+// Creator:	Dan Gisselquist, Ph.D.
+//		Gisselquist Technology, LLC
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+//
+// This program is free software (firmware): you can redistribute it and/or
+// modify it under the terms of  the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
+// License:	GPL, v3, as defined and found on www.gnu.org,
+//		http://www.gnu.org/licenses/gpl.html
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
 //
 //
 #ifndef	TTYBUS_H

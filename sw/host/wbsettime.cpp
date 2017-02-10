@@ -1,18 +1,22 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	wbsettime
+// Filename:	wbsettime.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	To set the on-board clock of an FPGA using the rtclight or
-//		rtcclock FPGA protocols.
+// Purpose:	To give a user access, via a command line program, to set the
+//		real time clock within the FPGA.  Note, however, that the RTC
+//	clock device only sets the subseconds field when you program it at the
+//	top of a minute.  This program, therefore, will wait 'til the top of a 
+//	minute to set the clock.  It can be annoying, but ... it works.
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +29,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //

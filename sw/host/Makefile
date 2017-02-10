@@ -1,6 +1,6 @@
 ################################################################################
 ##
-## Filename: 	Makefile
+## Filename:	Makefile
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
@@ -42,57 +42,60 @@ SCOPES := eqspiscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
 OBJDIR := obj-pc
-BUSOBJS := $(OBJDIR)/ttybus.o $(OBJDIR)/llcomms.o $(OBJDIR)/regdefs.o
+BUSSRCS := ttybus.cpp llcomms.cpp regdefs.cpp byteswap.cpp
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
-	ttybus.cpp llcomms.cpp dumpflash.cpp eqspiscope.cpp flashdrvr.cpp \
-	regdefs.cpp scopecls.cpp sdramscope.cpp ttybus.cpp		\
+	dumpflash.cpp eqspiscope.cpp flashdrvr.cpp 			\
+	scopecls.cpp sdramscope.cpp					\
 	cfgscope.cpp zipload.cpp zipstate.cpp zipdbg.cpp		\
 	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp		\
-	 mdioscope.cpp manping.cpp
+	 mdioscope.cpp manping.cpp $(BUSSRCS)
 	# ziprun.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
+BUSOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(BUSSRCS)))
+CFLAGS := -g -Wall -I.
+LIBS :=
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
-	$(CXX) -g -c $< -o $@
+	$(CXX) $(CFLAGS) -c $< -o $@
 
 .PHONY: gps
 gps: $(BUSOBJS) $(OBJDIR)/scopecls.o
 	@bash -c "if [[ -e gps/Makefile ]]; then cd gps; make --no-print-directory; fi"
 
 $(OBJDIR)/hsnetuart.o: netuart.cpp
-	$(CXX) -g -c -DHIGH_SPEED $< -o $@
+	$(CXX) $(CFLAGS) -c -DHIGH_SPEED $< -o $@
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR)/*.o $(PROGRAMS)
+	rm -rf $(OBJDIR)/ $(PROGRAMS)
 
 $(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h
 $(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h
 $(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h
 
 netuart: $(OBJDIR)/netuart.o
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ -o $@
 hsnetuart: $(OBJDIR)/hsnetuart.o
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ -o $@
 #
 # Some simple programs that just depend upon the ability to talk to the FPGA,
 # and little more. 
 wbsettime: $(OBJDIR)/wbsettime.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ -o $@
 mtest: $(OBJDIR)/mtest.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ -o $@
 manping: $(OBJDIR)/manping.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
-wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ -o $@
 zipstate: $(OBJDIR)/zipstate.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 netsetup: $(OBJDIR)/netsetup.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
+wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
+	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
-	$(CXX) -g $^ -o $@
+	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 
 #
 # Programs that depend upon not just the bus objects, but the flash driver
