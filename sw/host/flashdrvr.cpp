@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -38,6 +38,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <strings.h>
 #include <ctype.h>
@@ -48,6 +49,7 @@
 #include "port.h"
 #include "regdefs.h"
 #include "flashdrvr.h"
+#include "byteswap.h"
 
 const	bool	HIGH_SPEED = false;
 
@@ -122,15 +124,18 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 }
 
 bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
-		const unsigned *data, const bool verify_write) {
-	DEVBUS::BUSW	buf[SZPAGEW];
+		const char *data, const bool verify_write) {
+	DEVBUS::BUSW	buf[(SZPAGE)>>2], bswapd[(SZPAGE)>>2];
 
 	assert(len > 0);
-	assert(len <= PGLENW);
+	assert(len <= PGLENB);
 	assert(PAGEOF(addr)==PAGEOF(addr+len-1));
 
 	if (len <= 0)
 		return true;
+
+	for(unsigned i=0; i<len; i+=4)
+		bswapd[(i>>2)] = buildword(&data[i]);
 
 	// Write the page
 	m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
@@ -139,7 +144,7 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 	printf("Writing page: 0x%08x - 0x%08x\n", addr, addr+len-1);
 	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
 	SETSCOPE;
-	m_fpga->writei(addr, len, data);
+	m_fpga->writei(addr, (len>>2), bswapd);
 
 	// If we're in high speed mode and we want to verify the write, then
 	// we can skip waiting for the write to complete by issueing a read
@@ -151,12 +156,12 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 	if (verify_write) {
 		// printf("Attempting to verify page\n");
 		// NOW VERIFY THE PAGE
-		m_fpga->readi(addr, len, buf);
-		for(int i=0; i<len; i++) {
-			if (buf[i] != data[i]) {
-				printf("\nVERIFY FAILS[%d]: %08x\n", i, i+addr);
+		m_fpga->readi(addr, len>>2, buf);
+		for(unsigned i=0; i<(len>>2); i++) {
+			if (buf[i] != bswapd[i]) {
+				printf("\nVERIFY FAILS[%d]: %08x\n", i, (i<<2)+addr);
 				printf("\t(Flash[%d]) %08x != %08x (Goal[%08x])\n", 
-					i, buf[i], data[i], i+addr);
+					(i<<2), buf[i], bswapd[i], (i<<2)+addr);
 				return false;
 			}
 		} // printf("\nVerify success\n");
@@ -164,11 +169,13 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 }
 
 #define	VCONF_VALUE	0x8b
+#define	VCONF_VALUE_ALT	0x83
 
 bool	FLASHDRVR::verify_config(void) {
 	unsigned cfg = m_fpga->readio(R_QSPI_VCONF);
-	// printf("CFG = %02x\n", cfg);
-	return (cfg == VCONF_VALUE);
+	if (cfg != VCONF_VALUE)
+		printf("Unexpected volatile configuration = %02x\n", cfg);
+	return ((cfg == VCONF_VALUE)||(cfg == VCONF_VALUE_ALT));
 }
 
 void	FLASHDRVR::set_config(void) {
@@ -186,7 +193,7 @@ void	FLASHDRVR::set_config(void) {
 }
 
 bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
-		const unsigned *data, const bool verify) {
+		const char *data, const bool verify) {
 
 	if (!verify_config()) {
 		set_config();
@@ -200,29 +207,18 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 	// If this buffer is equal to the sector value(s), go on
 	// If not, erase the sector
 
-	// m_fpga->writeio(R_QSPI_CREG, 2);
-	// m_fpga->readio(R_VERSION);	// Read something innocuous
-
-	// Just to make sure the driver knows that these values are ...
-	// m_fpga->readio(R_QSPI_CREG);
-	// m_fpga->readio(R_QSPI_SREG);
-	// Because the status register may invoke protections here, we
-	// void them.
-	// m_fpga->writeio(R_QSPI_SREG, 0);
-	// m_fpga->readio(R_VERSION);	// Read something innocuous
-
-	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZW-1); s+=SECTORSZW) {
-		// printf("IN LOOP, s=%08x\n", s);
+	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZ-1); s+=SECTORSZ) {
 		// Do we need to erase?
 		bool	need_erase = false;
 		unsigned newv = 0; // (s<addr)?addr:s;
 		{
-			DEVBUS::BUSW	*sbuf = new DEVBUS::BUSW[SECTORSZW];
-			const DEVBUS::BUSW *dp;
+			char *sbuf = new char[SECTORSZ];
+			const char *dp;
 			unsigned	base,ln;
+
 			base = (addr>s)?addr:s;
-			ln=((addr+len>s+SECTORSZW)?(s+SECTORSZW):(addr+len))-base;
-			m_fpga->readi(base, ln, sbuf);
+			ln=((addr+len>s+SECTORSZ)?(s+SECTORSZ):(addr+len))-base;
+			m_fpga->readi(base, ln>>2, (uint32_t *)sbuf);
 
 			dp = &data[base-addr];
 			SETSCOPE;
@@ -231,21 +227,17 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 					printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
 						i+base-addr, sbuf[i], dp[i]);
 					need_erase = true;
-					newv = i+base;
+					newv = (i&-4)+base;
 					break;
-				} else if ((sbuf[i] != dp[i])&&(newv == 0)) {
-					// if (newv == 0)
-						// printf("MEM[%08x] = %08x (!= %08x (Goal))\n",
-							// i+base, sbuf[i], dp[i]);
-					newv = i+base;
-				}
+				} else if ((sbuf[i] != dp[i])&&(newv == 0))
+					newv = (i&-4)+base;
 			}
 		}
 
 		if (newv == 0)
 			continue; // This sector already matches
 
-		// Just erase anyway
+		// Erase the sector if necessary
 		if (!need_erase)
 			printf("NO ERASE NEEDED\n");
 		else {
@@ -255,13 +247,16 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 				return false;
 			} newv = (s<addr) ? addr : s;
 		}
-		for(unsigned p=newv; (p<s+SECTORSZW)&&(p<addr+len); p=PAGEOF(p+PGLENW)) {
+
+		// Now walk through all of our pages in this sector and write
+		// to them.
+		for(unsigned p=newv; (p<s+SECTORSZP)&&(p<addr+len); p=PAGEOF(p+PGLENB)) {
 			unsigned start = p, len = addr+len-start;
 
 			// BUT! if we cross page boundaries, we need to clip
 			// our results to the page boundary
 			if (PAGEOF(start+len-1)!=PAGEOF(start))
-				len = PAGEOF(start+PGLENW)-start;
+				len = PAGEOF(start+PGLENB)-start;
 			if (!write_page(start, len, &data[p-addr], verify)) {
 				printf("WRITE-PAGE FAILED!\n");
 				return false;
