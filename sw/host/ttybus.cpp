@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	ttybus.cpp
+// Filename:	ttybus.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -8,16 +8,16 @@
 //		with a UART on an FPGA, to command the WISHBONE on that same
 //		FPGA to ... whatever we wish to command it to do.
 //
-//		This code does not run on an FPGA, is not a test bench, neither
-//		is it a simulator.  It is a portion of a command program
-//		for commanding an FPGA.
+//	This code does not run on an FPGA, is not a test bench, neither
+//	is it a simulator.  It is a portion of a command program
+//	for commanding an FPGA.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -30,7 +30,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -80,6 +80,7 @@ const	unsigned TTYBUS::MAXWRLEN = 32;
 #endif
 
 void	null(...) {}
+
 #include <stdarg.h> // replaces the (defunct) varargs.h include file
 void	filedump(const char *fmt, ...) {
 	static	FILE *dbgfp = NULL;
@@ -266,7 +267,7 @@ void	TTYBUS::writev(const BUSW a, const int p, const int len, const BUSW *buf) {
 				}
 			}
 
-			if (p == 1) m_lastaddr++;
+			if (p == 1) m_lastaddr+=4;
 		}
 		// *ptr++ = charenc(0x2e);
 		if (ln == len-nw)
@@ -327,15 +328,20 @@ TTYBUS::BUSW	TTYBUS::readio(const TTYBUS::BUSW a) {
 }
 
 char	*TTYBUS::encode_address(const TTYBUS::BUSW a) {
-	TTYBUS::BUSW	addr = a;
+	TTYBUS::BUSW	addr = a>>2;
 	char	*ptr = m_buf;
+
+	// Double check that we are aligned
+	if ((a&3)!=0) {
+		throw BUSERR(a);
+	}
 
 	if ((m_addr_set)&&(a == m_lastaddr))
 		return ptr;
 	
 	if (m_addr_set) {
 		// Encode a difference address
-		int	diffaddr = addr - m_lastaddr;
+		int	diffaddr = (a - m_lastaddr)>>2;
 		ptr = m_buf;
 		if ((diffaddr >= -32)&&(diffaddr < 32)) {
 			*ptr++ = charenc(0x09);
@@ -463,14 +469,14 @@ void	TTYBUS::readv(const TTYBUS::BUSW a, const int inc, const int len, TTYBUS::B
 	    }
 	} catch(BUSERR b) {
 		DBGPRINTF("READV::BUSERR trying to read %08x\n", a+((inc)?nread:0));
-		throw BUSERR(a+((inc)?nread:0));
+		throw BUSERR(a+((inc)?(nread<<2):0));
 	}
 
-	if ((unsigned)m_lastaddr != (a+((inc)?(len):0))) {
-		DBGPRINTF("TTYBUS::READV(a=%08x,inc=%d,len=%4x,x) ERR: (Last) %08x != %08x + %08x (Expected)\n", a, inc, len, m_lastaddr, a, (inc)?(len):0);
-		printf("TTYBUS::READV(a=%08x,inc=%d,len=%4x,x) ERR: (Last) %08x != %08x + %08x (Expected)\n", a, inc, len, m_lastaddr, a, (inc)?(len):0);
+	if ((unsigned)m_lastaddr != (a+((inc)?(len<<2):0))) {
+		DBGPRINTF("TTYBUS::READV(a=%08x,inc=%d,len=%4x,x) ERR: (Last) %08x != %08x + %08x (Expected)\n", a, inc, len<<2, m_lastaddr, a, (inc)?(len<<2):0);
+		printf("TTYBUS::READV(a=%08x,inc=%d,len=%4x,x) ERR: (Last) %08x != %08x + %08x (Expected)\n", a, inc, len<<2, m_lastaddr, a, (inc)?(len<<2):0);
 		sleep(1);
-		assert((int)m_lastaddr == (a+(inc)?(len):0));
+		assert((int)m_lastaddr == (a+(inc)?(len<<2):0));
 		exit(-3);
 	}
 
@@ -538,9 +544,9 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 			val = (val<<6) | (chardec(m_buf[5]) & 0x03f);
 
 			m_addr_set = true;
-			m_lastaddr = val;
+			m_lastaddr = val<<2;
 
-			DBGPRINTF("RCVD ADDR: 0x%08x\n", val);
+			DBGPRINTF("RCVD ADDR: 0x%08x\n", val<<2);
 		} else if (0x0c == (sixbits & 0x03c)) { // Set 32-bit address,compressed
 			int nw = (sixbits & 0x03) + 2;
 			do {
@@ -564,8 +570,8 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 			}
 
 			m_addr_set = true;
-			m_lastaddr = val;
-			DBGPRINTF("RCVD ADDR: 0x%08x (%d bytes)\n", val, nw+1);
+			m_lastaddr = val<<2;
+			DBGPRINTF("RCVD ADDR: 0x%08x (%d bytes)\n", val<<2, nw+1);
 		} else
 			found_start = true;
 	} while(!found_start);
@@ -576,7 +582,7 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 	if (0x06 == (sixbits & 0x03e)) { // Tbl read, last value
 		rdaddr = (m_rdaddr-1)&0x03ff;
 		val = m_readtbl[rdaddr];
-		m_lastaddr += (sixbits&1);
+		m_lastaddr += (sixbits&1)?4:0;
 		DBGPRINTF("READ-WORD() -- repeat last value, %08x, A= %08x\n", val, m_lastaddr);
 	} else if (0x10 == (sixbits & 0x030)) { // Tbl read, up to 521 into past
 		int	idx;
@@ -588,14 +594,14 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 		idx = ((idx<<6) | (chardec(m_buf[1]) & 0x03f)) + 2 + 8;
 		rdaddr = (m_rdaddr-idx)&0x03ff;
 		val = m_readtbl[rdaddr];
-		m_lastaddr += (sixbits&1);
+		m_lastaddr += (sixbits&1)?4:0;
 		DBGPRINTF("READ-WORD() -- long table value[%3d], %08x, A=%08x\n", idx, val, m_lastaddr);
 	} else if (0x20 == (sixbits & 0x030)) { // Tbl read, 2-9 into past
 		int	idx;
 		idx = (((sixbits>>1)&0x07)+2);
 		rdaddr = (m_rdaddr - idx) & 0x03ff;
 		val = m_readtbl[rdaddr];
-		m_lastaddr += (sixbits&1);
+		m_lastaddr += (sixbits&1)?4:0;
 		DBGPRINTF("READ-WORD() -- short table value[%3d], %08x, A=%08x\n", idx, val, m_lastaddr);
 	} else if (0x38 == (sixbits & 0x038)) { // Raw read
 		// DBGPRINTF("READ-WORD() -- RAW-READ, nr = %d\n", nr);
@@ -611,7 +617,7 @@ TTYBUS::BUSW	TTYBUS::readword(void) {
 		val = (val<<6) | (chardec(m_buf[5]) & 0x03f);
 
 		m_readtbl[m_rdaddr++] = val; m_rdaddr &= 0x03ff;
-		m_lastaddr += (sixbits&1);
+		m_lastaddr += (sixbits&1)?4:0;
 		DBGPRINTF("READ-WORD() -- RAW-READ %02x:%02x:%02x:%02x:%02x:%02x -- %08x, A=%08x\n",
 			m_buf[0], m_buf[1], m_buf[2], m_buf[3],
 			m_buf[4], m_buf[5], val, m_lastaddr);
@@ -719,7 +725,7 @@ void	TTYBUS::readidle(void) {
 		if (0x06 == (sixbits & 0x03e)) { // Tbl read, last value
 			rdaddr = (m_rdaddr-1)&0x03ff;
 			val = m_readtbl[rdaddr];
-			m_lastaddr += (sixbits&1);
+			m_lastaddr += (sixbits&1)?4:0;
 			DBGPRINTF("READ-IDLE() -- repeat last value, %08x\n", val);
 		} else if (0x10 == (sixbits & 0x030)) { // Tbl read, up to 521 into past
 			int	idx;
@@ -731,12 +737,12 @@ void	TTYBUS::readidle(void) {
 			idx = ((idx<<6) | (chardec(m_buf[1]) & 0x03f)) + 2 + 8;
 			rdaddr = (m_rdaddr-idx)&0x03ff;
 			val = m_readtbl[rdaddr];
-			m_lastaddr += (sixbits&1);
+			m_lastaddr += (sixbits&1)?4:0;
 			DBGPRINTF("READ-IDLE() -- long table value[%3d], %08x\n", idx, val);
 		} else if (0x20 == (sixbits & 0x030)) { // Tbl read, 2-9 into past
 			rdaddr = (m_rdaddr - (((sixbits>>1)&0x07)+2)) & 0x03ff;
 			val = m_readtbl[rdaddr];
-			m_lastaddr += (sixbits&1);
+			m_lastaddr += (sixbits&1)?4:0;
 			DBGPRINTF("READ-IDLE() -- short table value[%3d], %08x\n", rdaddr, val);
 		} else if (0x38 == (sixbits & 0x038)) { // Raw read
 			do {
@@ -751,7 +757,7 @@ void	TTYBUS::readidle(void) {
 			val = (val<<6) | (chardec(m_buf[5]) & 0x03f);
 
 			m_readtbl[m_rdaddr++] = val; m_rdaddr &= 0x03ff;
-			m_lastaddr += (sixbits&1);
+			m_lastaddr += (sixbits&1)?4:0;
 			DBGPRINTF("READ-IDLE() -- RAW-READ %02x:%02x:%02x:%02x:%02x:%02x -- %08x\n",
 				m_buf[0], m_buf[1], m_buf[2], m_buf[3],
 				m_buf[4], m_buf[5], val);
