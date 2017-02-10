@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	dumpflash.cpp
+// Filename:	dumpflash.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -54,55 +54,13 @@ void	closeup(int v) {
 	exit(0);
 }
 
-// #define	DUMPMEM		RAMBASE
-////////////////////////////////////////////////////////////////////////////////
-//
-// Filename: 	dumpflash.cpp
-//
-// Project:	OpenArty, an entirely open SoC based upon the Arty platform
-//
-// Purpose:	The purpose of this program is to read the entire flash memory,
-//		and dump it to a file.
-//
-//
-// Creator:	Dan Gisselquist, Ph.D.
-//		Gisselquist Technology, LLC
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
-//
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-// for more details.
-//
-// You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
-// target there if the PDF file isn't present.)  If not, see
-// <http://www.gnu.org/licenses/> for a copy.
-//
-// License:	GPL, v3, as defined and found on www.gnu.org,
-//		http://www.gnu.org/licenses/gpl.html
-//
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-//
-// #define	DUMPWORDS	MEMWORDS
-
 #define	DUMPMEM		EQSPIFLASH
-#define	DUMPWORDS	FLASHWORDS	// 1MB Flash
+#define	DUMPWORDS	(FLASHLEN>>2)
 
 int main(int argc, char **argv) {
 	FILE	*fp;
-	const int	BUFLN = FLASHWORDS;
-	FPGA::BUSW	*buf = new FPGA::BUSW[BUFLN];
+	const int	BUFLN = FLASHLEN;
+	char	*buf = new char[FLASHLEN];
 
 	FPGAOPEN(m_fpga);
 	fprintf(stderr, "Before starting, nread = %ld\n", 
@@ -119,10 +77,12 @@ int main(int argc, char **argv) {
 	if (vector_read) {
 		m_fpga->readi(DUMPMEM, BUFLN, buf);
 	} else {
-		for(int i=0; i<BUFLN; i++) {
-			buf[i] = m_fpga->readio(DUMPMEM+i);
-			// if (0 == (i&0x0ff))
-				printf("i = %02x / %04x, addr = i + %04x = %08x\n", i, BUFLN, DUMPMEM, i+DUMPMEM);
+		for(int i=0; i<BUFLN; i+=4) {
+			word = m_fpga->readio(DUMPMEM+i);
+			buf[i  ] = (word>>24) & 0x0ff;
+			buf[i+1] = (word>>16) & 0x0ff;
+			buf[i+2] = (word>> 8) & 0x0ff;
+			buf[i+3] = (word    ) & 0x0ff;
 		}
 	}
 	printf("\nREAD-COMPLETE\n");
@@ -132,7 +92,6 @@ int main(int argc, char **argv) {
 	while((sz>0)&&(buf[sz] == 0xffffffff))
 		sz--;
 	sz+=1;
-	printf("The size of the buffer is 0x%06x or %d words\n", sz, sz);
 
 #define	FLASHFILE	"eqspidump.bin"
 
