@@ -146,7 +146,7 @@
 `define	TXCLK	i_net_tx_clk
 `endif
 module	enetpackets(i_wb_clk, i_reset,
-	i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
+	i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
 		o_wb_ack, o_wb_stall, o_wb_data,
 	//
 	o_net_reset_n, 
@@ -165,6 +165,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	input			i_wb_cyc, i_wb_stb, i_wb_we;
 	input	[(MAW+1):0]	i_wb_addr; // 1-bit for ctrl/data, 1 for tx/rx
 	input	[31:0]		i_wb_data;
+	input	[3:0]		i_wb_sel;
 	//
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
@@ -187,11 +188,13 @@ module	enetpackets(i_wb_clk, i_reset,
 	reg	wr_ctrl;
 	reg	[2:0]	wr_addr;
 	reg	[31:0]	wr_data;
+	reg	[3:0]	wr_sel;
 	always @(posedge i_wb_clk)
 	begin
 		wr_ctrl<=((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00));
 		wr_addr <= i_wb_addr[2:0];
 		wr_data <= i_wb_data;
+		wr_sel  <= i_wb_sel;
 	end
 
 	reg	[31:0]	txmem	[0:((1<<MAW)-1)];
@@ -243,8 +246,18 @@ module	enetpackets(i_wb_clk, i_reset,
 	begin
 		// if (i_wb_addr[(MAW+1):MAW] == 2'b10)
 			// Writes to rx memory not allowed here
-		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b11))
-			txmem[i_wb_addr[(MAW-1):0]] <= i_wb_data;
+		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b11)
+				&&(i_wb_sel[3]))
+			txmem[i_wb_addr[(MAW-1):0]][31:24] <= i_wb_data[31:24];
+		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b11)
+				&&(i_wb_sel[2]))
+			txmem[i_wb_addr[(MAW-1):0]][23:16] <= i_wb_data[23:16];
+		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b11)
+				&&(i_wb_sel[1]))
+			txmem[i_wb_addr[(MAW-1):0]][15:8] <= i_wb_data[15:8];
+		if ((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b11)
+				&&(i_wb_sel[0]))
+			txmem[i_wb_addr[(MAW-1):0]][7:0] <= i_wb_data[7:0];
 
 		// Set the err bits on these conditions (filled out below)
 		if (rx_err_stb)
