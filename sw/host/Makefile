@@ -55,6 +55,7 @@ OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
 BUSOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(BUSSRCS)))
 CFLAGS := -g -Wall -I.
 LIBS :=
+SUBMAKE := $(MAKE) --no-print-directory
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
@@ -62,7 +63,7 @@ $(OBJDIR)/%.o: %.cpp
 
 .PHONY: gps
 gps: $(BUSOBJS) $(OBJDIR)/scopecls.o
-	@bash -c "if [[ -e gps/Makefile ]]; then cd gps; make --no-print-directory; fi"
+	@bash -c "if [[ -e gps/Makefile ]]; then $(SUBMAKE) --directory=gps; fi"
 
 $(OBJDIR)/hsnetuart.o: netuart.cpp
 	$(CXX) $(CFLAGS) -c -DHIGH_SPEED $< -o $@
@@ -102,7 +103,7 @@ dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
 # as well.
 wbprogram: $(OBJDIR)/wbprogram.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
-zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
+zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS) $(OBJDIR)/zipelf.o
 	$(CXX) -g $^ -lelf -o $@
 
 
@@ -127,11 +128,7 @@ wbuscope: $(OBJDIR)/wbuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 
 #
-# The ZipDebugger is a bit more difficult to build, as it wants to be able
-# to disassemble opcodes given to it.  Hence, it depends upon the zparser.cpp,
-# zopcodes.cpp, and twoc.cpp files from the ZipCPU build directory.
-#
-DBGSRCS  := zparser.cpp zopcodes.cpp twoc.cpp
+DBGSRCS  := zopcodes.cpp twoc.cpp
 DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGSRCS)))
 zipdbg: $(OBJDIR)/zipdbg.o $(BUSOBJS) $(DBGOBJS)
 	$(CXX) -g $^ -lcurses -o $@
@@ -151,7 +148,8 @@ tags: $(SOURCES) $(HEADERS)
 depends: tags
 	$(build-depends)
 
-$(OBJDIR)/depends.txt: $(OBJDIR)/ $(SOURCES) $(HEADERS)
+$(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 	$(build-depends)
 
 $(OBJDIR)/:
