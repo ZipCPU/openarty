@@ -54,14 +54,14 @@ typedef	struct	{
 	uint32_t	i_pic;
 	uint32_t	*i_buserr;
 	uint32_t	i_pwrcount;
-	uint32_t	i_btnsw, ledreg;
+	uint32_t	i_btnsw, i_leds;
 	uint32_t	i_rtcdate;
 	uint32_t	i_gpio;
 	uint32_t	i_clrled[4];
 	union	{
 		unsigned long now;
 		struct { uint32_t sec; uint32_t sub; };
-	} io_tim;
+	} i_tim;
 
 	unsigned        i_gps_step;
 	uint32_t	i_unused[32-15];
