@@ -653,18 +653,14 @@ zipi_to_double_string(const uint32_t addr, const ZIPI ins, char *la, char *lb) {
 	}
 }
 
-unsigned int	zop_early_branch(const unsigned int pc, const ZIPI ins) {
-	if ((ins & 0xf8000000) != 0x78000000)
-		return pc+1;
-	if ((ins & 0x07c00000) == 0x05800000) // LDI, high bit clear
-		return (ins & 0x003fffff);
-	if ((ins & 0x07c00000) == 0x05c00000) // LDI, high bit set
-		return (ins & 0x007fffff)|0xffc00000;
-	// if ((ins & 0xffffe000) == 0x7bc3c000) // MOV
-		// return ((ins & 0x001fff)|((ins&0x01000)?0xffffe000:0))+pc+1;
-	if ((ins & 0x07fc0000) == 0x00800000) // ADD, unconditional
-		return ((ins & 0x03ffff)|((ins&0x020000)?0xfffc0000:0))+pc+1;
-	return pc+1;
+unsigned int	zop_early_branch(const unsigned int pc, const ZIPI insn) {
+	if ((insn & 0xf8000000) != 0x78000000)
+		return pc+4;
+	if ((insn & 0xffc60000) == 0x78800000)	// BRA high bit clear
+		return (pc + 4 + ((insn & 0x3ffff)<<2));
+	if ((insn & 0xffc60000) == 0x78820000)	// BRA high bit set (negative)
+		return (pc + 4 + ((0x40000 - (insn & 0x3ffff))<<2));
+	return pc+4;
 }
 
 
