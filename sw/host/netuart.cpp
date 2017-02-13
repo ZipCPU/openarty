@@ -174,8 +174,11 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 			exit(EXIT_FAILURE);
 		} for(int i=0; i<nr; i++) {
 			lb.m_iline[lb.m_ilen++] = lb.m_buf[i];
-			if ((lb.m_iline[lb.m_ilen-1]=='\n')||(lb.m_iline[lb.m_ilen-1]=='\r')||(lb.m_ilen>=sizeof(lb.m_iline)-1)) {
-				if (lb.m_ilen >= sizeof(lb.m_iline)-1)
+			if ((lb.m_iline[lb.m_ilen-1]=='\n')
+					||(lb.m_iline[lb.m_ilen-1]=='\r')
+					||((unsigned)lb.m_ilen
+						>= sizeof(lb.m_iline)-1)) {
+				if ((unsigned)lb.m_ilen >= sizeof(lb.m_iline)-1)
 					lb.m_iline[lb.m_ilen] = '\0';
 				else
 					lb.m_iline[lb.m_ilen-1] = '\0';
@@ -226,8 +229,11 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 		} for(int i=0; i<nr; i++) {
 			lb.m_oline[lb.m_olen++] = lb.m_buf[i];
 			assert(lb.m_buf[i] != '\0');
-			if ((lb.m_oline[lb.m_olen-1]=='\n')||(lb.m_oline[lb.m_olen-1]=='\r')||(lb.m_olen >= sizeof(lb.m_oline)-1)) {
-				if (lb.m_olen >= sizeof(lb.m_oline)-1)
+			if ((lb.m_oline[lb.m_olen-1]=='\n')
+					||(lb.m_oline[lb.m_olen-1]=='\r')
+					||((unsigned)lb.m_olen
+						>= sizeof(lb.m_oline)-1)) {
+				if ((unsigned)lb.m_olen >= sizeof(lb.m_oline)-1)
 					lb.m_oline[lb.m_olen] = '\0';
 				else
 					lb.m_oline[lb.m_olen-1] = '\0';
