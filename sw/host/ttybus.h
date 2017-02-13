@@ -115,8 +115,8 @@ public:
 	void	close(void) {	m_dev->close(); }
 	void	writeio(const BUSW a, const BUSW v);
 	BUSW	readio(const BUSW a);
-	void	readi(const BUSW a, const int len, BUSW *buf);
-	void	readz(const BUSW a, const int len, BUSW *buf);
+	void	readi( const BUSW a, const int len, BUSW *buf);
+	void	readz( const BUSW a, const int len, BUSW *buf);
 	void	writei(const BUSW a, const int len, const BUSW *buf);
 	void	writez(const BUSW a, const int len, const BUSW *buf);
 	bool	poll(void) { return m_interrupt_flag; };

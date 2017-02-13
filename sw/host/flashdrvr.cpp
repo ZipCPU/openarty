@@ -125,7 +125,7 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 
 bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 		const char *data, const bool verify_write) {
-	DEVBUS::BUSW	buf[(SZPAGE)>>2], bswapd[(SZPAGE)>>2];
+	DEVBUS::BUSW	buf[SZPAGEW], bswapd[SZPAGEW];
 
 	assert(len > 0);
 	assert(len <= PGLENB);
@@ -135,7 +135,7 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 		return true;
 
 	for(unsigned i=0; i<len; i+=4)
-		bswapd[(i>>2)] = buildword(&data[i]);
+		bswapd[(i>>2)] = buildword((const unsigned char *)&data[i]);
 
 	// Write the page
 	m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
@@ -207,17 +207,17 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 	// If this buffer is equal to the sector value(s), go on
 	// If not, erase the sector
 
-	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZ-1); s+=SECTORSZ) {
+	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZB-1); s+=SECTORSZB) {
 		// Do we need to erase?
 		bool	need_erase = false;
 		unsigned newv = 0; // (s<addr)?addr:s;
 		{
-			char *sbuf = new char[SECTORSZ];
+			char *sbuf = new char[SECTORSZB];
 			const char *dp;
 			unsigned	base,ln;
 
 			base = (addr>s)?addr:s;
-			ln=((addr+len>s+SECTORSZ)?(s+SECTORSZ):(addr+len))-base;
+			ln=((addr+len>s+SECTORSZB)?(s+SECTORSZB):(addr+len))-base;
 			m_fpga->readi(base, ln>>2, (uint32_t *)sbuf);
 
 			dp = &data[base-addr];
@@ -250,7 +250,7 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 
 		// Now walk through all of our pages in this sector and write
 		// to them.
-		for(unsigned p=newv; (p<s+SECTORSZP)&&(p<addr+len); p=PAGEOF(p+PGLENB)) {
+		for(unsigned p=newv; (p<s+SECTORSZB)&&(p<addr+len); p=PAGEOF(p+PGLENB)) {
 			unsigned start = p, len = addr+len-start;
 
 			// BUT! if we cross page boundaries, we need to clip

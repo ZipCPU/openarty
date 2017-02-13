@@ -49,22 +49,12 @@
 #include "llcomms.h"
 #include "regdefs.h"
 #include "flashdrvr.h"
+#include "byteswap.h"
 
 DEVBUS	*m_fpga;
 void	closeup(int v) {
 	m_fpga->kill();
 	exit(0);
-}
-
-unsigned byteswap(unsigned x) {
-	unsigned r;
-
-	r  = x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff;
-
-	return r;
 }
 
 void	usage(void) {
@@ -75,7 +65,8 @@ void	usage(void) {
 int main(int argc, char **argv) {
 	FILE	*fp;
 	const int	BUFLN = (1<<20); // 4MB Flash
-	DEVBUS::BUSW	*buf = new DEVBUS::BUSW[BUFLN], v, addr = EQSPIFLASH;
+	DEVBUS::BUSW	addr = EQSPIFLASH;
+	char		*buf = new char[FLASHLEN];
 	FLASHDRVR	*flash;
 	int		argn = 1;
 
@@ -97,11 +88,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	// SPI flash testing
-	// Enable the faster (vector) reads
-	bool	vector_read = true;
 	unsigned	sz;
-	bool		esectors[NSECTORS];
 
 	argn = 1;
 	if (argc <= argn) {
@@ -138,10 +125,6 @@ int main(int argc, char **argv) {
 		fseek(fp, 0x5dl, SEEK_SET);
 	sz = fread(buf, sizeof(buf[0]), BUFLN, fp);
 	fclose(fp);
-
-	for(int i=0; i<sz; i++) {
-		buf[i] = byteswap(buf[i]);
-	}
 
 	try {
 		flash->write(addr, sz, buf, true);
