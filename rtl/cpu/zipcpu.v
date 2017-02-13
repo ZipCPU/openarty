@@ -376,7 +376,8 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 	//
 	//	MASTER: clock enable.
 	//
-	assign	master_ce = (~i_halt)&&(~o_break)&&(~sleep);
+	// assign	master_ce = (~i_halt)&&(~o_break)&&(~sleep);
+	assign	master_ce = ((~i_halt)||(alu_phase))&&(~o_break)&&(~sleep);
 
 
 	//
@@ -1003,7 +1004,7 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 		if ((i_rst)||(clear_pipeline))
 			r_op_phase <= 1'b0;
 		else if (op_change_data_ce)
-			r_op_phase <= dcd_phase;
+			r_op_phase <= (dcd_phase)&&((!dcd_wR)||(!dcd_Rpc));
 	assign	op_phase = r_op_phase;
 `else
 	assign	op_phase = 1'b0;
