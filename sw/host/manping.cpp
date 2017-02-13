@@ -217,7 +217,6 @@ void	clear_scope(FPGA *fpga) {
 }
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
 	bool	config_hw_mac = true, config_hw_crc = true;
 	FPGA::BUSW	txstat;
 	int	argn;
@@ -235,6 +234,8 @@ int main(int argc, char **argv) {
 		if (fp != NULL) {
 			int nr = fread(urand, sizeof(short), 16, fp);
 			fclose(fp);
+			if (nr<0)
+				printf("Could not generate random numbers from /dev/urandom!\nTest may not be valid.\n");
 		}
 	}
 			

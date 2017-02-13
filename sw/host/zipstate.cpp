@@ -87,9 +87,9 @@ void	usage(void) {
 }
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
 	bool	long_state = false;
 	unsigned int	v;
+	int	skp;
 
 	skp=1;
 	for(int argn=0; argn<argc-skp; argn++) {

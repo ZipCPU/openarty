@@ -74,8 +74,8 @@ void	usage(void) {
 }
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
-	bool	use_usb = true, use_decimal = false;
+	int	skp=0;
+	bool	use_decimal = false;
 
 	skp=1;
 	for(int argn=0; argn<argc-skp; argn++) {

@@ -59,8 +59,6 @@ void	usage(void) {
 }
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
-
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);

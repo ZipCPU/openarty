@@ -120,24 +120,6 @@ public:
 };
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
-	bool	use_usb = false;
-
-	skp=1;
-	for(int argn=0; argn<argc-skp; argn++) {
-		if (argv[argn+skp][0] == '-') {
-			if (argv[argn+skp][1] == 'u')
-				use_usb = true;
-			else if (argv[argn+skp][1] == 'p') {
-				use_usb = false;
-				if (isdigit(argv[argn+skp][2]))
-					port = atoi(&argv[argn+skp][2]);
-			}
-			skp++; argn--;
-		} else
-			argv[argn] = argv[argn+skp];
-	} argc -= skp;
-
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);

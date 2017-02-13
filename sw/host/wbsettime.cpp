@@ -61,8 +61,6 @@ void	closeup(int v) {
 }
 
 int main(int argc, char **argv) {
-	DEVBUS::BUSW	v;
-
 	bool	set_time = true, read_hack = false;
 
 	FPGAOPEN(m_fpga);

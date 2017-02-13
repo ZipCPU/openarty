@@ -195,7 +195,7 @@
 #define	R_NET_TXBUF	0x00003000
 // Block RAM memory space
 #define	MEMBASE		0x00020000
-#define	MEMWORDS	0x00020000
+#define	MEMLEN		0x00020000
 // Flash memory space
 #define	EQSPIFLASH	0x01000000
 #define	RESET_ADDRESS	0x010e0000
