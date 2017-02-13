@@ -121,7 +121,7 @@ public:
 		if (m_state.m_last_pc_valid)
 			m_state.m_imem[0].m_a = m_state.m_last_pc;
 		else
-			m_state.m_imem[0].m_a = m_state.m_pc - 1;
+			m_state.m_imem[0].m_a = m_state.m_pc - 4;
 		try {
 			m_state.m_imem[0].m_d = readio(m_state.m_imem[0].m_a);
 			m_state.m_imem[0].m_valid = true;
@@ -139,7 +139,7 @@ public:
 		for(int i=1; i<4; i++) {
 			if (!m_state.m_imem[i].m_valid) {
 				m_state.m_imem[i+1].m_valid = false;
-				m_state.m_imem[i+1].m_a = m_state.m_imem[i].m_a+1;
+				m_state.m_imem[i+1].m_a = m_state.m_imem[i].m_a+4;
 				continue;
 			}
 			m_state.m_imem[i+1].m_a = zop_early_branch(
@@ -155,7 +155,7 @@ public:
 
 		m_state.m_smem[0].m_a = m_state.m_sp;
 		for(int i=1; i<5; i++)
-			m_state.m_smem[i].m_a = m_state.m_smem[i-1].m_a+1;
+			m_state.m_smem[i].m_a = m_state.m_smem[i-1].m_a+4;
 		for(int i=0; i<5; i++) {
 			m_state.m_smem[i].m_valid = true;
 			if (m_state.m_smem[i].m_valid)
@@ -477,7 +477,7 @@ public:
 		showins(ln+4, " ", 0);
 		{
 			int	lclln = ln+3;
-			for(int i=1; i<5; i++)
+			for(int i=1; ((i<5)&&(lclln > ln)); i++)
 				lclln = showins(lclln, (i==1)?">":" ", i);
 			for(int i=0; i<5; i++)
 				showstack(ln+i, (i==0)?">":" ", i);
@@ -601,83 +601,89 @@ int	main(int argc, char **argv) {
 	FPGAOPEN(m_fpga);
 	zip = new ZIPPY(m_fpga);
 
+	try {
 
-	initscr();
-	raw();
-	noecho();
-	keypad(stdscr, true);
+		initscr();
+		raw();
+		noecho();
+		keypad(stdscr, true);
 
-	signal(SIGINT, on_sigint);
+		signal(SIGINT, on_sigint);
 
-	int	chv;
-	bool	done = false;
+		int	chv;
+		bool	done = false;
 
-	zip->halt();
-	for(int i=0; (i<5)&&(zip->stalled()); i++)
-		;
-	if (!zip->stalled())
-		zip->read_state();
-	else
-		stall_screen();
-	while((!done)&&(!gbl_err)) {
-		chv = getch();
-		switch(chv) {
-		case 'c': case 'C':
-			zip->toggle_cc();
-			break;
-		case 'g': case 'G':
-			m_fpga->writeio(R_ZIPCTRL, CPU_GO);
-			// We just released the CPU, so we're now done.
-			done = true;
-			break;
-		case 'l': case 'L': case CTRL('L'):
-			redrawwin(stdscr);
-		case 'm': case 'M':
-			zip->show_user_timers(false);
-			break;
-		case 'q': case 'Q': case CTRL('C'):
-		case KEY_CANCEL: case KEY_CLOSE: case KEY_EXIT:
-		case KEY_ESCAPE:
-			done = true;
-			break;
-		case 'r': case 'R':
-			zip->reset();
-			erase();
-			break;
-		case 't': case 'T':
-		case 's': case 'S':
-			zip->step();
-			break;
-		case 'u': case 'U':
-			zip->show_user_timers(true);
-			break;
-		case '\r': case  '\n':
-		case KEY_IC: case KEY_ENTER:
-			get_value(zip);
-			break;
-		case KEY_UP:
-			zip->cursor_up();
-			break;
-		case KEY_DOWN:
-			zip->cursor_down();
-			break;
-		case KEY_LEFT:
-			zip->cursor_left();
-			break;
-		case KEY_RIGHT:
-			zip->cursor_right();
-			break;
-		case ERR: case KEY_CLEAR:
-		default:
+		zip->halt();
+		for(int i=0; (i<5)&&(zip->stalled()); i++)
 			;
-		}
-
-		if ((done)||(gbl_err))
-			break;
-		else if (zip->stalled())
-			stall_screen();
-		else
+		if (!zip->stalled())
 			zip->read_state();
+		else
+			stall_screen();
+		while((!done)&&(!gbl_err)) {
+			chv = getch();
+			switch(chv) {
+			case 'c': case 'C':
+				zip->toggle_cc();
+				break;
+			case 'g': case 'G':
+				m_fpga->writeio(R_ZIPCTRL, CPU_GO);
+				// We just released the CPU, so we're now done.
+				done = true;
+				break;
+			case 'l': case 'L': case CTRL('L'):
+				redrawwin(stdscr);
+			case 'm': case 'M':
+				zip->show_user_timers(false);
+				break;
+			case 'q': case 'Q': case CTRL('C'):
+			case KEY_CANCEL: case KEY_CLOSE: case KEY_EXIT:
+			case KEY_ESCAPE:
+				done = true;
+				break;
+			case 'r': case 'R':
+				zip->reset();
+				erase();
+				break;
+			case 't': case 'T':
+			case 's': case 'S':
+				zip->step();
+				break;
+			case 'u': case 'U':
+				zip->show_user_timers(true);
+				break;
+			case '\r': case  '\n':
+			case KEY_IC: case KEY_ENTER:
+				get_value(zip);
+				break;
+			case KEY_UP:
+				zip->cursor_up();
+				break;
+			case KEY_DOWN:
+				zip->cursor_down();
+				break;
+			case KEY_LEFT:
+				zip->cursor_left();
+				break;
+			case KEY_RIGHT:
+				zip->cursor_right();
+				break;
+			case ERR: case KEY_CLEAR:
+			default:
+				;
+			}
+
+			if ((done)||(gbl_err))
+				break;
+			else if (zip->stalled())
+				stall_screen();
+			else
+				zip->read_state();
+		}
+	} catch(const char *err) {
+		fprintf(stderr, "ERR: Caught exception -- %s", err);
+	} catch(...) {
+		fprintf(stderr, "ERR: Caught anonymous exception!!\n");
 	}
 
 	endwin();

@@ -70,6 +70,9 @@ LLCOMMSI::LLCOMMSI(void) {
 void	LLCOMMSI::write(char *buf, int len) {
 	int	nw;
 	nw = ::write(m_fdw, buf, len);
+	if (nw <= 0) {
+		throw "Write-Failure";
+	}
 	m_total_nwrit += nw;
 	assert(nw == len);
 }
@@ -77,6 +80,9 @@ void	LLCOMMSI::write(char *buf, int len) {
 int	LLCOMMSI::read(char *buf, int len) {
 	int	nr;
 	nr = ::read(m_fdr, buf, len);
+	if (nr <= 0) {
+		throw "Read-Failure";
+	}
 	m_total_nread += nr;
 	return nr;
 }
