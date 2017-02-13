@@ -104,6 +104,11 @@ UARTSIM::UARTSIM(const int port) {
 }
 
 void	UARTSIM::kill(void) {
+	fflush(stdout);
+	if (m_conrd == STDIN_FILENO)
+		m_conwr = -1;
+	if (m_conwr == STDOUT_FILENO)
+		m_conwr = -1;
 	// Close any active connection
 	if (m_conrd >= 0)				close(m_conrd);
 	if ((m_conwr >= 0)&&(m_conwr != m_conrd))	close(m_conwr);
