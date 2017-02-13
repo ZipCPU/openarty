@@ -33,9 +33,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
 
 #ifndef	NULL
 #define NULL	(void *)0

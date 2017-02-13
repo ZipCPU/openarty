@@ -69,8 +69,16 @@ typedef	struct	{
 typedef	struct	{
 	int	z_pic, z_wdt, z_wbus, z_apic, z_tma, z_tmb, z_tmc,
 		z_jiffies;
+#ifdef	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
 	ZIPTASKCTRS	z_m, z_u;
+#else
+	unsigned	z_nocounters[8];
+#endif
+#ifdef	_HAVE_ZIPSYS_DMA
 	ZIPDMA		z_dma;
+#else
+	unsigned	z_nodma[4];
+#endif
 } ZIPSYS;
 
 #define	ZIPSYS_ADDR	0xff000000
@@ -82,27 +90,15 @@ typedef	struct	{
 #define	SYSINT_TMA	0x0010
 #define	SYSINT_AUX	0x0020
 //
-#define	SYSINT_PPS	0x0040
-#define	SYSINT_NETRX	0x0080
-#define	SYSINT_NETTX	0x0100
-#define	SYSINT_UARTRX	0x0200
-#define	SYSINT_UARTTX	0x0400
-#define	SYSINT_GPSRX	0x0800
-#define	SYSINT_GPSTX	0x1000
-#define	SYSINT_SDCARD	0x2000
-#define	SYSINT_OLED	0x4000
+#define	SYSINT(INTID)	(1<<(INTID))
+#define	ALTINT(INTID)	(1<<(INTID))
 
-
-#define	ALTINT_UIC	0x0001
-#define	ALTINT_UTC	0x0008
-#define	ALTINT_MIC	0x0010
-#define	ALTINT_MTC	0x0080
-#define	ALTINT_RTC	0x0100
-#define	ALTINT_BTN	0x0200
-#define	ALTINT_SWITCH	0x0400
-#define	ALTINT_FLASH	0x0800
-#define	ALTINT_SCOPE	0x1000
-#define	ALTINT_GPIO	0x2000
+#ifdef	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
+#define	ALTINT_UIC	ALTINT(0)
+#define	ALTINT_UTC	ALTINT(3)
+#define	ALTINT_MIC	ALTINT(4)
+#define	ALTINT_MTC	ALTINT(7)
+#endif
 
 #define	INT_ENABLE	0x80000000
 #define	EINT(A)	(INT_ENABLE|((A)<<16))
@@ -123,10 +119,17 @@ static inline void	ENABLE_INTS(void) {
 
 typedef	struct	{
 	int	c_r[16];
+#ifdef	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
 	unsigned long	c_ck, c_mem, c_pf, c_icnt;
+#endif
 } ZSYSCONTEXT;
 
+#ifdef	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
 void	save_contextncntrs(ZSYSCONTEXT *c);
 void	restore_contextncntrs(ZSYSCONTEXT *c);
+#else
+#define	save_contextncntrs(CONTEXT)	save_context((int *)CONTEXT)
+#define	restore_contextncntrs(CONTEXT)	restore_context((int *)CONTEXT)
+#endif
 
 #endif

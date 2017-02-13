@@ -37,9 +37,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
+
+#define	sys	_sys
 
 void	idle_task(void) {
 	while(1)
@@ -47,6 +49,9 @@ void	idle_task(void) {
 }
 
 void	wait_on_interrupt(int mask) {
+	if (mask & SYSINT_AUX) {
+		zip->z_apic = INT_ENABLE;
+	}
 	zip->z_pic = DALLPIC|mask;
 	zip->z_pic = EINT(mask);
 	zip_rtu();
@@ -58,26 +63,26 @@ void	user_task(void) {
 	while(1) {
 		unsigned	btn, subnow, sw;
 
-		subnow = (sys->io_gps_sub >> 28)&0x0f;
+		subnow = (sys->io_b.i_tim.sub >> 28)&0x0f;
 
 		// If the button is pressed, toggle the LED
 		// Otherwise, turn the LED off.
 		//
 
 		// First, get all the pressed buttons
-		btn = (sys->io_btnsw) & 0x0f0;
+		btn = (sys->io_b.i_btnsw) & 0x0f0;
 		// Now, acknowledge the button presses that we just read
-		sys->io_btnsw = btn;
+		sys->io_b.i_btnsw = btn;
 		btn >>= 4;
 
 		// Now, use the time as the toggle function.
 		btn = (subnow ^ btn)&btn & 0x07;
 
-		sys->io_ledctrl = btn | 0x070;
+		sys->io_b.i_leds = btn | 0x070;
 
-		sw = sys->io_btnsw & 0x0f;
+		sw = sys->io_b.i_btnsw & 0x0f;
 		for(int i=0; i<4; i++)
-			sys->io_clrled[i] = (sw & (1<<i)) ? white : black;
+			sys->io_b.i_clrled[i] = (sw & (1<<i)) ? white : black;
 
 	}
 }
@@ -130,51 +135,51 @@ void	main(int argc, char **argv) {
 	zip_restore_context(user_context);
 
 	for(i=0; i<4; i++)
-		sys->io_clrled[i] = red;
-	sys->io_ledctrl = 0x0ff;
+		sys->io_b.i_clrled[i] = red;
+	sys->io_b.i_leds = 0x0ff;
 
 	// Clear the PIC
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
 	zip->z_pic = CLEARPIC;
-	while(sys->io_pwrcount < (second >> 4))
+	while(sys->io_b.i_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
 	zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_clrled[0] = green;
-	sys->io_ledctrl = 0x010;
+	sys->io_b.i_clrled[0] = green;
+	sys->io_b.i_leds = 0x010;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_clrled[0] = dimgreen;
-	sys->io_clrled[1] = green;
-	sys->io_scope[0].s_ctrl = SCOPE_NO_RESET | 32;
-	sys->io_ledctrl = 0x020;
+	sys->io_b.i_clrled[0] = dimgreen;
+	sys->io_b.i_clrled[1] = green;
+	sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
+	sys->io_b.i_leds = 0x020;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_clrled[1] = dimgreen;
-	sys->io_clrled[2] = green;
-	sys->io_ledctrl = 0x040;
+	sys->io_b.i_clrled[1] = dimgreen;
+	sys->io_b.i_clrled[2] = green;
+	sys->io_b.i_leds = 0x040;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_clrled[2] = dimgreen;
-	sys->io_clrled[3] = green;
-	sys->io_ledctrl = 0x080;
+	sys->io_b.i_clrled[2] = dimgreen;
+	sys->io_b.i_clrled[3] = green;
+	sys->io_b.i_leds = 0x080;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_clrled[3] = dimgreen;
+	sys->io_b.i_clrled[3] = dimgreen;
 
 	wait_on_interrupt(SYSINT_TMA);
 
 	for(i=0; i<4; i++)
-		sys->io_clrled[i] = black;
+		sys->io_b.i_clrled[i] = black;
 
 	// Wait one second ...
 	for(i=0; i<4; i++)
@@ -182,11 +187,11 @@ void	main(int argc, char **argv) {
 
 	// Blink all the LEDs
 	//	First turn them on
-	sys->io_ledctrl = 0x0ff;
+	sys->io_b.i_leds = 0x0ff;
 	// Then wait a quarter second
 	wait_on_interrupt(SYSINT_TMA);
 	// Then turn the back off
-	sys->io_ledctrl = 0x0f0;
+	sys->io_b.i_leds = 0x0f0;
 	// and wait another quarter second
 	wait_on_interrupt(SYSINT_TMA);
 
@@ -206,7 +211,7 @@ void	main(int argc, char **argv) {
 		int	*s = errstring;
 
 		zip->z_wdt = CLOCKFREQ_HZ*4;
-		sys->io_ledctrl = 0x088;
+		sys->io_b.i_leds = 0x088;
 
 		// 1. Read and report the GPS tracking err
 
@@ -330,13 +335,20 @@ void	main(int argc, char **argv) {
 		wait_on_interrupt(SYSINT_DMAC);
 		*/
 
+		int flen = (sys->io_uart.u_fifo >> 28);
+		flen = (1<<flen)-1;
 		for(int i=0; errstring[i]; i++) {
-			wait_on_interrupt(SYSINT_UARTTX);
-			sys->io_uart_tx = errstring[i];
-			zip->z_pic = SYSINT_UARTTX;
+			wait_on_interrupt(SYSINT_UARTTXF);
+			int nrun = (sys->io_uart.u_fifo>>18) & 0x03ff;
+			nrun = flen - nrun;
+			while((nrun > 0)&&(errstring[i]))
+				sys->io_uart.u_tx = errstring[i++] & 0x0ff;
+			if (!errstring[i])
+				break;
+			zip->z_pic = SYSINT_UARTTXF;
 		}
 
-		sys->io_ledctrl = 0x080;
+		sys->io_b.i_leds = 0x080;
 
 		/*		
 		zip->z_dma.d_rd = &sys->io_gps_rx;
@@ -355,12 +367,13 @@ void	main(int argc, char **argv) {
 		}
 		*/
 
-		zip->z_pic = SYSINT_GPSRX | SYSINT_PPS;
+		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS;
 		do {
-			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRX);
-			if (zip->z_pic & SYSINT_GPSRX) {
-				sys->io_uart_tx = sys->io_gps_rx;
-				zip->z_pic = SYSINT_GPSRX;
+			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF);
+			while((sys->io_gpsu.u_fifo & 1)==0) {
+				int	v = sys->io_gpsu.u_rx;
+				if ((v & 0x100)==0)
+					sys->io_uart.u_tx = v & 0x0ff;
 			}
 		} while((zip->z_pic & SYSINT_PPS)==0);
 

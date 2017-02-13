@@ -39,9 +39,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
+
+#define	sys	_sys
 
 void	idle_task(void) {
 	while(1)
@@ -140,6 +142,8 @@ const int	init_sequence[] = {
 	0x02e
 };
 
+const int	num_init_items = sizeof(init_sequence)/sizeof(init_sequence[0]);
+
 /*
  * oled_init()
  *
@@ -156,7 +160,7 @@ const int	init_sequence[] = {
 void	oled_init(void) {
 	int	i;
 
-	for(i=0; i<sizeof(init_sequence); i++) {
+	for(i=0; i<num_init_items; i++) {
 		while(OLED_BUSY(sys->io_oled))
 			;
 		sys->io_oled.o_ctrl = init_sequence[i];
@@ -313,15 +317,15 @@ void	main(int argc, char **argv) {
 		// the master_ce line high within the CPU, and so it generates
 		// a whole lot of debug information in our Verilator simulation,
 		// busmaster_tb.
-		int pwrcount = sys->io_pwrcount;
+		int pwrcount = sys->io_b.i_pwrcount;
 		do {
-			pwrcount = sys->io_pwrcount;
+			pwrcount = sys->io_b.i_pwrcount;
 		} while((pwrcount>0)&&(pwrcount < CLOCKFREQ_HZ/4));
 	} else {
 		// By using the timer and sleeping instead, the simulator can
 		// be made to run a *lot* faster, with a *lot* less debugging
 		// ... junk.
-		int pwrcount = sys->io_pwrcount;
+		int pwrcount = sys->io_b.i_pwrcount;
 		if ((pwrcount > 0)&&(pwrcount < CLOCKFREQ_HZ/4)) {
 			pwrcount = CLOCKFREQ_HZ/4 - pwrcount;
 			timer_delay(pwrcount);
@@ -381,7 +385,7 @@ void	main(int argc, char **argv) {
 	//	so we're good here.
 
 	while(1) {
-		sys->io_ledctrl = 0x0f0;
+		sys->io_b.i_leds = 0x0f0;
 
 		sys->io_oled.o_ctrl = OLED_DISPLAYON;
 
@@ -404,25 +408,25 @@ void	main(int argc, char **argv) {
 		wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
-		sys->io_ledctrl = 0x0f1;
+		sys->io_b.i_leds = 0x0f1;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_ledctrl = 0x0f3;
+		sys->io_b.i_leds = 0x0f3;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_ledctrl = 0x0f7;
+		sys->io_b.i_leds = 0x0f7;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_ledctrl = 0x0ff;
+		sys->io_b.i_leds = 0x0ff;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_ledctrl = 0x0fe;
+		sys->io_b.i_leds = 0x0fe;
 		timer_delay(CLOCKFREQ_HZ*5);
 
 
 		// Display a second image.
-		sys->io_ledctrl = 0x0fc;
+		sys->io_b.i_leds = 0x0fc;
 		oled_show_image(mug);
 		wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
-		sys->io_ledctrl = 0x0f8;
+		sys->io_b.i_leds = 0x0f8;
 		timer_delay(CLOCKFREQ_HZ*5);
 	}
 

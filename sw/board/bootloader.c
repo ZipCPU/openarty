@@ -105,9 +105,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
 #include "bootloader.h"
 
 // A bootloader is about nothing more than copying memory from a couple
