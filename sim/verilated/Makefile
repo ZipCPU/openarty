@@ -46,14 +46,14 @@ FLAGS	:= -Wall -Og -g
 VINCD   := $(VROOT)/include
 INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
 SOURCES := fastmaster_tb.cpp eqspiflashsim.cpp eqspiflash_tb.cpp	\
-	oledsim.cpp enetctrlsim.cpp zipelf.cpp				\
+	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp		\
 	memsim.cpp sdspisim.cpp uartsim.cpp ddrsdramsim.cpp
 HEADERS := ddrsdramsim.h enetctrlsim.h eqspiflashsim.h memsim.h	\
 	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
 SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp zipelf.cpp		\
-	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp
+	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
 PROGRAMS := busmaster_tb eqspiflash_tb enetctrl_tb
