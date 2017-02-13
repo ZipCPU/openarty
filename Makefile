@@ -38,8 +38,8 @@
 ##
 ##
 .PHONY: all
-all:	archive datestamp rtl bench sw
-# all:	verilated sw bench bit
+all:	archive datestamp rtl sim sw
+# all:	datestamp archive rtl sw sim bench bit
 #
 # Could also depend upon load, if desired, but not necessary
 BENCH := `find bench -name Makefile` `find bench -name "*.cpp"` `find bench -name "*.h"`
@@ -54,8 +54,9 @@ DEVSW := `find sw-board -name "*.cpp"` `find sw-board -name "*.h"` \
 	`find sw-board -name Makefile`
 PROJ  := 
 BIN  := `find xilinx -name "*.bit"`
-CONSTRAINTS := arty.xdc
+CONSTRAINTS := arty.xdc migmem.xdc
 YYMMDD:=`date +%Y%m%d`
+SUBMAKE := $(MAKE) --no-print-directory
 
 .PHONY: datestamp
 datestamp:
@@ -64,24 +65,40 @@ datestamp:
 
 .PHONY: archive
 archive:
-	tar --transform s,^,$(YYMMDD)-arty/, -chjf $(YYMMDD)-arty.tjz $(BENCH) $(SW) $(RTL) $(SIM) $(NOTES) $(PROJ) $(BIN) $(CONSTRAINTS)
+	tar --transform s,^,$(YYMMDD)-arty/, -chjf $(YYMMDD)-arty.tjz $(BENCH) $(SW) $(RTL) $(SIM) $(NOTES) $(PROJ) $(BIN) $(CONSTRAINTS) README.md
 
 .PHONY: verilated
 verilated: datestamp
-	cd rtl ; $(MAKE) --no-print-directory
+	$(SUBMAKE) --no-print-directory --directory=rtl
 
 .PHONY: rtl
 rtl: verilated
 
-.PHONY: bench
-bench: rtl
-	cd bench/cpp ; $(MAKE) --no-print-directory
+.PHONY: sim
+sim: rtl
+	$(SUBMAKE) --directory=sim/verilated
+
+# .PHONY: bench
+# bench: sw
+#	cd sim/verilated ; $(MAKE) --no-print-directory
 
 .PHONY: sw
-sw:
-	cd sw/host ; $(MAKE) --no-print-directory
+sw: sw-host sw-board
+
+.PHONY: sw-host
+sw-host:
+	$(SUBMAKE) --directory=sw/host
+
+.PHONY: sw-board
+sw-board:
+	$(SUBMAKE) --directory=sw/board
 
 # .PHONY: bit
 # bit:
 #	cd xilinx ; $(MAKE) --no-print-directory xula.bit
 
+.PHONY: clean
+	$(SUBMAKE) --directory=rtl           clean
+	$(SUBMAKE) --directory=sw/host       clean
+	$(SUBMAKE) --directory=sw/board      clean
+	$(SUBMAKE) --directory=sim/verilated clean
