@@ -15,16 +15,16 @@ As a demonstration project, I'd love to implement an NTP server within the devic
 
 # Current Status
 
-I currently have all the hardware on my desk.
+This version of the OpenArty project is designed to support an 8-bit byte branch of the ZipCPU.  Once the ZipCPU is proven here and in some other locations, the 8-bit branch of the ZipCPU will become the master.
 
-The design builds, as of 20160910, at an 81.25 MHz clock speed.
+The design builds, as of 201710, at an 81.25 MHz clock speed, with the ZipCPU 8-bit byte updates.  As of this writing, the design builds only.  It has yet to be tested on the hardware (again--the trunk works on the hardware).
 
 - ZipCPU: The ZipCPU should be fully functional at the current clock speed.  I'd like to boost it to twice this speed, but that may remain a longer term project.
-- Flash: the flash controller has now passedd all of the tests given it, both simulated and live.  It can read and write the flash, and so it can place configurations onto the flash as desired.  As built, though, the controller is optimized for a 200MHz clock speed, and a 100MHz bus speed.  It's being run at an 81.25MHz clock speed though (40.625MHz bus speed), so some performance improvement might yet be achieved.
-- SDRAM: I intend to implement work from the DDR3 SDRAM controller for the Arty.  For now, the project builds with a Xilinx Memory Interface Generated (MIG) core, and a pipelind wishbone to AXI translator.
-- NET: The entire network functionality has now been built, and preliminary testing suggests that it is fully functional.
+- Flash: Working completely.  An option remains to increase the clock speed from one half of the system clock 81.25MHz, up to the actual system clock speed or perhaps even twice that speed.
+- SDRAM: I would still like to implement the work from the DDR3 SDRAM controller for the Arty.  For now, the project builds with a Xilinx Memory Interface Generated (MIG) core, and a pipelind wishbone to AXI translator.
+- NET: Working on the trunk using a simple program that can send and receive ARP packets, respond to ARP requests, respond to pings, and even ping a local host.
 - SD: The SDSPI controller has been integrated into the device, yet not tested yet.  I don't expect issues with it, as it is a proven controller--just not one proven (yet) in this platform.  Work remains to turn this from a SPI controller to an SDIO based driver.
-- OLEDRGB: this driver is built, and has been integrated into the project, but testing hasn't started yet.
+- OLEDRGB: Working on the trunk
 
 So ... it's a work in progress.
 
