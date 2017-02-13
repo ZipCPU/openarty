@@ -45,6 +45,7 @@
 //
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <assert.h>
 #include "memsim.h"
 
@@ -100,10 +101,18 @@ void	MEMSIM::load(const unsigned int addr, const char *buf, const size_t len) {
 	memcpy(&m_mem[addr], buf, len);
 }
 
-void	MEMSIM::apply(const unsigned char wb_cyc,
-			const unsigned char wb_stb, const unsigned char wb_we,
-			const BUSW wb_addr, const BUSW wb_data, 
+void	MEMSIM::apply(const uchar wb_cyc, const uchar wb_stb, const uchar wb_we,
+			const BUSW wb_addr, const BUSW wb_data, const uchar wb_sel,
 			unsigned char &o_ack, unsigned char &o_stall, BUSW &o_data) {
+	unsigned	sel = 0;
+	if (wb_sel&0x8)
+		sel |= 0x0ff000000;
+	if (wb_sel&0x4)
+		sel |= 0x000ff0000;
+	if (wb_sel&0x2)
+		sel |= 0x00000ff00;
+	if (wb_sel&0x1)
+		sel |= 0x0000000ff;
 	m_head++; m_tail = (m_head - m_delay)&m_delay_mask;
 	m_head&=m_delay_mask;
 	o_ack = m_fifo_ack[m_tail];
@@ -114,8 +123,16 @@ void	MEMSIM::apply(const unsigned char wb_cyc,
 
 	o_stall= 0;
 	if ((wb_cyc)&&(wb_stb)) {
-		if (wb_we)
-			m_mem[wb_addr & m_mask] = wb_data;
+		if (wb_we) {
+			if (sel == 0xffffffffu)
+				m_mem[wb_addr & m_mask] = wb_data;
+			else {
+				uint32_t memv = m_mem[wb_addr & m_mask];
+				memv &= ~sel;
+				memv |= (wb_data & sel);
+				m_mem[wb_addr & m_mask] = memv;
+			}
+		}
 		m_fifo_ack[m_head] = 1;
 		m_fifo_data[m_head] = m_mem[wb_addr & m_mask];
 #ifdef	DEBUG
