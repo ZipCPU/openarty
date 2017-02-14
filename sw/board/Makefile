@@ -31,17 +31,18 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping # hello
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping divutb  # hello
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
 RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c # ntpserver.c # hello.c
+SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c divutb.c # ntpserver.c
 HEADERS := artyboard.h zipsys.h
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
+LFLAGS  := -T arty.ld ../zlib/artyboard.o
 #
 # For source analysis, the following macros are defined:
 
@@ -51,6 +52,8 @@ DUMPTREE:= -fdump-tree-all
 $(OBJDIR)/%.o: %.c
 	$(CC) -O3 -c -fno-builtin $< -o $@
 $(OBJDIR)/hello.o: hello.c
+	$(CC) -O3 -c $< -o $@
+$(OBJDIR)/divutb.o: divutb.c
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
 	$(CC) -O3 -S -fno-builtin $< -o $@
@@ -67,25 +70,27 @@ $(OBJDIR)/cputest.s: cputest.c
 
 
 
-cputest: $(OBJDIR)/cputest.o artyram.ld 
+cputest: $(OBJDIR)/cputest.o artyram.ld
 	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=cputest.map $(OBJDIR)/cputest.o -o $@
-cputestcis: $(OBJDIR)/cputestcis.o artyram.ld 
+cputestcis: $(OBJDIR)/cputestcis.o artyram.ld
 	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=cputestcis.map $(OBJDIR)/cputestcis.o -o $@
 
-exstartup: $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exstartup.map $(OBJDIR)/exstartup.o $(OBJDIR)/bootloader.o -o exstartup
+exstartup: $(OBJDIR)/exstartup.o arty.ld
+	$(CC) -O3 $(FLAGS)  -Wl,-Map=exstartup.map $(OBJDIR)/exstartup.o -o exstartup
 
-exmulti: $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o arty.ld 
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=exmulti.map $(OBJDIR)/exmulti.o $(OBJDIR)/bootloader.o -o $@
+exmulti: $(OBJDIR)/exmulti.o arty.ld
+	$(CC) -O3 $(LFLAGS)  -Wl,-Map=exmulti.map $(OBJDIR)/exmulti.o -o $@
+divutb: $(OBJDIR)/divutb.o arty.ld
+	$(CC) -O3  $(LFLAGS)  -Wl,-Map=divutb.map $(OBJDIR)/divutb.o -o $@
 
-gpsdump: $(OBJDIR)/gpsdump.o $(OBJDIR)/bootloader.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=gpsdump.map $(OBJDIR)/bootloader.o $(OBJDIR)/gpsdump.o -o $@
+gpsdump: $(OBJDIR)/gpsdump.o arty.ld
+	$(CC) -O3 $(LFLAGS) -Wl,-Map=gpsdump.map $(OBJDIR)/gpsdump.o -o $@
 
 hello: $(OBJDIR)/hello.o arty.ld
-	$(CC) -O3 -T arty.ld ../zlib/artyboard.o -Wl,-Map=hello.map $(OBJDIR)/hello.o -o $@
+	$(CC) -O3 $(LFLAGS) -Wl,-Map=hello.map $(OBJDIR)/hello.o -o $@
 
-oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld 
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
+oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld
+	$(CC) -O3  $(LFLAGS) -Wl,-Map=oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/bootloader.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
 
 simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o
 simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o arty.ld
