@@ -37,7 +37,7 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime dumpflash wbprogram netsetup manping zipload zipstate zipdbg
+PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping zipload zipstate zipdbg
 SCOPES := eqspiscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
@@ -46,10 +46,10 @@ BUSSRCS := ttybus.cpp llcomms.cpp regdefs.cpp byteswap.cpp
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 	dumpflash.cpp eqspiscope.cpp flashdrvr.cpp 			\
 	scopecls.cpp sdramscope.cpp					\
-	cfgscope.cpp zipload.cpp zipstate.cpp zipdbg.cpp		\
+	zipload.cpp zipstate.cpp zipdbg.cpp		\
 	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp		\
 	 mdioscope.cpp manping.cpp $(BUSSRCS)
-	# ziprun.cpp
+	# ziprun.cpp cfgscope.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
 BUSOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(BUSSRCS)))
@@ -58,7 +58,7 @@ LIBS :=
 SUBMAKE := $(MAKE) --no-print-directory
 
 %.o: $(OBJDIR)/%.o
-$(OBJDIR)/%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp $(OBJDIR)/
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 .PHONY: gps
@@ -72,9 +72,9 @@ $(OBJDIR)/hsnetuart.o: netuart.cpp
 clean:
 	rm -rf $(OBJDIR)/ $(PROGRAMS)
 
-$(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h
-$(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h
-$(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h
+$(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h $(OBJDIR)/
+$(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h $(OBJDIR)/
+$(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h $(OBJDIR)/
 
 netuart: $(OBJDIR)/netuart.o
 	$(CXX) $(CFLAGS) $^ -o $@
