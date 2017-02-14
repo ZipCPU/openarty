@@ -46,7 +46,8 @@ void
 _outbyte(char v) {
 #ifdef	_ZIP_HAS_WBUART
 	// Depend upon the WBUART, not the PIC
-	while(_uart->u_fifo & 0x20000)
+	int ln = (1<<(_uart->u_fifo >> (16+12)))-1;
+	while(ln == ((_uart->u_fifo>>18)&0x03ff))
 		;
 	uint8_t c = v;
 	_uart->u_tx = (unsigned)c;
@@ -239,19 +240,17 @@ _open_r(struct _reent *reent, const char *file, int flags, int mode)
 int
 _read_r(struct _reent *reent, int file, void *ptr, size_t len)
 {
-#ifdef	_ZIP_HAS_UART
+#ifdef	_ZIP_HAS_UARTRX
 	if (STDIN_FILENO == file)
 	{
 		int	nr = 0, rv;
 		char	*chp = ptr;
 		while(nr < len) {
-			while( ((SYSPIC)&&(SYSINT_UARTRX)) == 0)
-				;
-			rv = _uart->u_rx;
-			if ((rv & -256)==0) {
-				*chp++ = (char)rv;
-				nr++;
-			}
+			do {
+				rv = UARTRX;
+			} while(rv & 0x0100);
+			*chp++ = (char)rv;
+			nr++;
 		}
 		return nr;
 	}
