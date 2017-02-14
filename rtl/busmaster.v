@@ -438,34 +438,41 @@ module	busmaster(i_clk, i_rst,
 			ram_sel, flash_sel, flctl_sel, mem_sel, netb_sel,
 			none_sel, many_sel;
 
+	wire	idle_n;
+`ifdef	ZERO_ON_IDLE
+	assign idle_n = wb_stb;
+`else
+	assign idle_n = 1'b1;
+`endif
 	wire	[4:0]	skipaddr;
 	assign	skipaddr = { wb_addr[26], wb_addr[22], wb_addr[15], wb_addr[11],
 				~wb_addr[8] };
-	assign	ram_sel   = (skipaddr[4]);
-	assign	flash_sel = (skipaddr[4:3]==2'b01);
-	assign	mem_sel   = (skipaddr[4:2]==3'b001);
-	assign	netb_sel  = (skipaddr[4:1]==4'b0001);
-	assign	io_sel    = (~|skipaddr)&&(wb_addr[7:5]==3'b00_0);
-	assign	scop_sel  = (~|skipaddr)&&(wb_addr[7:3]==5'b00_100);
-	assign	rtc_sel   = (~|skipaddr)&&(wb_addr[7:2]==6'b00_1010);
-	assign	oled_sel  = (~|skipaddr)&&(wb_addr[7:2]==6'b00_1011);
-	assign	uart_sel  = (~|skipaddr)&&(wb_addr[7:2]==6'b00_1100);
-	assign	gpsu_sel  = (~|skipaddr)&&(wb_addr[7:2]==6'b00_1101);
-	assign	sdcard_sel= (~|skipaddr)&&(wb_addr[7:2]==6'b00_1110);
-	//assign unused_  = (~|skipaddr)&&(wb_addr[7:2]==6'b00_1111);
-	assign	gps_sel   = (~|skipaddr)&&(	(wb_addr[7:2]==6'b01_0000)
-					    ||	(wb_addr[7:3]==5'b01_001));
-	assign	netp_sel  = (~|skipaddr)&&(wb_addr[7:3]==5'b01_010);
-	assign	mio_sel   = (~|skipaddr)&&(wb_addr[7:5]==3'b01_1);
-	assign	flctl_sel = (~|skipaddr)&&(wb_addr[7:5]==3'b10_0);
-	assign	cfg_sel   = (~|skipaddr)&&(wb_addr[7:5]==3'b10_1);
+	assign	ram_sel   = (idle_n)&&(skipaddr[4]);
+	assign	flash_sel = (idle_n)&&(skipaddr[4:3]==2'b01);
+	assign	mem_sel   = (idle_n)&&(skipaddr[4:2]==3'b001);
+	assign	netb_sel  = (idle_n)&&(skipaddr[4:1]==4'b0001);
+	assign	io_sel    = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b00_0);
+	assign	scop_sel  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:3]==5'b00_100);
+	assign	rtc_sel   = (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1010);
+	assign	oled_sel  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1011);
+	assign	uart_sel  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1100);
+	assign	gpsu_sel  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1101);
+	assign	sdcard_sel= (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1110);
+	//assign unused_  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:2]==6'b00_1111);
+	assign	gps_sel   = (idle_n)&&(~|skipaddr)&&((wb_addr[7:2]==6'b01_0000)
+						    ||(wb_addr[7:3]==5'b01_001));
+	assign	netp_sel  = (idle_n)&&(~|skipaddr)&&(wb_addr[7:3]==5'b01_010);
+	assign	mio_sel   = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b01_1);
+	assign	flctl_sel = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b10_0);
+	assign	cfg_sel   = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b10_1);
 
 	wire	skiperr;
-	assign	skiperr = (|wb_addr[31:27])
+	assign	skiperr = (idle_n)&&((|wb_addr[31:27])
 				||(~skipaddr[4])&&(|wb_addr[25:23])
 				||(skipaddr[4:3]==2'b00)&&(|wb_addr[21:16])
 				||(skipaddr[4:2]==3'b000)&&(|wb_addr[14:12])
-				||(skipaddr[4:1]==4'b0000)&&(|wb_addr[10:9]);
+				||(skipaddr[4:1]==4'b0000)&&(|wb_addr[10:9])
+				||(skipaddr[4:0]==5'b00001));
 
 
 	//
@@ -688,8 +695,6 @@ module	busmaster(i_clk, i_rst,
 	wire	[3:0]	w_led;
 	wire	rtc_ppd;
 	fastio	#(
-		.AUXUART_SETUP(30'd705),	// 115200 Baud, 8N1, from 81.25M
-		.GPSUART_SETUP(30'd8464),	//   9600 Baud, 8N1
 		.EXTRACLOCK(0)
 		) runio(i_clk, i_sw, i_btn, 
 			w_led, o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
@@ -740,7 +745,8 @@ module	busmaster(i_clk, i_rst,
 	//	Auxilliary UART (console port)
 	//
 	//
-	wbuart	console(i_clk, 1'b0,
+	wbuart	#(30'd705)	// 115200 Baud, 8N1, from 81.25M
+		console(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(uart_sel), wb_we, wb_addr[1:0], wb_data,
 			uart_ack, uart_stall, uart_data,
 		i_aux_rx, o_aux_tx, i_aux_rts, o_aux_cts,
@@ -752,7 +758,8 @@ module	busmaster(i_clk, i_rst,
 	//
 	//
 	wire	gps_cts_ignored;
-	wbuart	gpsdata(i_clk, 1'b0,
+	wbuart	#(30'd8464)	//   9600 Baud, 8N1
+		gpsdata(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(gpsu_sel), wb_we, wb_addr[1:0], wb_data,
 			gpsu_ack, gpsu_stall, gpsu_data,
 		i_gps_rx, o_gps_tx, 1'b1, gps_cts_ignored,
@@ -838,7 +845,7 @@ module	busmaster(i_clk, i_rst,
 	wire	[1:0]	gps_dbg_tick;
 
 	gpsclock_tb ppscktb(i_clk, ck_pps, tb_pps,
-			(wb_stb)&&(gps_sel)&&(!wb_addr[4]),
+			(wb_stb)&&(gps_sel)&&(wb_addr[3]),
 				wb_we, wb_addr[2:0],
 				wb_data, gtb_ack, gtb_stall, gtb_data,
 			gps_err, gps_now, gps_step);
@@ -855,7 +862,7 @@ module	busmaster(i_clk, i_rst,
 	gpsclock #(
 		.DEFAULT_STEP(32'h834d_c736)
 		) ppsck(i_clk, 1'b0, gps_pps, ck_pps, gps_led,
-			(wb_stb)&&(gps_sel)&&(wb_addr[4]),
+			(wb_stb)&&(gps_sel)&&(!wb_addr[3]),
 				wb_we, wb_addr[1:0],
 				wb_data, gck_ack, gck_stall, gck_data,
 			gps_tracking, gps_now, gps_step, gps_err, gps_locked,
