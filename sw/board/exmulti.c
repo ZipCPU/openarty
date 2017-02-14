@@ -40,8 +40,12 @@
 #include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
+#include <stdio.h>
 
 #define	sys	_sys
+
+#define	udivdi3	__udivdi3
+#include "udiv.c"
 
 void	idle_task(void) {
 	while(1)
@@ -108,14 +112,8 @@ int	mpyuhi(int a, int b) {
 	// return ahi;
 }
 
-int	hexdigit(int v) {
-	if (v < 10)
-		return v + '0';
-	else
-		return v + 'A' - 10;
-}
+char	errstring[128];
 
-int	errstring[128];
 
 void	main(int argc, char **argv) {
 	const unsigned red = 0x0ff0000, green = 0x0ff00, blue = 0x0ff,
@@ -127,6 +125,9 @@ void	main(int argc, char **argv) {
 	sys->io_gps.g_alpha = 2;
 	sys->io_gps.g_beta  = 0x14bda12f;
 	sys->io_gps.g_gamma = 0x1f533ae8;
+
+	// 
+	sys->io_uart.u_setup = 82;
 
 	int	user_context[16];
 	for(i=0; i<15; i++)
@@ -208,7 +209,7 @@ void	main(int argc, char **argv) {
 	} while((zip->z_pic & SYSINT_PPS)==0);
 	
 	while(1) {
-		int	*s = errstring;
+		char	*s = errstring;
 
 		zip->z_wdt = CLOCKFREQ_HZ*4;
 		sys->io_b.i_leds = 0x088;
@@ -217,164 +218,46 @@ void	main(int argc, char **argv) {
 
 		// Get the upper 32-bits of the error;
 		int	err = *(int *)(&sys->io_gpstb.tb_err);
-		int	err_in_ns;
+		int	err_in_ns, err_in_us;
 		/*
 		long	err_in_ns_long = err;
 		err_in_ns_long *= 1000000000l;
 		err_in_ns_long >>= 32;
 		int	err_in_ns = (int)(err_in_ns_long);
 		*/
-		int	err_sgn = (err < 0)?1:0;
+		int	err_sgn = (err < 0)?1:0, err_in_ns_rem;
 		err_in_ns = (err<0)?-err:err;
 		err_in_ns = mpyuhi(err_in_ns, 1000000000);
-		int	digit;
+
+		err_in_us = err_in_ns / 1000;
+		err_in_ns_rem = err_in_ns - err_in_us * 1000;
+		if (err_sgn)
+			err_in_us = - err_in_us;
+
+		printf("\r\nTmp (%s) %d\n", (err == 0) ? "Z":".", err);
+		printf("\r\nGPS PPS Err: 0x%08x => 0x%08x => %+5d.%03d us\r\n",
+			err, err_in_ns, err_in_us, err_in_ns_rem);
+		printf("\r\n        Err: 0x%08x => 0x%08x\r\n",
+			err_in_us, err_in_ns_rem);
 
 
-		*s++ = '\r';
-		*s++ = '\n';
-		*s++ = 'G';
-		*s++ = 'P';
-		*s++ = 'S';
-		*s++ = ' ';
-		*s++ = 'P';
-		*s++ = 'P';
-		*s++ = 'S';
-		*s++ = ' ';
-		*s++ = 'E';
-		*s++ = 'r';
-		*s++ = 'r';
-		*s++ = ':';
-		*s++ = ' ';
-
-
-		*s++ = '0';
-		*s++ = 'x';
-		*s++ = hexdigit((err>>28)&0x0f);
-		*s++ = hexdigit((err>>24)&0x0f);
-		*s++ = hexdigit((err>>20)&0x0f);
-		*s++ = hexdigit((err>>16)&0x0f);
-		*s++ = hexdigit((err>>12)&0x0f);
-		*s++ = hexdigit((err>> 8)&0x0f);
-		*s++ = hexdigit((err>> 4)&0x0f);
-		*s++ = hexdigit((err    )&0x0f);
-
-		*s++ = ' ';
-		*s++ = '=';
-		*s++ = '>';
-		*s++ = ' ';
-
-		*s++ = '0';
-		*s++ = 'x';
-		*s++ = hexdigit((err_in_ns>>28)&0x0f);
-		*s++ = hexdigit((err_in_ns>>24)&0x0f);
-		*s++ = hexdigit((err_in_ns>>20)&0x0f);
-		*s++ = hexdigit((err_in_ns>>16)&0x0f);
-		*s++ = hexdigit((err_in_ns>>12)&0x0f);
-		*s++ = hexdigit((err_in_ns>> 8)&0x0f);
-		*s++ = hexdigit((err_in_ns>> 4)&0x0f);
-		*s++ = hexdigit((err_in_ns    )&0x0f);
-
-		*s++ = ' ';
-		*s++ = '=';
-		*s++ = '>';
-		*s++ = ' ';
-
-		*s++ = (err_sgn)?'-':' ';
-		// Milliseconds
-		digit = err_in_ns / 100000000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 100000000;
-		//
-		digit = err_in_ns / 10000000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 10000000;
-		//
-		digit = err_in_ns / 1000000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 1000000;
-		// Micro seconds
-		digit = err_in_ns / 100000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 100000;
-		//
-		digit = err_in_ns / 10000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 10000;
-		//
-		digit = err_in_ns / 1000;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 1000;
-		// Nano seconds
-		*s++ = '.';
-		digit = err_in_ns / 100;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 100;
-		//
-		digit = err_in_ns / 10;
-		*s++ = digit+'0';
-		err_in_ns -= digit * 10;
-		//
-		digit = err_in_ns;
-		*s++ = digit+'0';
-		//
-		*s++ = ' ';
-		*s++ = 'u';
-		*s++ = 'S';
-		*s++ = '\r';
-		*s++ = '\n';
-		*s++ = '\r';
-		*s++ = '\n';
-		*s++ = '\0';
-
-		/*
-		zip->z_dma.d_ctrl = DMACLEAR;
-		zip->z_dma.d_rd = errstring;
-		zip->z_dma.d_wr = &sys->io_uart_tx;
-		zip->z_dma.d_len = s - errstring-1;
-		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_GPSRX);
-		wait_on_interrupt(SYSINT_DMAC);
-		*/
-
-		int flen = (sys->io_uart.u_fifo >> 28);
-		flen = (1<<flen)-1;
-		for(int i=0; errstring[i]; i++) {
-			wait_on_interrupt(SYSINT_UARTTXF);
-			int nrun = (sys->io_uart.u_fifo>>18) & 0x03ff;
-			nrun = flen - nrun;
-			while((nrun > 0)&&(errstring[i]))
-				sys->io_uart.u_tx = errstring[i++] & 0x0ff;
-			if (!errstring[i])
-				break;
-			zip->z_pic = SYSINT_UARTTXF;
-		}
 
 		sys->io_b.i_leds = 0x080;
 
-		/*		
-		zip->z_dma.d_rd = &sys->io_gps_rx;
-		zip->z_dma.d_wr = &sys->io_uart_tx;
-		zip->z_dma.d_len = 0x01000000;
-		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
-		wait_on_interrupt(SYSINT_PPS);
-		*/
-
-		/*
-		if (zip_ucc() & CC_FAULT) {
-			zip_save_context(user_context);
-			user_context[14] = CC_GIE;
-			user_context[15] = (int)&idle_task;
-			zip_restore_context(user_context);
-		}
-		*/
-
 		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS;
 		do {
+			int	v;
 			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF);
+
+			while(((v = sys->io_gpsu.u_rx)&0x100)==0)
+				sys->io_uart.u_tx = v & 0x0ff;
+			/*
 			while((sys->io_gpsu.u_fifo & 1)==0) {
 				int	v = sys->io_gpsu.u_rx;
 				if ((v & 0x100)==0)
 					sys->io_uart.u_tx = v & 0x0ff;
 			}
+			*/
 		} while((zip->z_pic & SYSINT_PPS)==0);
 
 		// wait_on_interrupt(SYSINT_PPS);
