@@ -48,7 +48,7 @@ WBPROG=wbprogram
 #
 $WBREGS stopwatch 2	# Clear and stop the stopwatch
 $WBREGS stopwatch 1	# Start the stopwatch
-$WBPROG @0x0470000 $BINFILE
+$WBPROG @0x011c0000 $BINFILE
 $WBREGS stopwatch 0	# Stop the stopwatch, we are done
 $WBREGS stopwatch	# Print out the time on the stopwatch
 

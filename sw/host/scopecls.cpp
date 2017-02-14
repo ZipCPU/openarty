@@ -95,10 +95,10 @@ void	SCOPE::read(void) {
 	buf = new DEVBUS::BUSW[m_scoplen];
 
 	if (m_vector_read) {
-		m_fpga->readz(m_addr+1, m_scoplen, buf);
+		m_fpga->readz(m_addr+4, m_scoplen, buf);
 	} else {
 		for(unsigned int i=0; i<m_scoplen; i++)
-			buf[i] = m_fpga->readio(m_addr+1);
+			buf[i] = m_fpga->readio(m_addr+4);
 	}
 
 	if(m_compressed) {

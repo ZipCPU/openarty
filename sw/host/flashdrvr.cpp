@@ -91,7 +91,7 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
 	printf("EREG with WEL : %08x\n", m_fpga->readio(R_QSPI_EREG));
 	SETSCOPE;
-	m_fpga->writeio(R_QSPI_EREG, ERASEFLAG + sector);
+	m_fpga->writeio(R_QSPI_EREG, ERASEFLAG + (sector>>2));
 	printf("EREG after    : %08x\n", m_fpga->readio(R_QSPI_EREG));
 
 	// If we're in high speed mode and we want to verify the erase, then
@@ -141,7 +141,7 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 	m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
 	m_fpga->clear();
 	m_fpga->writeio(R_ICONTROL, ISPIF_EN);
-	printf("Writing page: 0x%08x - 0x%08x\n", addr, addr+len-1);
+	printf("Writing page: 0x%08x - 0x%08x\r", addr, addr+len-1);
 	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
 	SETSCOPE;
 	m_fpga->writei(addr, (len>>2), bswapd);
@@ -194,6 +194,9 @@ void	FLASHDRVR::set_config(void) {
 
 bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 		const char *data, const bool verify) {
+
+	assert(addr >= EQSPIFLASH);
+	assert(addr+len <= EQSPIFLASH + FLASHLEN);
 
 	if (!verify_config()) {
 		set_config();
@@ -261,7 +264,7 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 				printf("WRITE-PAGE FAILED!\n");
 				return false;
 			}
-		}
+		} printf("\n");
 	}
 
 	m_fpga->writeio(R_QSPI_EREG, ENABLEWP); // Re-enable write protection
