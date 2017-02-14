@@ -37,9 +37,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include <stdio.h>
+
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
 
 #define	sys	_sys
 
@@ -55,6 +57,10 @@ void	wait_on_interrupt(int mask) {
 }
 
 
+long	__udivdi3(long a, long b) {
+	return 0;
+}
+
 void	main(int argc, char **argv) {
 	const unsigned red = 0x0ff0000, green = 0x0ff00, blue = 0x0ff,
 		white = 0x070707, black = 0, dimgreen = 0x1f00,
@@ -66,6 +72,9 @@ void	main(int argc, char **argv) {
 		user_context[i] = 0;
 	user_context[15] = (unsigned)idle_task;
 	zip_restore_context(user_context);
+
+	_sys->io_uart.u_setup = 82;
+	printf("Starting exstartup\r\n");
 
 	for(i=0; i<4; i++)
 		_sys->io_b.i_clrled[i] = red;
@@ -172,4 +181,3 @@ void	main(int argc, char **argv) {
 
 	zip_halt();
 }
-
