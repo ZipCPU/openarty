@@ -1221,7 +1221,7 @@ void entry(void) {
 	SCOPEc = PREPARE_SCOPE;
 #endif
 
-	UART_CTRL = 4;
+	UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
