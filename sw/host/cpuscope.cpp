@@ -78,28 +78,32 @@ public:
 			printf("     ");
 		if (true) {
 		if ((val & 0x40000000)==0) {
-			printf("%s <- 0x.%08x", regstr[(val>>32-6)&0xf], val&0x03ffffff);
+			printf("%s <- 0x.%08x", regstr[(val>>(32-6))&0xf], val&0x03ffffff);
 		} else if ((val & 0x60000000)==0x60000000) {
+			uint32_t addr = val & 0x7ffffff;
 			if (val&0x08000000)
 				printf("MEM-W[0x........] <- 0x.%07x %s",
-					(val&0x07ffffff),
+					addr,
 					(val&0x10000000)?"(GBL)":"");
 			else
 				printf("MEM-R[0x.%07x] -> (Not Givn) %s",
-					(val&0x07ffffff),
+					(addr<<2),
 					(val&0x10000000)?"(GBL)":"");
-		} else if ((val & 0x70000000)==0x40000000)
+		} else if ((val & 0x70000000)==0x40000000) {
+			uint32_t val = 0x0fffffff;
+			val <<= 2;
 			printf("JMP 0x%08x", (val&0x0fffffff));
-		else {
-			int	master, halt, brk, sleep, gie, buserr, trap,
+		} else {
+			int	master, halt, brk, sleep, buserr, trap,
 				ill, clri, pfv, pfi, dcdce, dcdv, dcdstall,
 				opce, opvalid, oppipe, aluce, alubsy, aluwr,
-				aluill, aluwrf, memce, memwe, membsy;
+				memce, memwe, membsy;
+			// int	gie, aluill, aluwrf;
 			master = (val>>27)&1;
 			halt   = (val>>26)&1;
 			brk    = (val>>25)&1;
 			sleep  = (val>>24)&1;
-			gie    = (val>>23)&1;
+			// gie    = (val>>23)&1;
 			buserr = (val>>22)&1;
 			trap   = (val>>21)&1;
 			ill    = (val>>20)&1;
@@ -115,8 +119,8 @@ public:
 			aluce  = (val>>10)&1;
 			alubsy = (val>> 9)&1;
 			aluwr  = (val>> 8)&1;
-			aluill = (val>> 7)&1;
-			aluwrf = (val>> 6)&1;
+			// aluill = (val>> 7)&1;
+			// aluwrf = (val>> 6)&1;
 			memce  = (val>> 5)&1;
 			memwe  = (val>> 4)&1;
 			membsy = (val>> 3)&1;
@@ -222,8 +226,10 @@ int main(int argc, char **argv) {
 		scope->decode_control();
 		scope->decode(WBSCOPEDATA);
 		printf("\n");
-	} else
+	} else {
+		printf("Scope is ready\n");
 		scope->read();
+	}
 	delete	m_fpga;
 }
 
