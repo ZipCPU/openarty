@@ -217,9 +217,9 @@ public:
 			mvprintw(y, x, " %s: 0x%08x ", n, v);
 	}
 
-	int	showins(int y, const char *lbl, const unsigned int pcidx) {
+	int	showins(int y, const char *lbl, const unsigned int pcidx, bool ignore_a) {
 		char	la[80], lb[80];
-		int	r = y-1;
+		int	r = y-1, bln = r;
 
 		mvprintw(y, 0, "%s0x%08x", lbl, m_state.m_imem[pcidx].m_a);
 
@@ -231,12 +231,15 @@ public:
 		if (m_state.m_imem[pcidx].m_valid) {
 			zipi_to_double_string(m_state.m_imem[pcidx].m_a,
 				m_state.m_imem[pcidx].m_d, la, lb);
-			printw(" 0x%08x", m_state.m_imem[pcidx].m_d);
-			printw("  %-25s", la);
-			if (lb[0]) {
-				mvprintw(y-1, 0, "%s", lbl);
-				mvprintw(y-1, strlen(lbl)+10+3+8+2, "%-25s", lb);
+			if ((lb[0]=='\0')||(!ignore_a)) {
+				printw(" 0x%08x", m_state.m_imem[pcidx].m_d);
+				printw("  %-25s", la);
+			} if (lb[0]) {
+				mvprintw(bln, 0, "%11s", "");
+				mvprintw(bln, strlen(lbl)+10+3+8+2, "%-25s", lb);
 				r--;
+			} else {
+				mvprintw(y-1, 0, "%46s", "");
 			}
 		} else {
 			printw(" 0x--------  %-25s", "(Bus Error)");
@@ -474,11 +477,11 @@ public:
 		attroff(A_BOLD);
 		ln+=3;
 
-		showins(ln+4, " ", 0);
+		showins(ln+4, " ", 0, true);
 		{
 			int	lclln = ln+3;
 			for(int i=1; ((i<5)&&(lclln > ln)); i++)
-				lclln = showins(lclln, (i==1)?">":" ", i);
+				lclln = showins(lclln, (i==1)?">":" ", i, false);
 			for(int i=0; i<5; i++)
 				showstack(ln+i, (i==0)?">":" ", i);
 		}
