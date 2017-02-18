@@ -148,7 +148,7 @@ module	busmaster(i_clk, i_rst,
 		// The GPS PMod
 		i_gps_pps, i_gps_3df
 		);
-	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=28'h04e0000;
+	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=32'h01380000;
 	input			i_clk, i_rst;
 	// The bus commander, via an external uart port
 	input			i_rx_stb;
