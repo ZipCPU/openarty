@@ -47,6 +47,9 @@
 #define	udivdi3	__udivdi3
 #include "udiv.c"
 
+#define	umoddi3	__umoddi3
+#include "umod.c"
+
 void	idle_task(void) {
 	while(1)
 		zip_idle();
@@ -121,14 +124,14 @@ void	main(int argc, char **argv) {
 		second = CLOCKFREQHZ;
 	int	i, sw;
 
+	_uart->u_setup = 703;
+
 	// Start the GPS converging ...
 	sys->io_gps.g_alpha = 2;
 	sys->io_gps.g_beta  = 0x14bda12f;
 	sys->io_gps.g_gamma = 0x1f533ae8;
 
 	// 
-	sys->io_uart.u_setup = 82;
-
 	int	user_context[16];
 	for(i=0; i<15; i++)
 		user_context[i] = 0;
@@ -207,7 +210,9 @@ void	main(int argc, char **argv) {
 	do {
 		wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
 	} while((zip->z_pic & SYSINT_PPS)==0);
-	
+
+	printf("GPS RECORD START\r\n");
+
 	while(1) {
 		char	*s = errstring;
 
@@ -219,13 +224,8 @@ void	main(int argc, char **argv) {
 		// Get the upper 32-bits of the error;
 		int	err = *(int *)(&sys->io_gpstb.tb_err);
 		int	err_in_ns, err_in_us;
-		/*
-		long	err_in_ns_long = err;
-		err_in_ns_long *= 1000000000l;
-		err_in_ns_long >>= 32;
-		int	err_in_ns = (int)(err_in_ns_long);
-		*/
 		int	err_sgn = (err < 0)?1:0, err_in_ns_rem;
+
 		err_in_ns = (err<0)?-err:err;
 		err_in_ns = mpyuhi(err_in_ns, 1000000000);
 
@@ -234,11 +234,8 @@ void	main(int argc, char **argv) {
 		if (err_sgn)
 			err_in_us = - err_in_us;
 
-		printf("\r\nTmp (%s) %d\n", (err == 0) ? "Z":".", err);
 		printf("\r\nGPS PPS Err: 0x%08x => 0x%08x => %+5d.%03d us\r\n",
 			err, err_in_ns, err_in_us, err_in_ns_rem);
-		printf("\r\n        Err: 0x%08x => 0x%08x\r\n",
-			err_in_us, err_in_ns_rem);
 
 
 
@@ -251,17 +248,7 @@ void	main(int argc, char **argv) {
 
 			while(((v = sys->io_gpsu.u_rx)&0x100)==0)
 				sys->io_uart.u_tx = v & 0x0ff;
-			/*
-			while((sys->io_gpsu.u_fifo & 1)==0) {
-				int	v = sys->io_gpsu.u_rx;
-				if ((v & 0x100)==0)
-					sys->io_uart.u_tx = v & 0x0ff;
-			}
-			*/
 		} while((zip->z_pic & SYSINT_PPS)==0);
-
-		// wait_on_interrupt(SYSINT_PPS);
-		// zip->z_dma.d_ctrl= DMACLEAR;
 	}
 
 	zip_halt();
