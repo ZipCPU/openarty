@@ -38,36 +38,24 @@
 CC := zip-gcc
 AR := zip-ar
 OBJDIR := obj-zip
-all: libxula9.a libxula25.a
+all: libarty.a
 CFLAGS: -ffreestanding
 
 $(OBJDIR)/:
 	@bash -c "if [[ ! -e $(OBJDIR) ]]; then mkdir -p $(OBJDIR); fi"
 
-$(OBJDIR)/xula9.o: $(OBJDIR)/
-$(OBJDIR)/xula9.o: bootloader.h
-$(OBJDIR)/xula9.o: zipcpu.h
-$(OBJDIR)/xula9.o: zipsys.h
-$(OBJDIR)/xula9.o: crt0.c
-$(OBJDIR)/xula9.o: syscalls.c
-$(OBJDIR)/xula9.o: xulaboard.c
-	$(CC) $(CFLAGS) -c xulaboard.c -o $(OBJDIR)/xula9.o
+$(OBJDIR)/artyboard.o: $(OBJDIR)/
+$(OBJDIR)/artyboard.o: bootloader.h
+$(OBJDIR)/artyboard.o: zipcpu.h
+$(OBJDIR)/artyboard.o: zipsys.h
+$(OBJDIR)/artyboard.o: crt0.c
+$(OBJDIR)/artyboard.o: syscalls.c
+$(OBJDIR)/artyboard.o: artyboard.c
+	$(CC) $(CFLAGS) -c artyboard.c -o $(OBJDIR)/artyboard.o
 
-libxula9.a: $(OBJDIR)/xula9.o
-	$(AR) -cru libxula9.a $(OBJDIR)/xula9.o
+libarty.a: $(OBJDIR)/artyboard.o
+	$(AR) -cru libarty.a $(OBJDIR)/artyboard.o
 
-
-$(OBJDIR)/xula25.o: $(OBJDIR)/
-$(OBJDIR)/xula25.o: bootloader.h
-$(OBJDIR)/xula25.o: zipcpu.h
-$(OBJDIR)/xula25.o: zipsys.h
-$(OBJDIR)/xula25.o: crt0.c
-$(OBJDIR)/xula25.o: syscalls.c
-$(OBJDIR)/xula25.o: xulaboard.c
-	$(CC) $(CFLAGS) -DXULA25 -c xulaboard.c -o $(OBJDIR)/xula25.o
-
-libxula25.a: $(OBJDIR)/xula25.o
-	$(AR) -cru libxula25.a $(OBJDIR)/xula25.o
 
 clean:
-	rm -rf libxula25.a libxula9.a $(OBJDIR)/
+	rm -rf libarty.a libarty.a $(OBJDIR)/
