@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	wbdblpriarb.v
 //
@@ -42,7 +42,7 @@
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // Copyright (C) 2015,2017, Gisselquist Technology, LLC
 //
@@ -56,11 +56,17 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
 //
 module	wbdblpriarb(i_clk, i_rst,
 	// Bus A
@@ -101,8 +107,8 @@ module	wbdblpriarb(i_clk, i_rst,
 	//
 	// The CYC logic is here to make certain that, by the time we determine
 	// who the bus owner is, we can do so based upon determined criteria.
-	assign o_cyc_a = (~i_rst)&&((r_a_owner) ? i_a_cyc_a : i_b_cyc_a);
-	assign o_cyc_b = (~i_rst)&&((r_a_owner) ? i_a_cyc_b : i_b_cyc_b);
+	assign o_cyc_a = ((r_a_owner) ? i_a_cyc_a : i_b_cyc_a);
+	assign o_cyc_b = ((r_a_owner) ? i_a_cyc_b : i_b_cyc_b);
 	reg	r_a_owner;
 	initial	r_a_owner = 1'b1;
 	always @(posedge i_clk)
@@ -143,6 +149,7 @@ module	wbdblpriarb(i_clk, i_rst,
 	// irrelevant.
 	assign o_stb_a = (r_a_owner) ? i_a_stb_a : i_b_stb_a;
 	assign o_stb_b = (r_a_owner) ? i_a_stb_b : i_b_stb_b;
+	assign o_we    = (r_a_owner) ? i_a_we    : i_b_we;
 	assign o_adr   = (r_a_owner) ? i_a_adr   : i_b_adr;
 	assign o_dat   = (r_a_owner) ? i_a_dat   : i_b_dat;
 	assign o_sel   = (r_a_owner) ? i_a_sel   : i_b_sel;
