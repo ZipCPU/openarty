@@ -247,7 +247,7 @@ _read_r(struct _reent *reent, int file, void *ptr, size_t len)
 		char	*chp = ptr;
 		while(nr < len) {
 			do {
-				rv = UARTRX;
+				rv = _uartrx;
 			} while(rv & 0x0100);
 			*chp++ = (char)rv;
 			nr++;

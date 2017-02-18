@@ -54,14 +54,14 @@ typedef	struct	{
 	uint32_t	i_pic;
 	uint32_t	*i_buserr;
 	uint32_t	i_pwrcount;
-	uint32_t	i_btnsw, ledreg;
+	uint32_t	i_btnsw, i_leds;
 	uint32_t	i_rtcdate;
 	uint32_t	i_gpio;
 	uint32_t	i_clrled[4];
 	union	{
 		unsigned long now;
 		struct { uint32_t sec; uint32_t sub; };
-	} io_tim;
+	} i_tim;
 
 	unsigned        i_gps_step;
 	uint32_t	i_unused[32-15];
@@ -209,8 +209,8 @@ typedef	struct	WBUART_S {
 
 
 #define	WBSCOPE_NO_RESET	0x80000000
-#define	WBSCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
-#define	WBSCOPE_MANUAL	SCOPE_TRIGGER
+#define	WBSCOPE_TRIGGER	(WBSCOPE_NO_RESET|0x08000000)
+#define	WBSCOPE_MANUAL	WBSCOPE_TRIGGER
 #define	WBSCOPE_DISABLE	0x04000000	// Disable the scope trigger
 typedef	struct	WBSCOPE_S {
 	unsigned	s_ctrl, s_data;

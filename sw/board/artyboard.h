@@ -209,8 +209,8 @@ typedef	struct	WBUART_S {
 
 
 #define	WBSCOPE_NO_RESET	0x80000000
-#define	WBSCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
-#define	WBSCOPE_MANUAL	SCOPE_TRIGGER
+#define	WBSCOPE_TRIGGER	(WBSCOPE_NO_RESET|0x08000000)
+#define	WBSCOPE_MANUAL	WBSCOPE_TRIGGER
 #define	WBSCOPE_DISABLE	0x04000000	// Disable the scope trigger
 typedef	struct	WBSCOPE_S {
 	unsigned	s_ctrl, s_data;
