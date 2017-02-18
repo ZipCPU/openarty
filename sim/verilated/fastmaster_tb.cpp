@@ -448,8 +448,16 @@ public:
 			writeout = true;
 		if (m_core->v__DOT__rgbctrl__DOT__dev_busy)
 			writeout = true;
+		if (m_core->v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__r_lock)
+			writeout = true;
+		if (m_core->v__DOT__swic__DOT__thecpu__DOT__genblk3__DOT__r_op_lock)
+			writeout = true;
+		if (m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_stall)
+			writeout = true;
 
 		if (m_core->v__DOT__swic__DOT__dma_controller__DOT__dma_state != 0)
+			writeout = true;
+		if (m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_bus_lock)
 			writeout = true;
 
 
@@ -493,6 +501,7 @@ public:
 		if (m_core->v__DOT__swic__DOT__thecpu__DOT__ipc < 0x10000000)
 			writeout = false;
 
+		writeout = true;
 		/*
 		*/
 		if ((writeout)||(m_last_writeout)) {
@@ -566,6 +575,11 @@ public:
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__r_break_pending)?"p":"-",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__r_op_gie)?"G":"-",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__op_valid_alu)?"A":"-");
+			printf("|%s%s%s%d",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_stall)?"P":".",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_primed)?"p":".",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_bus_lock)?"L":".",
+				m_core->v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_bus_lock);
 			printf("|%s%s%s%s%s",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_ce)?"a":"-",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_stall)?"s":"-",
@@ -632,10 +646,12 @@ public:
 			// (nothing)
 
 			// Op Stage debugging
-//			printf(" Op(%02x,%02x->%02x)",
-//				m_core->v__DOT__swic__DOT__thecpu__DOT__dcdOp,
-//				m_core->v__DOT__swic__DOT__thecpu__DOT__opn,
-//				m_core->v__DOT__swic__DOT__thecpu__DOT__opR);
+			printf(" (Op %02x,%02x)(%08x,%08x->%02x)",
+				m_core->v__DOT__swic__DOT__thecpu__DOT__dcd_opn,
+				m_core->v__DOT__swic__DOT__thecpu__DOT__r_op_opn,
+				m_core->v__DOT__swic__DOT__thecpu__DOT__op_Av,
+				m_core->v__DOT__swic__DOT__thecpu__DOT__op_Bv,
+				m_core->v__DOT__swic__DOT__thecpu__DOT__r_op_R);
 
 			printf(" %s[",
 				m_core->v__DOT__swic__DOT__thecpu__DOT__wr_reg_ce?"WR":"--");
@@ -658,16 +674,25 @@ public:
 				m_core->v__DOT__swic__DOT__thecpu__DOT__wr_spreg_vl
 				);
 
+			printf(" %s[%s%s%s%s]",
+				m_core->v__DOT__swic__DOT__thecpu__DOT__wr_reg_ce?"F":"-",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&1)?"Z":".",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&2)?"C":".",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&4)?"N":".",
+				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&8)?"V":".");
+
 			printf(" DBG%s%s%s[%s/%02x]=%08x/%08x",
 				(m_core->v__DOT__swic__DOT__dbg_cyc)?"CYC":"   ",
 				(m_core->v__DOT__swic__DOT__dbg_stb)?"STB":((m_core->v__DOT__swic__DOT__dbg_ack)?"ACK":"   "),
 				((m_core->v__DOT__swic__DOT__dbg_cyc)&&(m_core->v__DOT__swic__DOT__dbg_stb))?((m_core->v__DOT__swic__DOT__dbg_we)?"-W":"-R"):"  ",
-				(!m_core->v__DOT__swic__DOT__dbg_cyc)?" ":((m_core->v__DOT__swic__DOT__dbg_addr)?"D":"C"),
+				(!m_core->v__DOT__swic__DOT__dbg_cyc) ? " ":
+					((m_core->v__DOT__swic__DOT__dbg_addr)?"D":"C"),
 				(m_core->v__DOT__swic__DOT__cmd_addr),
 				(m_core->v__DOT__swic__DOT__dbg_idata),
 				m_core->v__DOT__zip_dbg_data);
 
-			printf(" %s,0x%08x", (m_core->i_ram_ack)?"RCK":"   ", m_core->i_ram_rdata);
+			printf(" %s,0x%08x", (m_core->i_ram_ack)?"RCK":"   ",
+				m_core->i_ram_rdata);
 
 
 			/*
@@ -971,6 +996,7 @@ public:
 		} m_last_writeout = writeout;
 #endif
 
+/*
 		if (m_core->v__DOT__swic__DOT__cpu_break) {
 			m_bomb++;
 		} else if (m_bomb) {
@@ -979,6 +1005,7 @@ public:
 			fprintf(stderr, "BREAK-BREAK-BREAK (m_bomb = %d)%s\n",
 				m_bomb, (m_done)?" -- DONE!":"");
 		}
+*/
 	}
 
 	bool	done(void) {
@@ -1045,6 +1072,10 @@ int	main(int argc, char **argv) {
 			elfload = argv[argn];
 		} else if (0 == access(argv[argn], R_OK)) {
 			sdload = argv[argn];
+		} else {
+			fprintf(stderr, "ERR: Cannot read %s\n", argv[argn]);
+			perror("O/S Err:");
+			exit(EXIT_FAILURE);
 		}
 	}
 
