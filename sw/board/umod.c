@@ -1,0 +1,64 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename: 	umod.c
+//
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
+//
+// Purpose:	This is a temporary file--a crutch if you will--until a similar
+//		capability is merged into GCC.  Right now, GCC has no way of
+//	taking the module of two 64-bit numbers, and this routine provides that
+//	capability.  __umoddi3 is actually the name GCC wants, so if you'd like
+//	to include this into your program, do a ...
+//
+//	#define	umoddi3	__umoddi3
+//	#include "umod.c"
+//
+//	This routine is required by and used by newlib's printf in order to
+//	print decimal numbers (%d) to an IO stream.
+//
+//	Once gcc is properly patched, this will be removed from the 
+//	repository.
+//
+// Creator:	Dan Gisselquist, Ph.D.
+//		Gisselquist Technology, LLC
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+//
+// This program is free software (firmware): you can redistribute it and/or
+// modify it under the terms of  the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
+// License:	GPL, v3, as defined and found on www.gnu.org,
+//		http://www.gnu.org/licenses/gpl.html
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+#include <stdint.h>
+
+
+__attribute((noinline))
+unsigned long umoddi3(unsigned long a, unsigned long b) {
+	unsigned long	r;
+
+	// Return a modulo b, or a%b in C syntax
+	r = udivdi3(a, b);
+	r = r * b;
+	r = a - r;
+	return r;
+}
+

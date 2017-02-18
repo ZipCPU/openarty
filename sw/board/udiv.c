@@ -59,6 +59,14 @@ uint32_t zip_bitrev(const uint32_t a) {
 }
 #endif
 
+#ifndef	EOL
+#ifdef __ZIPCPU__
+#define	EOL "\r\n"
+#else
+#define	EOL "\n"
+#endif
+#endif
+
 extern	int	cltz(unsigned long);
 
 #ifdef	__ZIPCPU__
@@ -125,46 +133,12 @@ cltz(unsigned long v) {
 }
 #endif
 
-#ifdef	__ZIPCPU__
-#include <sys/unistd.h>
-#include <stdio.h>
-#include <string.h>
-
-int _write_r(void *, int fd, const char *bf, size_t ln);
-
-void	__attribute__((noinline))
-sdump(const char *a) {
-	int ln = strlen(a);
-	_write_r(0, STDOUT_FILENO, a, ln);
-}
-
-void	__attribute__((noinline))
-dump(unsigned long v) {
-	char	s[24];
-
-	for(int i=0; i<16; i++) {
-		int d = (v>>(i*4)) & 0x0f;
-		if (d < 10)
-			s[15-i] = '0'+d;
-		else
-			s[15-i] = 'a'+d-10;
-	} s[16] = ' '; s[17] = '\0';
-	_write_r(0, STDOUT_FILENO, s, 17);
-}
-#else
-
-#define	sdump(A)
-#define	dump(A)
-
-#endif
-
+__attribute((noinline))
 unsigned long udivdi3(unsigned long a, unsigned long b) {
 	unsigned long	r;
 
 	if (a < b)
 		return 0;
-	sdump("UD: ");
-	dump(a); dump(b); sdump(" -- ");
 	if (((b>>32)==0)&&((a>>32)==0)) {
 		uint32_t	ia, ib, ir;
 
@@ -172,7 +146,6 @@ unsigned long udivdi3(unsigned long a, unsigned long b) {
 		ib = (uint32_t) b;
 		ir = ia / ib;
 		r = (unsigned long)ir;
-		dump(r); sdump(" (A)\r\n");
 		return r;
 	}
 
@@ -189,24 +162,78 @@ unsigned long udivdi3(unsigned long a, unsigned long b) {
 		ib = (uint32_t)(b>>32);
 		ir = ia / ib;
 		r = ir;
-		dump(r); sdump(" (B)\r\n");
 		return r;
 	} else {
 		// Problem is now to divide
 		//	[a * 2^(la)] / [b * 2^(lb)] * 2^(lb-la)
 		//
+		r = 0;
 		b <<= lb;
 		m = (1ul<<(lb-la));
 		while(m > 0) {
 			if (a >= b) {
 				r |= m;
 				a -= b;
-			} m>>= 1;
+			}
+			m>>= 1;
 			b >>= 1;
-		}
-
-		dump(r); sdump(" (C)\r\n");
-		return r;
+		} return r;
 	}
 }
 
+//
+// A possible assembly version of __divdi3
+//
+//	SUB	8,SP
+//	SW	R0,(SP)
+//	SW	R5,4(SP)
+//	LDI	0,R5
+//	CMP	0,R1
+//	BGE	.La_is_nonneg
+//	XOR	1,R5
+//	XOR	-1,R1
+//	XOR	-1,R2
+//	ADD	1,R2
+//	ADD.C	1,R1
+//.La_is_nonneg
+//	CMP	0,R3
+//	BGE	.Lb_is_nonneg
+//	XOR	1,R5
+//	XOR	-1,R3
+//	XOR	-1,R3
+//	ADD	1,R4
+//	ADD.C	1,R3
+//.Lb_is_nonneg
+//	TEST	R5
+//	MOV	.Lnegate_upon_return(PC),R0
+//	MOV.Z	.Lsimple_return(PC),R0
+//	BRA	__udivdi3
+//.Lnegate_upon_return
+//	XOR	-1,R2
+//	XOR	-1,R1
+//	ADD	1,R2
+//	ADD.C	1,R1
+//.Lsimple_return
+//
+//	LW	(SP),R0,(SP)
+//	LW	4(SP),R5)
+//	ADD	8,SP
+//	RETN
+//
+long divdi3(long a, long b) {
+	int	s = 0;
+	long	r;
+
+	if (a < 0) {
+		s = 1; a = -a;
+	}
+
+	if (b < 0) {
+		s ^= 1; b = -b;
+	}
+
+	r = (long)udivdi3((unsigned long)a, (unsigned long)b);
+	if (s)
+		r = -r;
+	return r;
+}

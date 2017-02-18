@@ -39,12 +39,21 @@
 #include <stdint.h>
 #include <assert.h>
 
+#ifndef	EOL
+#ifdef	__ZIPCPU__
+#define	EOL	"\r\n"
+#else
+#define	EOL	"\n"
+#endif
+#endif
+
 #include "udiv.c"
+
 
 void	divtest(unsigned long a, unsigned long b) {
 	unsigned long	r = udivdi3(a,b), h;
 
-	printf("[a = %lx] / [b = %lx] =? %lx\r\n", a, b, r);
+	printf("[a = %016lx] / [b = %016lx] =? %016lx" EOL, a, b, r);
 	h = a / b;
 	printf("\t%lx -> %lx\n", h, h-r);
 	fflush(stdout);
@@ -53,10 +62,11 @@ void	divtest(unsigned long a, unsigned long b) {
 
 int main(int argc, char **argv) {
 	printf("\r\n");
-	printf("Division test\r\n");
-	printf("-----------------------\r\n");
+	printf("Division test" EOL);
+	printf("-----------------------" EOL);
 	unsigned long	a, b;
 
+	divtest(0xd7fffffffffff4c7l, 0x0al);
 	divtest(0x0ffffffffl, 0x0al);
 
 	for(int i=0; i<32; i++) {
