@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	memsim.h
+// Filename: 	memsim.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -19,7 +19,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -105,6 +105,7 @@ void	MEMSIM::apply(const uchar wb_cyc, const uchar wb_stb, const uchar wb_we,
 			const BUSW wb_addr, const BUSW wb_data, const uchar wb_sel,
 			unsigned char &o_ack, unsigned char &o_stall, BUSW &o_data) {
 	unsigned	sel = 0;
+
 	if (wb_sel&0x8)
 		sel |= 0x0ff000000;
 	if (wb_sel&0x4)
