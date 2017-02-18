@@ -50,7 +50,7 @@ void	idle_task(void) {
 		zip_idle();
 }
 
-extern int	splash[], mug[];
+extern short	splash[], mug[];
 
 #define	OLED_DISPLAYON		0x0af
 #define	MICROSECOND		(CLOCKFREQ_HZ/1000000)
@@ -272,20 +272,12 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
  * DMA transfer is complete, whereas the second version of the routine
  * returns as soon as the image transfer is complete.
  */
-void	oled_show_image(int *img) {
-#define	USE_DMA
-#ifdef	USE_DMA
-		zip->z_dma.d_len= 6144;
-		zip->z_dma.d_rd = img;
-		zip->z_dma.d_wr = (int *)&sys->io_oled.o_data;
-		zip->z_dma.d_ctrl = DMAONEATATIME|DMA_CONSTDST|DMA_ONOLED;
-#else
-		for(int i=0; i<6144; i++) {
-			while(OLED_BUSY(sys->io_oled))
-				;
-			sys->io_oled.o_data = img[i];
-		}
-#endif
+void	oled_show_image(unsigned short *img) {
+	for(int i=0; i<6144; i++) {
+		while(OLED_BUSY(sys->io_oled))
+			;
+		sys->io_oled.o_data = (unsigned)img[i];
+	}
 }
 
 /*
