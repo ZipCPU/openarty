@@ -78,7 +78,7 @@ public:
 			printf("     ");
 		if (true) {
 		if ((val & 0x40000000)==0) {
-			printf("%s <- 0x.%08x", regstr[(val>>(32-6))&0xf], val&0x03ffffff);
+			printf("%s <- 0x.%07x", regstr[(val>>(32-6))&0xf], val&0x03ffffff);
 		} else if ((val & 0x60000000)==0x60000000) {
 			uint32_t addr = val & 0x7ffffff;
 			if (val&0x08000000)
@@ -87,10 +87,10 @@ public:
 					(val&0x10000000)?"(GBL)":"");
 			else
 				printf("MEM-R[0x.%07x] -> (Not Givn) %s",
-					(addr<<2),
+					(addr<<2)&0x0ffffffc,
 					(val&0x10000000)?"(GBL)":"");
 		} else if ((val & 0x70000000)==0x40000000) {
-			uint32_t val = 0x0fffffff;
+			val &= 0x0fffffff;
 			val <<= 2;
 			printf("JMP 0x%08x", (val&0x0fffffff));
 		} else {
