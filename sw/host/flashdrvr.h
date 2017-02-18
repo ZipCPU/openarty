@@ -52,7 +52,7 @@ private:
 public:
 	FLASHDRVR(DEVBUS *fpga) : m_fpga(fpga) {}
 	bool	erase_sector(const unsigned sector, const bool verify_erase=true);
-	bool	write_page(const unsigned addr, const unsigned len,
+	bool	page_program(const unsigned addr, const unsigned len,
 			const char *data, const bool verify_write=true);
 	bool	write(const unsigned addr, const unsigned len,
 			const char *data, const bool verify=false);
