@@ -123,7 +123,7 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	return true;
 }
 
-bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
+bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 		const char *data, const bool verify_write) {
 	DEVBUS::BUSW	buf[SZPAGEW], bswapd[SZPAGEW];
 
@@ -134,24 +134,33 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 	if (len <= 0)
 		return true;
 
-	for(unsigned i=0; i<len; i+=4)
-		bswapd[(i>>2)] = buildword((const unsigned char *)&data[i]);
+	bool	empty_page = true;
+	for(unsigned i=0; i<len; i+=4) {
+		DEVBUS::BUSW v;
+		v = buildword((const unsigned char *)&data[i]);
+		bswapd[(i>>2)] = v;
+		if (v != -1)
+			empty_page = false;
+	}
 
-	// Write the page
-	m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
-	m_fpga->clear();
-	m_fpga->writeio(R_ICONTROL, ISPIF_EN);
-	printf("Writing page: 0x%08x - 0x%08x\r", addr, addr+len-1);
-	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
-	SETSCOPE;
-	m_fpga->writei(addr, (len>>2), bswapd);
+	if (!empty_page) {
+		// Write the page
+		m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
+		m_fpga->clear();
+		m_fpga->writeio(R_ICONTROL, ISPIF_EN);
+		printf("Writing page: 0x%08x - 0x%08x\r", addr, addr+len-1);
+		m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
+		SETSCOPE;
+		m_fpga->writei(addr, (len>>2), bswapd);
 
-	// If we're in high speed mode and we want to verify the write, then
-	// we can skip waiting for the write to complete by issueing a read
-	// command immediately.  As soon as the write completes the read will
-	// begin sending commands back.  This allows us to recover the lost 
-	// time between the interrupt and the next command being received.
-	flwait();
+		// If we're in high speed mode and we want to verify the write,
+		// then we can skip waiting for the write to complete by
+		// issueing a read command immediately.  As soon as the write
+		// completes the read will begin sending commands back.  This
+		// allows us to recover the lost time between the interrupt and
+		// the next command being received.
+		flwait();
+	}
 	// if ((!HIGH_SPEED)||(!verify_write)) { }
 	if (verify_write) {
 		// printf("Attempting to verify page\n");
@@ -260,7 +269,7 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 			// our results to the page boundary
 			if (PAGEOF(start+len-1)!=PAGEOF(start))
 				len = PAGEOF(start+PGLENB)-start;
-			if (!write_page(start, len, &data[p-addr], verify)) {
+			if (!page_program(start, len, &data[p-addr], verify)) {
 				printf("WRITE-PAGE FAILED!\n");
 				return false;
 			}
