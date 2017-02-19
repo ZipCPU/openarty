@@ -397,7 +397,7 @@ void	main(int argc, char **argv) {
 
 		// Now ... finally ... we can send our image.
 		oled_show_image(splash);
-		wait_on_interrupt(SYSINT_DMAC);
+		// wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
 		sys->io_b.i_leds = 0x0f1;
@@ -415,7 +415,7 @@ void	main(int argc, char **argv) {
 		// Display a second image.
 		sys->io_b.i_leds = 0x0fc;
 		oled_show_image(mug);
-		wait_on_interrupt(SYSINT_DMAC);
+		// wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
 		sys->io_b.i_leds = 0x0f8;
