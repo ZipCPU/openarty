@@ -43,6 +43,11 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 
+#define	udivdi3	__udivdi3
+#define	umoddi3	__umoddi3
+#include "udiv.c"
+#include "umod.c"
+
 #define	sys	_sys
 
 void	idle_task(void) {
@@ -54,11 +59,6 @@ void	wait_on_interrupt(int mask) {
 	zip->z_pic = DALLPIC|mask;
 	zip->z_pic = EINT(mask);
 	zip_rtu();
-}
-
-
-long	__udivdi3(long a, long b) {
-	return 0;
 }
 
 void	main(int argc, char **argv) {
