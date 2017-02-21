@@ -44,7 +44,8 @@
 //
 module	memdev(i_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
 		o_wb_ack, o_wb_stall, o_wb_data);
-	parameter	AW=15, DW=32, EXTRACLOCK= 0;
+	parameter	LGMEMSZ=15, DW=32, EXTRACLOCK= 0;
+	localparam	AW = LGMEMSZ - 2;
 	input				i_clk, i_wb_cyc, i_wb_stb, i_wb_we;
 	input		[(AW-1):0]	i_wb_addr;
 	input		[(DW-1):0]	i_wb_data;

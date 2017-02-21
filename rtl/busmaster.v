@@ -936,13 +936,13 @@ module	busmaster(i_clk, i_rst,
 	assign	enet_tx_int = 1'b0;
 
 	//
-	// 2kW memory, 1kW for each of transmit and receive.  (Max pkt length
+	// 8kW memory, 4kW for each of transmit and receive.  (Max pkt length
 	// is 512W, so this allows for two 512W in memory.)  Since we don't
 	// really have ethernet without ETHERNET_ACCESS defined, this just
 	// consumes resources for us so we have an idea of what might be 
 	// available when we do have ETHERNET_ACCESS defined.
 	//
-	memdev #(11) enet_buffers(i_clk, wb_cyc,
+	memdev #(13) enet_buffers(i_clk, wb_cyc,
 			(wb_stb)&&((netb_sel)||(netp_sel)), wb_we,
 		wb_addr[10:0], wb_data, wb_sel, net_ack, net_stall, net_data);
 	assign	o_mdclk = 1'b1;
@@ -975,7 +975,7 @@ module	busmaster(i_clk, i_rst,
 	//
 	// There is no option to turn this off--this RAM must always be
 	// present in the design.
-	memdev	#(.AW(15),
+	memdev	#(.LGMEMSZ(17),
 		.EXTRACLOCK(0)) // 32kW, or 128kB, 15 address lines
 		blkram(i_clk, wb_cyc, (wb_stb)&&(mem_sel), wb_we, wb_addr[14:0],
 				wb_data, wb_sel, mem_ack, mem_stall, mem_data);
