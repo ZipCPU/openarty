@@ -75,10 +75,14 @@ int main(int argc, char **argv) {
 	unsigned	sz;
 
 	if (vector_read) {
-		m_fpga->readi(DUMPMEM, BUFLN, buf);
+		m_fpga->readi(DUMPMEM, BUFLN>>2, (DEVBUS::BUSW *)&buf[0]);
+		byteswapbuf(BUFLN>>2, buf);
 	} else {
 		for(int i=0; i<BUFLN; i+=4) {
+			DEVBUS::BUSW	word;
+
 			word = m_fpga->readio(DUMPMEM+i);
+			
 			buf[i  ] = (word>>24) & 0x0ff;
 			buf[i+1] = (word>>16) & 0x0ff;
 			buf[i+2] = (word>> 8) & 0x0ff;
@@ -89,7 +93,7 @@ int main(int argc, char **argv) {
 
 	// Now, let's find the end
 	sz = BUFLN-1;
-	while((sz>0)&&(buf[sz] == 0xffffffff))
+	while((sz>0)&&((unsigned char)buf[sz] == 0xff))
 		sz--;
 	sz+=1;
 
