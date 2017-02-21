@@ -745,7 +745,7 @@ module	busmaster(i_clk, i_rst,
 	//	Auxilliary UART (console port)
 	//
 	//
-	wbuart	#(30'd705)	// 115200 Baud, 8N1, from 81.25M
+	wbuart	#(31'd705)	// 115200 Baud, 8N1, from 81.25M
 		console(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(uart_sel), wb_we, wb_addr[1:0], wb_data,
 			uart_ack, uart_stall, uart_data,
@@ -758,7 +758,8 @@ module	busmaster(i_clk, i_rst,
 	//
 	//
 	wire	gps_cts_ignored;
-	wbuart	#(30'd8464)	//   9600 Baud, 8N1
+	wbuart	#(.INITIAL_SETUP(31'd8464),	//   9600 Baud, 8N1
+		.HARDWARE_FLOW_CONTROL_PRESENT(1'b0))
 		gpsdata(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(gpsu_sel), wb_we, wb_addr[1:0], wb_data,
 			gpsu_ack, gpsu_stall, gpsu_data,

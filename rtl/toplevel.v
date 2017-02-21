@@ -204,9 +204,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// UART interface
 	//
 	//
-	wire	[29:0]	bus_uart_setup;
-	// assign	bus_uart_setup = 30'h10000014; // ~4MBaud, 7 bits
-	assign		bus_uart_setup = 30'h10000051; // ~1MBaud, 7 bits
+	// localparam	BUSUART = 30'h50000014; // ~4MBaud, 7 bits, no flwctrl
+	localparam	BUSUART = 31'h50000051;	// ~1MBaud, 7 bits, no flwctrl
+	wire	[30:0]	bus_uart_setup;
+	assign		bus_uart_setup = BUSUART;
 
 	wire	[7:0]	rx_data, tx_data;
 	wire		rx_break, rx_parity_err, rx_frame_err, rx_stb;
@@ -252,11 +253,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 `endif
 
 	wire	w_ck_uart, w_uart_tx;
-	rxuart	rcv(s_clk, s_reset, bus_uart_setup, i_uart_rx,
+	rxuart	#(BUSUART) rcv(s_clk, s_reset, bus_uart_setup, i_uart_rx,
 				rx_stb, rx_data, rx_break,
 				rx_parity_err, rx_frame_err, w_ck_uart);
-	txuart	txv(s_clk, s_reset, bus_uart_setup|30'h8000000, 1'b0,
-				tx_stb, tx_data, o_uart_tx, tx_busy);
+	txuart	#(BUSUART) txv(s_clk, s_reset, bus_uart_setup, 1'b0,
+				tx_stb, tx_data, 1'b1, o_uart_tx, tx_busy);
 
 
 	wire	[3:0]	w_led;
