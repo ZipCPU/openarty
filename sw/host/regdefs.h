@@ -198,7 +198,7 @@
 #define	MEMLEN		0x00020000
 // Flash memory space
 #define	EQSPIFLASH	0x01000000
-#define	RESET_ADDRESS	0x010e0000
+#define	RESET_ADDRESS	0x01380000
 // #define	FLASHWORDS	(1<<22)
 #define	FLASHLEN	(1<<24)
 // DDR3 SDRAM memory space
