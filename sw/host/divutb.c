@@ -4,14 +4,15 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	To test the logic of the ZipCPU unsigned, 64-bit divide 
+//		function in an easier-to-debug fashion.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -47,7 +48,8 @@
 #endif
 #endif
 
-#include "udiv.c"
+#define	__udivdi3	udivdi3
+#include "../zlib/udiv.c"
 
 
 void	divtest(unsigned long a, unsigned long b) {
@@ -64,7 +66,6 @@ int main(int argc, char **argv) {
 	printf("\r\n");
 	printf("Division test" EOL);
 	printf("-----------------------" EOL);
-	unsigned long	a, b;
 
 	divtest(0xd7fffffffffff4c7l, 0x0al);
 	divtest(0x0ffffffffl, 0x0al);
@@ -102,5 +103,7 @@ int main(int argc, char **argv) {
 	divtest(0x1000000000000000l, 0x03000000000l);
 	divtest(0x1000000000000000l, 0x030000000000l);
 	divtest(0x1000000000000000l, 0x0300000000000l);
+
+	printf("SUCCESS!\n");
 }
 
