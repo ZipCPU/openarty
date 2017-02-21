@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
 	signal(SIGSTOP, closeup);
 	signal(SIGHUP, closeup);
 
-	CPUSCOPE *scope = new CPUSCOPE(m_fpga, WBSCOPE, false);
+	CPUSCOPE *scope = new CPUSCOPE(m_fpga, WBSCOPE, true);
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
