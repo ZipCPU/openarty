@@ -7,14 +7,7 @@
 // Purpose:	This is a temporary file--a crutch if you will--until a similar
 //		capability is merged into GCC.  Right now, GCC has no way of
 //	dividing two 64-bit numbers, and this routine provides that capability.
-//	__udivdi3 is actually the name GCC wants, so if you'd like to include
-//	this into your program, do a ...
 //
-//	#define	udivdi3	__udivdi3
-//	#include "udiv.c"
-//
-//	Once gcc is properly patched, this will be removed from the 
-//	repository.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -46,6 +39,9 @@
 //
 //
 #include <stdint.h>
+
+
+
 #ifdef	__ZIPCPU__
 #include "zipcpu.h"
 #else
@@ -57,14 +53,6 @@ uint32_t zip_bitrev(const uint32_t a) {
 		b >>= 1;
 	} return r;
 }
-#endif
-
-#ifndef	EOL
-#ifdef __ZIPCPU__
-#define	EOL "\r\n"
-#else
-#define	EOL "\n"
-#endif
 #endif
 
 extern	int	cltz(unsigned long);
@@ -99,7 +87,7 @@ asm("\t.section\t.text\n\t.global\tcltz\n"
 	"\tADD.Z 1,R1\n"
 	"\tRETN\n");
 #else
-int	__attribute__((nolinline))
+int	__attribute__((noinline))
 cltz(unsigned long v) {
 	uint32_t	hv;
 	int		cnt = 0;
@@ -133,8 +121,10 @@ cltz(unsigned long v) {
 }
 #endif
 
+#ifdef	__ZIPCPU__
 __attribute((noinline))
-unsigned long udivdi3(unsigned long a, unsigned long b) {
+#endif
+unsigned long __udivdi3(unsigned long a, unsigned long b) {
 	unsigned long	r;
 
 	if (a < b)
@@ -220,7 +210,7 @@ unsigned long udivdi3(unsigned long a, unsigned long b) {
 //	ADD	8,SP
 //	RETN
 //
-long divdi3(long a, long b) {
+long __divdi3(long a, long b) {
 	int	s = 0;
 	long	r;
 
@@ -232,7 +222,7 @@ long divdi3(long a, long b) {
 		s ^= 1; b = -b;
 	}
 
-	r = (long)udivdi3((unsigned long)a, (unsigned long)b);
+	r = (long)__udivdi3((unsigned long)a, (unsigned long)b);
 	if (s)
 		r = -r;
 	return r;

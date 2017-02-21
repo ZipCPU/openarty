@@ -7,11 +7,7 @@
 // Purpose:	This is a temporary file--a crutch if you will--until a similar
 //		capability is merged into GCC.  Right now, GCC has no way of
 //	taking the module of two 64-bit numbers, and this routine provides that
-//	capability.  __umoddi3 is actually the name GCC wants, so if you'd like
-//	to include this into your program, do a ...
-//
-//	#define	umoddi3	__umoddi3
-//	#include "umod.c"
+//	capability.
 //
 //	This routine is required by and used by newlib's printf in order to
 //	print decimal numbers (%d) to an IO stream.
@@ -24,7 +20,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -51,12 +47,14 @@
 #include <stdint.h>
 
 
+unsigned long __udivdi3(unsigned long, unsigned long);
+
 __attribute((noinline))
-unsigned long umoddi3(unsigned long a, unsigned long b) {
+unsigned long __umoddi3(unsigned long a, unsigned long b) {
 	unsigned long	r;
 
 	// Return a modulo b, or a%b in C syntax
-	r = udivdi3(a, b);
+	r = __udivdi3(a, b);
 	r = r * b;
 	r = a - r;
 	return r;
