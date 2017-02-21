@@ -37,7 +37,8 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping zipload zipstate zipdbg
+PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping	\
+	zipload zipstate zipdbg divutb
 SCOPES := eqspiscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
@@ -58,7 +59,9 @@ LIBS :=
 SUBMAKE := $(MAKE) --no-print-directory
 
 %.o: $(OBJDIR)/%.o
-$(OBJDIR)/%.o: %.cpp $(OBJDIR)/
+$(OBJDIR)/%.o: %.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@
+$(OBJDIR)/%.o: %.c
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 .PHONY: gps
@@ -70,7 +73,7 @@ $(OBJDIR)/hsnetuart.o: netuart.cpp
 
 .PHONY: clean
 clean:
-	rm -rf $(OBJDIR)/ $(PROGRAMS)
+	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out
 
 $(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h $(OBJDIR)/
 $(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h $(OBJDIR)/
@@ -97,6 +100,8 @@ wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
 	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
 	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
+divutb: $(OBJDIR)/divutb.o
+	$(CXX) $(CFLAGS) $^ -o $@
 
 #
 # Programs that depend upon not just the bus objects, but the flash driver
@@ -135,6 +140,7 @@ zipdbg: $(OBJDIR)/zipdbg.o $(BUSOBJS) $(DBGOBJS)
 
 define	build-depends
 	@echo "Building dependency file(s)"
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 	$(CXX) $(CPPFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
@@ -149,7 +155,6 @@ depends: tags
 	$(build-depends)
 
 $(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 	$(build-depends)
 
 $(OBJDIR)/:
