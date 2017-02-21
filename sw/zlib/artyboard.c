@@ -36,6 +36,5 @@
 //
 //
 #include "artyboard.h"
-#include "crt0.c"
 #include "syscalls.c"
 

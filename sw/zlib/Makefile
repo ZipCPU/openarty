@@ -1,8 +1,8 @@
 ################################################################################
 ##
-## Filename: 	
+## Filename:	Makefile
 ##
-## Project:	XuLA2-LX25 SoC based upon the ZipCPU
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	
 ##
@@ -37,25 +37,43 @@
 ##
 CC := zip-gcc
 AR := zip-ar
-OBJDIR := obj-zip
+OBJDIR  := obj-zip
+CFLAGS  := -O3
+LIBSRCS := udiv.c umod.c artyboard.c crt0.c
+LIBOBJS := $(addprefix $(OBJDIR)/,$(subst .c,.o,$(LIBSRCS)))
 all: libarty.a
-CFLAGS: -ffreestanding
 
-$(OBJDIR)/:
-	@bash -c "if [[ ! -e $(OBJDIR) ]]; then mkdir -p $(OBJDIR); fi"
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/artyboard.o: $(OBJDIR)/
-$(OBJDIR)/artyboard.o: bootloader.h
-$(OBJDIR)/artyboard.o: zipcpu.h
-$(OBJDIR)/artyboard.o: zipsys.h
-$(OBJDIR)/artyboard.o: crt0.c
-$(OBJDIR)/artyboard.o: syscalls.c
-$(OBJDIR)/artyboard.o: artyboard.c
-	$(CC) $(CFLAGS) -c artyboard.c -o $(OBJDIR)/artyboard.o
+$(OBJDIR)/crt0.o: crt0.c
+	$(CC) $(CFLAGS) -ffreestanding -c $< -o $@
 
-libarty.a: $(OBJDIR)/artyboard.o
-	$(AR) -cru libarty.a $(OBJDIR)/artyboard.o
-
+libarty.a: $(LIBOBJS)
+	$(AR) -cru libarty.a $(LIBOBJS)
 
 clean:
 	rm -rf libarty.a libarty.a $(OBJDIR)/
+
+define	build-depends
+	@echo "Building dependency file(s)"
+	@$(CC) $(CFLAGS) -MM $(LIBSRCS) > $(OBJDIR)/xdepends.txt
+	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
+	@rm $(OBJDIR)/xdepends.txt
+endef
+
+tags: $(LIBSRCS) $(HEADERS)
+	@echo "Generating tags"
+	@ctags $(LIBSRCS) $(HEADERS)
+
+$(OBJDIR)/depends.txt: $(OBJDIR)/
+	$(build-depends)
+
+.PHONY: depends
+depends:
+	$(build-depends)
+
+$(OBJDIR)/:
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+
+-include $(OBJDIR)/depends.txt
