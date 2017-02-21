@@ -120,7 +120,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 `ifdef	OPT_CIS
 	reg	[15:0]	r_nxt_half;
 	assign	iword = (o_phase)
-				// set second half as a NOOP ... but really 
+				// set second half as a NOOP ... but really
 				// shouldn't matter
 			? { r_nxt_half[15:0], i_instruction[15:0] }
 			: i_instruction;
@@ -191,7 +191,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 	always @(iword)
 		w_cis_op <= w_op;
 `endif
-		
+
 	assign	w_op= iword[26:22];
 	assign	w_mov    = (w_cis_op      == 5'h0d);
 	assign	w_ldi    = (w_cis_op[4:1] == 4'hc);
@@ -264,7 +264,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			((w_fpu)&&(w_cis_op[4:1] != 4'hf))
 			// Divide's read A
 			||(w_div)
-			// ALU ops read A, 
+			// ALU ops read A,
 			//	except for MOV's and BREV's which don't
 			||((w_ALU)&&(!w_brev)&&(!w_mov))
 			// STO's read A
@@ -290,7 +290,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 	assign	w_wR     = ~w_wR_n;
 	//
 	// wF -- do we write flags when we are done?
-	//	
+	//
 	assign	w_wF     = (w_cmptst)
 			||((w_cond[3])&&((w_fpu)||(w_div)
 				||((w_ALU)&&(!w_mov)&&(!w_ldilo)&&(!w_brev)
@@ -429,7 +429,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			//	the ALU.  Likewise, the two compare instructions
 			//	CMP and TST becomes SUB and AND here as well.
 			// We keep only the bottom four bits, since we've
-			// already done the rest of the decode necessary to 
+			// already done the rest of the decode necessary to
 			// settle between the other instructions.  For example,
 			// o_FP plus these four bits uniquely defines the FP
 			// instruction, o_DV plus the bottom of these defines
@@ -446,7 +446,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			r_I    <= w_I;
 			o_zI   <= w_Iz;
 
-			// Turn a NOOP into an ALU operation--subtract in 
+			// Turn a NOOP into an ALU operation--subtract in
 			// particular, although it doesn't really matter as long
 			// as it doesn't take longer than one clock.  Note
 			// also that this depends upon not setting any registers
@@ -594,7 +594,7 @@ module	idecode(i_clk, i_rst, i_ce, i_stalled,
 			r_valid <= 1'b1;
 		else if (~i_stalled)
 			r_valid <= 1'b0;
-			
+
 
 	assign	o_I = { {(32-22){r_I[22]}}, r_I[21:0] };
 
