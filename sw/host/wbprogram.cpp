@@ -4,7 +4,8 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	Program the memory with a given '.bin' file.
+// Purpose:	Program the memory with a given '.bin' file onto the flash
+//		memory on a given board.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -62,9 +63,50 @@ void	usage(void) {
 	printf("\tYou can also use a .bin file in place of the file.bit.\n");
 }
 
+void	skip_bitfile_header(FILE *fp) {
+	const unsigned	SEARCHLN = 204, MATCHLN = 52;
+	const unsigned char matchstr[MATCHLN] = {
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0x00, 0x00, 0x00, 0xbb,
+		0x11, 0x22, 0x00, 0x44,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0xaa, 0x99, 0x55, 0x66 };
+	unsigned char	buf[SEARCHLN];
+
+	rewind(fp);
+	fread(buf, sizeof(char), SEARCHLN, fp);
+	for(int start=0; start+MATCHLN<SEARCHLN; start++) {
+		int	mloc;
+
+		// Search backwards, since the starting bytes just aren't that
+		// interesting.
+		for(mloc = MATCHLN-1; mloc >= 0; mloc--)
+			if (buf[start+mloc] != matchstr[mloc])
+				break;
+		if (mloc < 0) {
+			fseek(fp, start, SEEK_SET);
+			return;
+		}
+	}
+
+	fprintf(stderr, "Could not find bin-file header within bit file\n");
+	fclose(fp);
+	exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv) {
 	FILE	*fp;
-	const int	BUFLN = (1<<20); // 4MB Flash
 	DEVBUS::BUSW	addr = EQSPIFLASH;
 	char		*buf = new char[FLASHLEN];
 	FLASHDRVR	*flash;
@@ -122,8 +164,8 @@ int main(int argc, char **argv) {
 
 	fp = fopen(argv[argn], "r");
 	if (strcmp(&argv[argn][strlen(argv[argn])-4],".bit")==0)
-		fseek(fp, 0x5dl, SEEK_SET);
-	sz = fread(buf, sizeof(buf[0]), BUFLN, fp);
+		skip_bitfile_header(fp);
+	sz = fread(buf, sizeof(buf[0]), FLASHLEN, fp);
 	fclose(fp);
 
 	try {

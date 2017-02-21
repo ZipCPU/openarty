@@ -43,6 +43,19 @@ export BINFILE=../../xilinx/openarty.runs/impl_1/toplevel.bit
 WBREGS=wbregs
 WBPROG=wbprogram
 
+RED=0x000f0000
+GREEN=0x0000ff00
+YELLOW=0x00170700
+WHITE=0x000f0f0f
+BLACK=0x00000000
+DIMGREEN=0x00001f00
+
+$WBREGS led 0x0ff
+$WBREGS clrled0 $YELLOW
+$WBREGS clrled1 $YELLOW
+$WBREGS clrled2 $YELLOW
+$WBREGS clrled3 $YELLOW
+
 # 
 # $WBREGS qspiv 0x8b	# Accomplished by the flash driver
 #
@@ -52,47 +65,17 @@ $WBPROG @0x011c0000 $BINFILE
 $WBREGS stopwatch 0	# Stop the stopwatch, we are done
 $WBREGS stopwatch	# Print out the time on the stopwatch
 
+$WBREGS led 0x0f0
+$WBREGS clrled0 $DIMGREEN
+$WBREGS clrled1 $DIMGREEN
+$WBREGS clrled2 $DIMGREEN
+$WBREGS clrled3 $DIMGREEN
+
 $WBREGS wbstar 0x01c0000
 $WBREGS fpgacmd 15
 sleep 1
 
-
-RED=0x00ff0000
-GREEN=0x0000ff00
-WHITE=0x00070707
-BLACK=0x00000000
-DIMGREEN=0x00001f00
-
-$WBREGS led 0x0ff
-$WBREGS clrled0 $RED
-$WBREGS clrled1 $RED
-$WBREGS clrled2 $RED
-$WBREGS clrled3 $RED
-
-sleep 1
-$WBREGS clrled0 $GREEN
-$WBREGS led 0x10
-sleep 1
-$WBREGS clrled1 $GREEN
-$WBREGS clrled0 $DIMGREEN
-$WBREGS led 0x20
-sleep 1
-$WBREGS clrled2 $GREEN
-$WBREGS clrled1 $DIMGREEN
-$WBREGS led 0x40
-
 if [[ -x ./wbsettime ]]; then
   ./wbsettime
 fi
-
-$WBREGS clrled3 $GREEN
-$WBREGS clrled2 $DIMGREEN
-$WBREGS led 0x80
-sleep 1
-$WBREGS clrled0 $WHITE
-$WBREGS clrled1 $WHITE
-$WBREGS clrled2 $WHITE
-$WBREGS clrled3 $WHITE
-$WBREGS led 0x00
-
 
