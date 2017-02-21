@@ -48,11 +48,11 @@
 #define	COUNTER		zip->z_m.ac_ck
 
 // #define	HAVE_COUNTER
-// #define	HAVE_SCOPE
-// #define	SCOPEc	sys->io_scope[0].s_ctrl
-// #define	SCOPE_DELAY		4
-// #define	TRIGGER_SCOPE_NOW	(SCOPE_TRIGGER|SCOPE_DELAY)
-// #define	PREPARE_SCOPE		SCOPE_DELAY
+#define	HAVE_SCOPE
+#define	SCOPEc			_sys->io_scope[0].s_ctrl
+#define	SCOPE_DELAY		4
+#define	TRIGGER_SCOPE_NOW	(WBSCOPE_TRIGGER|SCOPE_DELAY)
+#define	PREPARE_SCOPE		SCOPE_DELAY
 
 unsigned	zip_ucc(void);
 unsigned	zip_cc(void);
@@ -725,6 +725,23 @@ int	soft_mpyshi(int a, int b) {
 	return r;
 }
 
+int	div_test(void);
+asm("\t.text\n\t.global\tdiv_test\n"
+	"\t.type\tdiv_test,@function\n"
+"div_test:\n"
+	"\tLDI\t0x4881a7,R4\n"
+	"\tLDI\t0x2d5108b,R2\n"
+	"\tLDI\t10,R3\n"
+	"\tDIVU\tR3,R2\n"
+	"\tCMP\tR4,R2\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tRETN.NZ\n"
+	"\tLDI\t0x2d5108b,R2\n"
+	"\tDIVU\t10,R2\n"
+	"\tCMP\tR4,R2\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tRETN\n");
+
 //brev_test
 //pipeline_test -- used to be called pipeline memory race conditions
 void	pipeline_test(void);
@@ -977,6 +994,24 @@ asm("\t.text\n.global\tcis_test\n"
 	"\t.int\t0x83d08be0\n"
 	"\tJMP\tR0\n");
 
+void	cmpeq_test(void);
+asm("\t.text\n.global\tcmpeq_test\n"
+	"\t.type\tcmpeq_test,@function\n"
+"cmpeq_test:\n"
+	"\tCMP\tR1,R2\n"
+	"\tCMP.Z\tR3,R4\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tJMP\tR0\n");
+
+void	cmpneq_test(void);
+asm("\t.text\n.global\tcmpneq_test\n"
+	"\t.type\tcmpneq_test,@function\n"
+"cmpneq_test:\n"
+	"\tLDI\t1,R4\n"
+	"\tCMP\tR1,R2\n"
+	"\tCMP.Z\tR3,R4\n"
+	"\tLDILO.Z\t1,R0\n"
+	"\tJMP\tR0\n");
 //
 // The CC register has some ... unique requirements associated with it.
 // Particularly, flags are unavailable until after an ALU operation completes,
@@ -1072,7 +1107,7 @@ void	txchr(char v) {
 
 void	wait_for_uart_idle(void) {
 #ifdef	_ZIP_HAS_WBUART
-	while(_uart->u_fifo & 0x10000)	// While the FIFO is non-empty
+	while((_uart->u_fifo & 0x10000)==0)	// While the FIFO is non-empty
 		;
 	while(_uart->u_tx & 0x100)
 		;
@@ -1205,7 +1240,7 @@ void entry(void) {
 	int	context[16];
 	int	user_stack[256], *user_stack_ptr = &user_stack[256];
 	int	start_time, i;
-	int	cc_fail;
+	int	cc_fail, cis_insns = 0;
 
 
 	for(i=0; i<32; i++)
@@ -1221,7 +1256,8 @@ void entry(void) {
 	SCOPEc = PREPARE_SCOPE;
 #endif
 
-	UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
+	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
+	UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
@@ -1238,9 +1274,9 @@ void entry(void) {
 	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_TRAP|CC_STEP|CC_SLEEP;
 	if ((run_test(sim_test, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
-	else if (zip_ucc() & CC_ILL)
-		txstr("Pass\r\n");
-	else
+	else if (zip_ucc() & CC_ILL) {
+		txstr("Pass\r\n"); testlist[tnum++];	// 0
+	} else
 		txstr("Is this a simulator?\r\n");
 
 	testid("CIS Instructions"); MARKSTART;
@@ -1249,8 +1285,10 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	else if (zip_ucc() & CC_ILL)
 		txstr("Not supported\r\n");
-	else
+	else {
 		txstr("Supported\r\n");
+		cis_insns = 1;
+	}
 
 	// Test break instruction in user mode
 	// Make sure the break works as designed
@@ -1262,7 +1300,7 @@ void entry(void) {
 	save_context(context);
 	if ((context[15] != (int)break_one+4)||(0==(zip_ucc()&CC_BREAK)))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// 0
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #1
 
 
 	// Test break instruction in user mode
@@ -1272,7 +1310,7 @@ void entry(void) {
 	testid("Break test #2"); MARKSTART;
 	if ((run_test(break_two, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #1
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
 
 	// Test break instruction in user mode
 	// Make sure that a decision on the clock prior won't still cause a 
@@ -1285,7 +1323,7 @@ void entry(void) {
 			||(0==(zip_ucc()&CC_BREAK))//insn,that the break flag is
 			||(zip_ucc()&cc_fail))	// set, and no other excpt flags
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
 
 	// LJMP test ... not (yet) written
 
@@ -1294,7 +1332,7 @@ void entry(void) {
 	testid("Early Branch test"); MARKSTART;
 	if ((run_test(early_branch_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
 
 	// TRAP test
 	testid("Trap test/AND"); MARKSTART;
@@ -1302,38 +1340,38 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #5
 
 	testid("Trap test/CLR"); MARKSTART;
 	if ((run_test(trap_test_clr, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #5
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
 
 	// Overflow test
 	testid("Overflow test"); MARKSTART;
 	if ((run_test(overflow_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7
 
 	// Carry test
 	testid("Carry test"); MARKSTART;
 	if ((run_test(carry_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
 
 	// LOOP_TEST
 	testid("Loop test"); MARKSTART;
 	if ((run_test(loop_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
 
 	// SHIFT_TEST
 	testid("Shift test"); MARKSTART;
 	if ((run_test(shift_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #10
 
 	// BREV_TEST
 	//testid("BREV/stack test"); MARKSTART;
@@ -1387,6 +1425,20 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #17
 
+	// Compare EQuals test
+	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
+	testid("Comparison test, =="); MARKSTART;
+	if ((run_test(cmpeq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
+
+	// Compare !EQuals test
+	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
+	testid("Comparison test, !="); MARKSTART;
+	if ((run_test(cmpneq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
+
 	// Pipeline memory race condition test
 	// DIVIDE test
 
@@ -1394,25 +1446,34 @@ void entry(void) {
 	testid("CC Register test"); MARKSTART;
 	if ((run_test(ccreg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
 
 	// Multiple argument test
 	testid("Multi-Arg test"); MARKSTART;
 	if ((run_test(multiarg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
 
 	// MPY_TEST
 	testid("Multiply test"); MARKSTART;
 	if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #22
 
 	// MPYxHI_TEST
 	testid("Multiply HI-word test"); MARKSTART;
 	if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #23
+
+	// DIV_TEST
+	testid("Divide test");
+	if ((zip_cc() & 0x20000000)==0) {
+		txstr("No divide unit installed\r\n");
+	} else { MARKSTART;
+	if ((run_test(div_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	} txstr("Pass\r\n"); testlist[tnum++] = 0;	// #24
 
 
 	txstr("\r\n");

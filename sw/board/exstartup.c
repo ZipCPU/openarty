@@ -43,11 +43,6 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 
-#define	udivdi3	__udivdi3
-#define	umoddi3	__umoddi3
-#include "udiv.c"
-#include "umod.c"
-
 #define	sys	_sys
 
 void	idle_task(void) {
