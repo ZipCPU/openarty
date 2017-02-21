@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015, Gisselquist Technology, LLC
+## Copyright (C) 2016-2017, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -23,26 +23,32 @@
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
 ##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory, run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
 ## License:	GPL, v3, as defined and found on www.gnu.org,
-##		http:##www.gnu.org/licenses/gpl.html
+##		http://www.gnu.org/licenses/gpl.html
 ##
 ##
 ################################################################################
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping divutb  # hello
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping hello
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
 RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c bootloader.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c divutb.c # ntpserver.c
-HEADERS := artyboard.h zipsys.h
+SOURCES := exstartup.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c # ntpserver.c
+HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
-LFLAGS  := -T arty.ld ../zlib/obj-zip/artyboard.o
+LFLAGS  := -T arty.ld -L../zlib -Wl,--start-group -larty
+CFLAGS  := -O3 -I../zlib
 #
 # For source analysis, the following macros are defined:
 
@@ -50,63 +56,63 @@ LFLAGS  := -T arty.ld ../zlib/obj-zip/artyboard.o
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.c
-	$(CC) -O3 -c -fno-builtin $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 $(OBJDIR)/hello.o: hello.c
 	$(CC) -O3 -c $< -o $@
-$(OBJDIR)/divutb.o: divutb.c
-	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
-	$(CC) -O3 -S -fno-builtin $< -o $@
+	$(CC) $(CFLAGS) -S $< -o $@
 $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 	bash -c "$(RDELF) -a $^ ; $(OBJDUMP) -S -D $^ " | tee $@
 %.txt: %
 	$(OBJDUMP) -S -D $^ > $@
+
+
+#
+# The CPUTest program here is special--it doesn't use the C library.  Hence,
+# it must have the -fno-builtin flag in order to build, and the -Tartyram.ld
+# linker script to build something that doesn't go into flash but directly into
+# RAM instead.
+#
 $(OBJDIR)/cputest.o: cputest.c
-	$(CC) -O3 -c -Wa,-nocis -fno-builtin $< -o $@
+	$(CC) $(CFLAGS) -c -Wa,-nocis -fno-builtin $< -o $@
 $(OBJDIR)/cputestcis.o: cputest.c
-	$(CC) -O3 -c -Wa,-cis -fno-builtin $< -o $@
+	$(CC) $(CFLAGS) -c -Wa,-cis -fno-builtin $< -o $@
 $(OBJDIR)/cputest.s: cputest.c
-	$(CC) -O3 -S -Wa,-cis -fno-builtin $< -o $@
-
-
+	$(CC) $(CFLAGS) -S -Wa,-cis -fno-builtin $< -o $@
 
 cputest: $(OBJDIR)/cputest.o artyram.ld
-	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputest.map $(OBJDIR)/cputest.o -o $@
+	$(CC) $(CFLAGS) -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputest.map $(OBJDIR)/cputest.o -o $@
 cputestcis: $(OBJDIR)/cputestcis.o artyram.ld
-	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputestcis.map $(OBJDIR)/cputestcis.o -o $@
+	$(CC) $(CFLAGS) -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputestcis.map $(OBJDIR)/cputestcis.o -o $@
 
-quikdiv: $(OBJDIR)/quikdiv.o artyram.ld
-	$(CC) -O3 -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/quikdiv.map $(OBJDIR)/quikdiv.o -o $@
 
+#
+# Other programs are much simpler
 exstartup: $(OBJDIR)/exstartup.o arty.ld
-	$(CC) -O3 $(LFLAGS)  -Wl,-Map=$(OBJDIR)/exstartup.map $(OBJDIR)/exstartup.o -o $@
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/exstartup.o -o $@
 
 exmulti: $(OBJDIR)/exmulti.o arty.ld
-	$(CC) -O3 $(LFLAGS)  -Wl,-Map=$(OBJDIR)/exmulti.map $(OBJDIR)/exmulti.o -o $@
-divutb: $(OBJDIR)/divutb.o arty.ld
-	$(CC) -O3  $(LFLAGS)  -Wl,-Map=$(OBJDIR)/divutb.map $(OBJDIR)/divutb.o -o $@
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/exmulti.o -o $@
 
 gpsdump: $(OBJDIR)/gpsdump.o arty.ld
-	$(CC) -O3 $(LFLAGS) -Wl,-Map=$(OBJDIR)/gpsdump.map $(OBJDIR)/gpsdump.o -o $@
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gpsdump.o -o $@
 
 hello: $(OBJDIR)/hello.o arty.ld
-	$(CC) -O3 $(LFLAGS) -Wl,-Map=$(OBJDIR)/hello.map $(OBJDIR)/hello.o -o $@
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/hello.o -o $@
 
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld
-	$(CC) -O3  $(LFLAGS) -Wl,-Map=$(OBJDIR)/oledtest.map $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o -o $@
+	$(CC) $(CFLAGS)  $(LFLAGS) $^ -o $@
 
-simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o
+simple_ping: $(OBJDIR)/simple_ping.o
 simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o arty.ld
-	$(CC) -O3 -T arty.ld -fno-builtin -Wl,-Map=simple_ping.map $(OBJDIR)/simple_ping.o $(OBJDIR)/bootloader.o $(OBJDIR)/zipcpu.o $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o -o simple_ping
+	$(CC) $(CFLAGS) $(LFLAGS) $^ -o simple_ping
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
 
-cmptst: $(OBJDIR)/cmptst.o
-	$(CC) -O3 $(LFLAGS) $< -o $@
-
 clean:
-	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS)) $(addsuffix .txt,$(PROGRAMS))
+	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS))
+	rm -rf $(addsuffix .txt,$(PROGRAMS))
 	rm -rf $(OBJDIR)/
 
 define	build-depends
