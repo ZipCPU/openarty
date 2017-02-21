@@ -45,12 +45,13 @@
 class	FLASHDRVR {
 private:
 	DEVBUS	*m_fpga;
+	bool	m_debug;
 
 	bool	verify_config(void);
 	void	set_config(void);
 	void	flwait(void);
 public:
-	FLASHDRVR(DEVBUS *fpga) : m_fpga(fpga) {}
+	FLASHDRVR(DEVBUS *fpga) : m_fpga(fpga), m_debug(false) {}
 	bool	erase_sector(const unsigned sector, const bool verify_erase=true);
 	bool	page_program(const unsigned addr, const unsigned len,
 			const char *data, const bool verify_write=true);

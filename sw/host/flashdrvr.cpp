@@ -86,13 +86,13 @@ void	FLASHDRVR::flwait(void) {
 bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	DEVBUS::BUSW	page[SZPAGEW];
 
-	printf("EREG before   : %08x\n", m_fpga->readio(R_QSPI_EREG));
-	printf("Erasing sector: %08x\n", sector);
+	if (m_debug) printf("EREG before   : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	if (m_debug) printf("Erasing sector: %08x\n", sector);
 	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
-	printf("EREG with WEL : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	if (m_debug) printf("EREG with WEL : %08x\n", m_fpga->readio(R_QSPI_EREG));
 	SETSCOPE;
 	m_fpga->writeio(R_QSPI_EREG, ERASEFLAG + (sector>>2));
-	printf("EREG after    : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	if (m_debug) printf("EREG after    : %08x\n", m_fpga->readio(R_QSPI_EREG));
 
 	// If we're in high speed mode and we want to verify the erase, then
 	// we can skip waiting for the erase to complete by issueing a read
@@ -102,12 +102,14 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	if  ((!HIGH_SPEED)||(!verify_erase)) {
 		flwait();
 
-		printf("@%08x -> %08x\n", R_QSPI_EREG,
+		if (m_debug) {
+			printf("@%08x -> %08x\n", R_QSPI_EREG,
 				m_fpga->readio(R_QSPI_EREG));
-		printf("@%08x -> %08x\n", R_QSPI_STAT,
+			printf("@%08x -> %08x\n", R_QSPI_STAT,
 				m_fpga->readio(R_QSPI_STAT));
-		printf("@%08x -> %08x\n", sector,
+			printf("@%08x -> %08x\n", sector,
 				m_fpga->readio(sector));
+		}
 	}
 
 	// Now, let's verify that we erased the sector properly
@@ -139,7 +141,7 @@ bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 		DEVBUS::BUSW v;
 		v = buildword((const unsigned char *)&data[i]);
 		bswapd[(i>>2)] = v;
-		if (v != -1)
+		if (v != 0xffffffff)
 			empty_page = false;
 	}
 
@@ -152,6 +154,7 @@ bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 		m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
 		SETSCOPE;
 		m_fpga->writei(addr, (len>>2), bswapd);
+		fflush(stdout);
 
 		// If we're in high speed mode and we want to verify the write,
 		// then we can skip waiting for the write to complete by
@@ -219,25 +222,29 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 	// If this buffer is equal to the sector value(s), go on
 	// If not, erase the sector
 
-	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZB-1); s+=SECTORSZB) {
+	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZB-1);
+			s+=SECTORSZB) {
 		// Do we need to erase?
-		bool	need_erase = false;
+		bool	need_erase = false, need_program = false;
 		unsigned newv = 0; // (s<addr)?addr:s;
 		{
 			char *sbuf = new char[SECTORSZB];
-			const char *dp;
+			const char *dp;	// pointer to our "desired" buffer
 			unsigned	base,ln;
 
 			base = (addr>s)?addr:s;
 			ln=((addr+len>s+SECTORSZB)?(s+SECTORSZB):(addr+len))-base;
 			m_fpga->readi(base, ln>>2, (uint32_t *)sbuf);
+			byteswapbuf(ln>>2, (uint32_t *)sbuf);
 
 			dp = &data[base-addr];
 			SETSCOPE;
 			for(unsigned i=0; i<ln; i++) {
 				if ((sbuf[i]&dp[i]) != dp[i]) {
-					printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
-						i+base-addr, sbuf[i], dp[i]);
+					if (m_debug) {
+						printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
+							i+base-addr, sbuf[i], dp[i]);
+					}
 					need_erase = true;
 					newv = (i&-4)+base;
 					break;
@@ -250,9 +257,9 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 			continue; // This sector already matches
 
 		// Erase the sector if necessary
-		if (!need_erase)
-			printf("NO ERASE NEEDED\n");
-		else {
+		if (!need_erase) {
+			if (m_debug) printf("NO ERASE NEEDED\n");
+		} else {
 			printf("ERASING SECTOR: %08x\n", s);
 			if (!erase_sector(s, verify)) {
 				printf("SECTOR ERASE FAILED!\n");
@@ -273,7 +280,8 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 				printf("WRITE-PAGE FAILED!\n");
 				return false;
 			}
-		} printf("\n");
+		} if ((need_erase)||(need_program))
+			printf("Sector 0x%08x: DONE%15s\n", s, "");
 	}
 
 	m_fpga->writeio(R_QSPI_EREG, ENABLEWP); // Re-enable write protection
