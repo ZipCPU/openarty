@@ -46,8 +46,7 @@ void
 _outbyte(char v) {
 #ifdef	_ZIP_HAS_WBUART
 	// Depend upon the WBUART, not the PIC
-	int ln = (1<<(_uart->u_fifo >> (16+12)))-1;
-	while(ln == ((_uart->u_fifo>>18)&0x03ff))
+	while(_uart->u_fifo & 0x010000)
 		;
 	uint8_t c = v;
 	_uart->u_tx = (unsigned)c;
