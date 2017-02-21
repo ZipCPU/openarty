@@ -83,14 +83,18 @@ sim: rtl
 #	cd sim/verilated ; $(MAKE) --no-print-directory
 
 .PHONY: sw
-sw: sw-host sw-board
+sw: sw-host sw-board sw-zlib
 
 .PHONY: sw-host
 sw-host:
 	$(SUBMAKE) --directory=sw/host
 
+.PHONY: sw-zlib
+sw-zlib:
+	$(SUBMAKE) --directory=sw/zlib
+
 .PHONY: sw-board
-sw-board:
+sw-board: sw-zlib
 	$(SUBMAKE) --directory=sw/board
 
 # .PHONY: bit
