@@ -1091,9 +1091,10 @@ asm("\n\t.text\nidle_task:\n\tWAIT\n\tBRA\tidle_task\n");
 __attribute__((noinline))
 void	txchr(char v) {
 #ifdef	_ZIP_HAS_WBUART
-	while(_uart->u_fifo & 0x020000)
+	while(_uart->u_fifo & 0x010000)
 		;
-	_uart->u_tx = v & 0x0ff;
+	uint8_t c = v;
+	_uart->u_tx = (unsigned)c;
 #endif
 /*
 	if (zip_cc() & CC_GIE) {
@@ -1107,9 +1108,7 @@ void	txchr(char v) {
 
 void	wait_for_uart_idle(void) {
 #ifdef	_ZIP_HAS_WBUART
-	while((_uart->u_fifo & 0x10000)==0)	// While the FIFO is non-empty
-		;
-	while(_uart->u_tx & 0x100)
+	while(_uart->u_fifo & 0x100)	// While the FIFO is non-empty
 		;
 #else
 #error "No uart defined"
@@ -1257,7 +1256,7 @@ void entry(void) {
 #endif
 
 	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
-	UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
+	UART_CTRL = UART_HWFLOW_OFF|705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
