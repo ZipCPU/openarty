@@ -246,9 +246,9 @@ typedef	struct ARTYBOARD_S {
 static	volatile ARTYBOARD	*const _sys    = (ARTYBOARD *)PERIPHERAL_ADDR;
 #define	_ZIP_HAS_WBUART
 static	volatile WBUART		*const _uart   = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_uart;
-#define	_ZIP_HAS_UARTTX
+#define	_ZIP_HAS_WBUARTX
 #define	_uarttx		_uart->u_tx
-#define	_ZIP_HAS_UARTRX
+#define	_ZIP_HAS_WBUARTRX
 #define	_uartrx		_uart->u_rx
 #define	_ZIP_HAS_UARTSETUP
 #define	_uartsetup	_uart->u_setup
@@ -326,4 +326,4 @@ static	volatile SDCARD		*const _sdcard = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_sd;
 #define	DMA_ONBUS	DMA_ONINT(13)
 #define	DMA_ONOLED	DMA_ONINT(14)
 
-#endif	// define XULABOARD_H
+#endif	// define ARTYBOARD_H
