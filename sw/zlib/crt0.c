@@ -101,6 +101,7 @@
 //
 //
 #include "zipcpu.h"
+#include "artyboard.h"		// Our current board support file
 #include "bootloader.h"
 
 // A bootloader is about nothing more than copying memory from a couple

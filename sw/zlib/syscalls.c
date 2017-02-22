@@ -39,6 +39,7 @@
 #include <sys/times.h>
 #include <reent.h>
 #include <stdio.h>
+#include "artyboard.h"
 #include "bootloader.h"
 #include "zipcpu.h"
 
@@ -49,7 +50,7 @@ _outbyte(char v) {
 	while(_uart->u_fifo & 0x010000)
 		;
 	uint8_t c = v;
-	_uart->u_tx = (unsigned)c;
+	_uarttx = (unsigned)c;
 #else
 #ifdef	_ZIP_HAS_UARTTX
 	// Depend upon the WBUART, not the PIC
