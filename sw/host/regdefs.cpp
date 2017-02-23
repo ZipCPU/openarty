@@ -63,6 +63,7 @@ const	REGNAME	raw_bregs[] = {
 	{ R_UART_SETUP,	"AUXSETUP"		},
 	{ R_UART_SETUP,	"AUX"			},
 	{ R_GPS_SETUP,	"GPSSETUP"		},
+	{ R_GPS_FIFO,	"GPSFIFO"		},
 	{ R_GPS_SETUP,	"GPSUART"		},
 	{ R_CLR0,	"CLRLED0"		},
 	{ R_CLR1,	"CLRLED1"		},
@@ -76,6 +77,7 @@ const	REGNAME	raw_bregs[] = {
 	{ R_GPIO,	"GPIO"			},
 	{ R_UARTRX,	"AUXRX"			},
 	{ R_UARTRX,	"RX"			},
+	{ R_UART_FIFO,	"AUXFIFO"		},
 	{ R_UARTTX,	"AUXTX"			},
 	{ R_UARTTX,	"TX"			},
 	//
