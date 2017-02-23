@@ -87,7 +87,7 @@ asm("\t.section\t.text\n\t.global\tcltz\n"
 	"\tADD.Z 1,R1\n"
 	"\tRETN\n");
 #else
-int	__attribute__((noinline))
+int
 cltz(unsigned long v) {
 	uint32_t	hv;
 	int		cnt = 0;
@@ -121,10 +121,8 @@ cltz(unsigned long v) {
 }
 #endif
 
-#ifdef	__ZIPCPU__
-__attribute((noinline))
-#endif
-unsigned long __udivdi3(unsigned long a, unsigned long b) {
+unsigned long
+__udivdi3(unsigned long a, unsigned long b) {
 	unsigned long	r;
 
 	if (a < b)
