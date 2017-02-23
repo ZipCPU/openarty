@@ -77,8 +77,13 @@ int main(int argc, char **argv) {
 		cfmakeraw(&tb);
 		// Non-canonical mode (no line editing ...)
 		tb.c_lflag &= (~(ICANON));
-		// Set no parity, 8 bit
-		tb.c_cflag &= (~(CRTSCTS));
+		// Set no parity
+		tb.c_cflag &= (~(PARENB));
+		// Set 8 data bits
+		tb.c_cflag &= (~(CSIZE));
+		tb.c_cflag |= CS8;
+		// Turn on hardware flow control
+		tb.c_cflag |= CRTSCTS;
 		// One stop bit
 		tb.c_cflag &= (~(CSTOPB));
 		// 115200 Baud
