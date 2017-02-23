@@ -36,14 +36,14 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping hello
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping hello gettysburg
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
 RDELF := zip-readelf
 CC := zip-gcc
 OBJDUMP := zip-objdump
-SOURCES := exstartup.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c # ntpserver.c
+SOURCES := exstartup.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c gettysburg.c # ntpserver.c
 HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
@@ -58,6 +58,8 @@ CFLAGS  := -O3 -I../zlib
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 $(OBJDIR)/hello.o: hello.c
+	$(CC) -O3 -c $< -o $@
+$(OBJDIR)/gettysburg.o: gettysburg.c
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
 	$(CC) $(CFLAGS) -S $< -o $@
@@ -100,7 +102,10 @@ gpsdump: $(OBJDIR)/gpsdump.o arty.ld
 hello: $(OBJDIR)/hello.o arty.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/hello.o -o $@
 
-oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o arty.ld
+gettysburg: $(OBJDIR)/gettysburg.o arty.ld
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gettysburg.o -o $@
+
+oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
 	$(CC) $(CFLAGS)  $(LFLAGS) $^ -o $@
 
 simple_ping: $(OBJDIR)/simple_ping.o
