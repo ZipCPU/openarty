@@ -1256,7 +1256,7 @@ void entry(void) {
 #endif
 
 	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
-	UART_CTRL = UART_HWFLOW_OFF|705; // 115200 Baud, given n 81.25MHz clock
+	UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
