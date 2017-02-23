@@ -68,7 +68,6 @@ void	main(int argc, char **argv) {
 	user_context[15] = (unsigned)idle_task;
 	zip_restore_context(user_context);
 
-	_sys->io_uart.u_setup = 82;
 	printf("Starting exstartup\r\n");
 
 	for(i=0; i<4; i++)
