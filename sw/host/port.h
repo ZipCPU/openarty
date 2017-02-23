@@ -45,8 +45,7 @@
 // computer, test it, and when/if it doesn't work we can replace the device
 // with the test-bench.  Across the network, no one will know any better that
 // anything had changed.
-#define	FPGAHOST	"jericho"
-// #define	FPGAHOST	"localhost"
+#define	FPGAHOST	"localhost"
 #define	FPGATTY		"/dev/ttyUSB1"
 #define	FPGAPORT	6510
 
