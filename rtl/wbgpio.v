@@ -67,12 +67,13 @@ module wbgpio(i_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data, o_wb_data,
 			o_gpio <= ((o_gpio)&(~i_wb_data[(NOUT+16-1):16]))
 				|((i_wb_data[(NOUT-1):0])&(i_wb_data[(NOUT+16-1):16]));
 
-	reg	[(NIN-1):0]	x_gpio, r_gpio;
+	reg	[(NIN-1):0]	x_gpio, q_gpio, r_gpio;
 	// 3 LUTs, 33 FF's
 	always @(posedge i_clk)
 	begin
 		x_gpio <= i_gpio;
-		r_gpio <= x_gpio;
+		q_gpio <= x_gpio;
+		r_gpio <= q_gpio;
 		o_int  <= (x_gpio != r_gpio);
 	end
 

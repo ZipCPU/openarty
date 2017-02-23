@@ -47,9 +47,7 @@ module	fastio(i_clk,
 		i_sw, i_btn, o_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
-`ifdef	USE_GPIO
 		i_gpio, o_gpio,
-`endif
 		// Wishbone control
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr,
 			i_wb_data, o_wb_ack, o_wb_stall, o_wb_data,
@@ -70,11 +68,9 @@ module	fastio(i_clk,
 	output	wire	[2:0]	o_clr_led3;
 	// Board level PMod I/O
 	//
-`ifdef	USE_GPIO
 	// GPIO
 	input		[(NGPI-1):0]	i_gpio;
-	output reg	[(NGPO-1):0]	o_gpio;
-`endif
+	output wire	[(NGPO-1):0]	o_gpio;
 	//
 	// Wishbone inputs
 	input			i_wb_cyc, i_wb_stb, i_wb_we;
@@ -234,14 +230,9 @@ module	fastio(i_clk,
 	// selectable.)
 	//
 	wire	[31:0]	gpio_data;
-`ifdef	USE_GPIO
-	wbgpio	#(NIN, NOUT)
-		gpioi(i_clk, w_wb_cyc, (w_wb_stb)&&(w_wb_addr == 5'h6), 1'b1,
+	wbgpio	#(NGPI, NGPO)
+		gpioi(i_clk, 1'b1, (w_wb_stb)&&(w_wb_addr == 5'h6), 1'b1,
 			w_wb_data, gpio_data, i_gpio, o_gpio, gpio_int);
-`else
-	assign	gpio_data = 32'h00;
-	assign	gpio_int = 1'b0;
-`endif
 
 	//
 	// The Calendar DATE

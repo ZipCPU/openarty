@@ -146,9 +146,12 @@ module	busmaster(i_clk, i_rst,
 		o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn,
 		o_oled_reset_n, o_oled_vccen, o_oled_pmoden,
 		// The GPS PMod
-		i_gps_pps, i_gps_3df
+		i_gps_pps, i_gps_3df,
+		// Other GPIO wires
+		i_gpio, o_gpio
 		);
-	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=32'h01380000;
+	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=32'h01380000,
+			NGPI = 4, NGPO = 1;
 	input			i_clk, i_rst;
 	// The bus commander, via an external uart port
 	input			i_rx_stb;
@@ -223,6 +226,9 @@ module	busmaster(i_clk, i_rst,
 	// GPS PMod (GPS UART above)
 	input			i_gps_pps;
 	input			i_gps_3df;
+	// Other GPIO wires
+	input	[(NGPI-1):0]	i_gpio;
+	output	wire	[(NGPO-1):0]	o_gpio;
 
 	//
 	//
@@ -695,9 +701,10 @@ module	busmaster(i_clk, i_rst,
 	wire	[3:0]	w_led;
 	wire	rtc_ppd;
 	fastio	#(
-		.EXTRACLOCK(0)
+		.EXTRACLOCK(0), .NGPI(NGPI), .NGPO(NGPO)
 		) runio(i_clk, i_sw, i_btn, 
 			w_led, o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
+			i_gpio, o_gpio,
 			wb_cyc, (io_sel)&&(wb_stb), wb_we, wb_addr[4:0],
 				wb_data, io_ack, io_stall, io_data,
 			rtc_ppd,

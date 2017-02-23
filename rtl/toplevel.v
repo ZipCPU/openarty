@@ -74,7 +74,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 	o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn, o_oled_reset_n,
 		o_oled_vccen, o_oled_pmoden,
 	// PMod I/O
-	i_aux_rx, i_aux_rts, o_aux_tx, o_aux_cts
+	i_aux_rx, i_aux_rts, o_aux_tx, o_aux_cts,
+	// Chip-kit SPI port
+	o_ck_csn, o_ck_sck, o_ck_mosi
 	);
 	input		[0:0]	sys_clk_i;
 	input			i_reset_btn;
@@ -128,6 +130,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Aux UART
 	input			i_aux_rx, i_aux_rts;
 	output	wire		o_aux_tx, o_aux_cts;
+	output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
 
 	wire	eth_tx_clk, eth_rx_clk;
 `ifdef	VERILATOR
@@ -287,6 +290,11 @@ module toplevel(sys_clk_i, i_reset_btn,
 	wire	[3:0]	qspi_dat;
 	wire	[3:0]	i_qspi_dat;
 
+
+	wire	[1:0]	i_gpio;
+	wire	[3:0]	o_gpio;
+	assign	i_gpio = { o_aux_cts, i_aux_rts };
+
 	//
 	// The SDRAM interface wires
 	//
@@ -301,7 +309,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	wire		w_sd_cmd;
 	wire	[3:0]	w_sd_data;
-	busmaster	wbbus(s_clk, s_reset,
+	busmaster
+		#(
+		.NGPI(2), .NGPO(4)
+		) wbbus(s_clk, s_reset,
 		// External USB-UART bus control
 		rx_stb, rx_data, tx_stb, tx_data, tx_busy,
 		// Board lights and switches
@@ -332,7 +343,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 		o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn,
 		o_oled_reset_n, o_oled_vccen, o_oled_pmoden,
 		// GPS PMod
-		i_gps_pps, i_gps_3df
+		i_gps_pps, i_gps_3df,
+		// Other GPIO wires
+		i_gpio, o_gpio
 		);
 
 	//////
