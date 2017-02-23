@@ -36,7 +36,7 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis simple_ping hello gettysburg
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis hello gettysburg # simple_ping
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
