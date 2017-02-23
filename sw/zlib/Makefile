@@ -46,6 +46,9 @@ all: libarty.a
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJDIR)/%.s: %.c
+	$(CC) $(CFLAGS) -fdump-rtl-all -S $< -o $@
+
 $(OBJDIR)/crt0.o: crt0.c
 	$(CC) $(CFLAGS) -ffreestanding -c $< -o $@
 

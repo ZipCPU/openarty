@@ -62,7 +62,7 @@ $(OBJDIR)/hello.o: hello.c
 $(OBJDIR)/gettysburg.o: gettysburg.c
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
-	$(CC) $(CFLAGS) -S $< -o $@
+	$(CC) $(CFLAGS) -fdump-rtl-all -S $< -o $@
 $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 	bash -c "$(RDELF) -a $^ ; $(OBJDUMP) -S -D $^ " | tee $@
 %.txt: %
