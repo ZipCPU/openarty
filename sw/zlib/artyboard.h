@@ -292,8 +292,8 @@ static	volatile SDCARD		*const _sdcard = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_sd;
 #define	ALTINT_PPD	ALTINT(8)
 #define	ALTINT_UARTRX	ALTINT(9)
 #define	ALTINT_UARTTX	ALTINT(10)
-#define	ALTINT_GPSRX	SYSINT(11)
-#define	ALTINT_GPSTX	SYSINT(12)
+#define	ALTINT_GPSRX	ALTINT(11)
+#define	ALTINT_GPSTX	ALTINT(12)
 //
 
 
