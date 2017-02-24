@@ -46,6 +46,13 @@
 void
 _outbyte(char v) {
 #ifdef	_ZIP_HAS_WBUART
+	if (v == '\n') {
+		// Depend upon the WBUART, not the PIC
+		while(_uart->u_fifo & 0x010000)
+			;
+		_uarttx = (unsigned)'\r';
+	}
+
 	// Depend upon the WBUART, not the PIC
 	while(_uart->u_fifo & 0x010000)
 		;
@@ -59,6 +66,41 @@ _outbyte(char v) {
 	uint8_t c = v;
 	UARTTX = (unsigned)c;
 #endif
+#endif
+}
+
+int
+_inbyte(void) {
+#ifdef	_ZIP_HAS_WBUARTRX
+	const	int	echo = 1, cr_into_nl = 1;
+	static	int	last_was_cr = 0;
+	int	rv;
+
+	// Character translations:
+	// 1. All characters should be echoed
+	// 2. \r's should quietly be turned into \n's
+	// 3. \r\n's should quietly be turned into \n's
+	// 4. \n's should be passed as is
+	// Insist on at least one character
+	rv = _uartrx;
+	if (rv & 0x0100)
+		rv = -1;
+	else if ((cr_into_nl)&&(rv == '\r')) {
+		rv = '\n';
+		last_was_cr = 1;
+	} else if ((cr_into_nl)&&(rv == '\n')) {
+		if (last_was_cr) {
+			rv = -1;
+			last_was_cr = 0;
+		}
+	} else
+		last_was_cr = 0;
+
+	if ((rv != -1)&&(echo))
+		_outbyte(rv);
+	return rv;
+#else
+	return -1;
 #endif
 }
 
@@ -110,7 +152,7 @@ _getpid_r(struct _reent *reent)
 }
 
 int
-_gettimeofday(struct _reent *reent, struct timeval *ptimeval, void *ptimezone)
+_gettimeofday_r(struct _reent *reent, struct timeval *ptimeval, void *ptimezone)
 {
 #ifdef	_ZIP_HAS_RTC
 	if (ptimeval) {
@@ -240,18 +282,24 @@ _open_r(struct _reent *reent, const char *file, int flags, int mode)
 int
 _read_r(struct _reent *reent, int file, void *ptr, size_t len)
 {
-#ifdef	_ZIP_HAS_UARTRX
+#ifdef	_ZIP_HAS_WBUARTRX
 	if (STDIN_FILENO == file)
 	{
 		int	nr = 0, rv;
 		char	*chp = ptr;
-		while(nr < len) {
-			do {
-				rv = _uartrx;
-			} while(rv & 0x0100);
+
+		while((rv=_inbyte()) &0x0100)
+			;
+		*chp++ = (char)rv;
+		nr++;
+
+		// Now read out anything left in the FIFO
+		while((nr < len)&&(((rv=_inbyte()) & 0x0100)==0)) {
 			*chp++ = (char)rv;
 			nr++;
 		}
+
+		// if (rv & 0x01000) _uartrx = 0x01000;
 		return nr;
 	}
 #endif
