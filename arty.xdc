@@ -77,10 +77,10 @@ set_property -dict { PACKAGE_PIN U12 IOSTANDARD LVCMOS33 } [get_ports i_gps_3df]
 set_property -dict { PACKAGE_PIN V12 IOSTANDARD LVCMOS33 } [get_ports o_gps_tx]
 set_property -dict { PACKAGE_PIN V10 IOSTANDARD LVCMOS33 } [get_ports i_gps_rx]
 set_property -dict { PACKAGE_PIN V11 IOSTANDARD LVCMOS33 } [get_ports i_gps_pps]
-set_property -dict { PACKAGE_PIN U13 IOSTANDARD LVCMOS33 } [get_ports i_aux_rts]
+set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports i_aux_cts_n]
 set_property -dict { PACKAGE_PIN V14 IOSTANDARD LVCMOS33 } [get_ports o_aux_tx]
 set_property -dict { PACKAGE_PIN T13 IOSTANDARD LVCMOS33 } [get_ports i_aux_rx]
-set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports o_aux_cts]
+set_property -dict { PACKAGE_PIN U13 IOSTANDARD LVCMOS33 } [get_ports o_aux_rts_n]
 
 ##Pmod Header JD: SD-Card
 

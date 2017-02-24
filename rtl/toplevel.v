@@ -74,7 +74,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn, o_oled_reset_n,
 		o_oled_vccen, o_oled_pmoden,
 	// PMod I/O
-	i_aux_rx, i_aux_rts, o_aux_tx, o_aux_cts,
+	i_aux_rx, i_aux_cts_n, o_aux_tx, o_aux_rts_n,
 	// Chip-kit SPI port
 	o_ck_csn, o_ck_sck, o_ck_mosi
 	);
@@ -128,8 +128,8 @@ module toplevel(sys_clk_i, i_reset_btn,
 				o_oled_dcn, o_oled_reset_n, o_oled_vccen,
 				o_oled_pmoden;
 	// Aux UART
-	input			i_aux_rx, i_aux_rts;
-	output	wire		o_aux_tx, o_aux_cts;
+	input			i_aux_rx, i_aux_cts_n;
+	output	wire		o_aux_tx, o_aux_rts_n;
 	output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
 
 	wire	eth_tx_clk, eth_rx_clk;
@@ -293,7 +293,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 
 	wire	[1:0]	i_gpio;
 	wire	[3:0]	o_gpio;
-	assign	i_gpio = { o_aux_cts, i_aux_rts };
+	assign	i_gpio = { o_aux_rts_n, i_aux_cts_n };
 
 	//
 	// The SDRAM interface wires
@@ -319,7 +319,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		i_sw, i_btn, w_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
-		i_aux_rx, o_aux_tx, i_aux_rts, o_aux_cts, i_gps_rx, o_gps_tx,
+		i_aux_rx, o_aux_tx, i_aux_cts_n, o_aux_rts_n,i_gps_rx, o_gps_tx,
 		// Quad SPI flash
 		w_qspi_cs_n, w_qspi_sck, qspi_dat, i_qspi_dat, qspi_bmod,
 		// DDR3 SDRAM

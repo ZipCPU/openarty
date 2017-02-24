@@ -113,7 +113,7 @@ module	busmaster(i_clk, i_rst,
 		i_sw, i_btn, o_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// PMod I/O
-		i_aux_rx, o_aux_tx, i_aux_rts, o_aux_cts, i_gps_rx, o_gps_tx,
+		i_aux_rx, o_aux_tx, i_aux_cts_n, o_aux_rts_n, i_gps_rx, o_gps_tx,
 		// The Quad SPI Flash
 		o_qspi_cs_n, o_qspi_sck, o_qspi_dat, i_qspi_dat, o_qspi_mod,
 		//
@@ -165,8 +165,8 @@ module	busmaster(i_clk, i_rst,
 	output	wire	[3:0]	o_led;	// 16 wide LED's
 	output	wire	[2:0]	o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3;
 	// PMod UARTs
-	input			i_aux_rx, i_aux_rts;
-	output	wire		o_aux_tx, o_aux_cts;
+	input			i_aux_rx, i_aux_cts_n;
+	output	wire		o_aux_tx, o_aux_rts_n;
 	input			i_gps_rx;
 	output	wire		o_gps_tx;
 	// Quad-SPI flash control
@@ -756,7 +756,7 @@ module	busmaster(i_clk, i_rst,
 		console(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(uart_sel), wb_we, wb_addr[1:0], wb_data,
 			uart_ack, uart_stall, uart_data,
-		i_aux_rx, o_aux_tx, i_aux_rts, o_aux_cts,
+		i_aux_rx, o_aux_tx, i_aux_cts_n, o_aux_rts_n,
 		auxrx_int, auxtx_int, auxrxf_int, auxtxf_int);
 
 	//
@@ -764,13 +764,13 @@ module	busmaster(i_clk, i_rst,
 	//	GPS Data UART
 	//
 	//
-	wire	gps_cts_ignored;
+	wire	gps_rts_n_ignored;
 	wbuart	#(.INITIAL_SETUP(31'd8464),	//   9600 Baud, 8N1
 		.HARDWARE_FLOW_CONTROL_PRESENT(1'b0))
 		gpsdata(i_clk, 1'b0,
 		wb_cyc, (wb_stb)&&(gpsu_sel), wb_we, wb_addr[1:0], wb_data,
 			gpsu_ack, gpsu_stall, gpsu_data,
-		i_gps_rx, o_gps_tx, 1'b1, gps_cts_ignored,
+		i_gps_rx, o_gps_tx, 1'b0, gps_rts_n_ignored,
 		gpsrx_int, gpstx_int, gpsrxf_int, gpstxf_int);
 			
 	//
