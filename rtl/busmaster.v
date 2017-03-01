@@ -236,7 +236,8 @@ module	busmaster(i_clk, i_rst,
 	//
 	//
 	wire		wb_cyc, wb_stb, wb_we, wb_stall, wb_err, ram_err;
-	wire	[31:0]	wb_data, wb_addr;
+	wire	[31:0]		wb_data;
+	wire	[(ZA-1):0]	wb_addr;
 	wire	[3:0]	wb_sel;
 	reg		wb_ack;
 	reg	[31:0]	wb_idata;
@@ -303,10 +304,10 @@ module	busmaster(i_clk, i_rst,
 	// Second BUS master source: The ZipCPU
 	//
 	//
-	wire		zip_cyc, zip_stb, zip_we;
-	wire	[(ZA-1):0]	w_zip_addr;
-	wire	[31:0]	zip_data, zip_scope_data;
-	wire	[3:0]	zip_sel;
+	wire			zip_cyc, zip_stb, zip_we;
+	wire	[(ZA-1):0]	zip_addr;
+	wire	[31:0]		zip_data, zip_scope_data;
+	wire	[3:0]		zip_sel;
 	// and then coming from devices
 	wire		zip_ack, zip_stall, zip_err;
 
@@ -330,7 +331,7 @@ module	busmaster(i_clk, i_rst,
 			.EXTERNAL_INTERRUPTS(ZIPINTS))
 		swic(i_clk, i_rst,
 			// Zippys wishbone interface
-			zip_cyc, zip_stb, zip_we, w_zip_addr, zip_data, zip_sel,
+			zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
 				zip_ack, zip_stall, dwb_idata, zip_err,
 			zip_interrupt_vec, zip_cpu_int,
 			// Debug wishbone interface
@@ -350,7 +351,7 @@ module	busmaster(i_clk, i_rst,
 			.START_HALTED(1))
 		swic(i_clk, i_rst,
 			// Zippys wishbone interface
-			zip_cyc, zip_stb, zip_we, w_zip_addr, zip_data, zip_sel,
+			zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
 				zip_ack, zip_stall, dwb_idata, zip_err,
 			w_bus_interrupt, w_zip_cpu_int_ignored,
 			// Debug wishbone interface
@@ -365,29 +366,22 @@ module	busmaster(i_clk, i_rst,
 	assign	zip_cpu_int = 1'b0;
 `endif	// ZIP_SYSTEM v ZIP_BONES
 
-	wire [31:0]	zip_addr;
-	generate
-	if (ZA < 32)
-		assign	zip_addr = { {(32-ZA){1'b0}}, w_zip_addr};
-	else
-		assign	zip_addr = w_zip_addr;
-	endgenerate
-
 	//
 	//
 	// And an arbiter to decide who gets to access the bus
 	//
 	//
 	wire	dwb_we, dwb_stb, dwb_cyc, dwb_ack, dwb_stall, dwb_err;
-	wire	[31:0]	dwb_addr, dwb_odata;
-	wire	[3:0]	dwb_sel;
-	wbpriarbiter #(32,32) wbu_zip_arbiter(i_clk,
+	wire	[(ZA-1):0]	dwb_addr;
+	wire	[31:0]		dwb_odata;
+	wire	[3:0]		dwb_sel;
+	wbpriarbiter #(32,ZA) wbu_zip_arbiter(i_clk,
 		// The ZIP CPU Master -- Gets the priority slot
 		zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
 			zip_ack, zip_stall, zip_err,
 		// The UART interface Master
 		(wbu_cyc)&&(!wbu_zip_sel), (wbu_stb)&&(!wbu_zip_sel), wbu_we,
-			wbu_addr, wbu_data, wbu_sel,
+			wbu_addr[(ZA-1):0], wbu_data, wbu_sel,
 			wbu_ack, wbu_stall, wbu_err,
 		// Common bus returns
 		dwb_cyc, dwb_stb, dwb_we, dwb_addr, dwb_odata, dwb_sel,
@@ -400,7 +394,7 @@ module	busmaster(i_clk, i_rst,
 	// 
 	// 
 	assign	wbu_idata = dwb_idata;
-	busdelay	wbu_zip_delay(i_clk,
+	busdelay #(ZA)	wbu_zip_delay(i_clk,
 			dwb_cyc, dwb_stb, dwb_we, dwb_addr, dwb_odata, dwb_sel,
 				dwb_ack, dwb_stall, dwb_idata, dwb_err,
 			wb_cyc, wb_stb, wb_we, wb_addr, wb_data, wb_sel,
@@ -473,7 +467,7 @@ module	busmaster(i_clk, i_rst,
 	assign	cfg_sel   = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b10_1);
 
 	wire	skiperr;
-	assign	skiperr = (idle_n)&&((|wb_addr[31:27])
+	assign	skiperr = (idle_n)&&((|wb_addr[(ZA-1):27])
 				||(~skipaddr[4])&&(|wb_addr[25:23])
 				||(skipaddr[4:3]==2'b00)&&(|wb_addr[21:16])
 				||(skipaddr[4:2]==3'b000)&&(|wb_addr[14:12])
@@ -605,7 +599,7 @@ module	busmaster(i_clk, i_rst,
 	// it.  Still, having this logic in place has saved my tush more than
 	// once.
 	//
-	reg	[31:0]	sel_addr;
+	reg	[(ZA-1):0]	sel_addr;
 	always @(posedge i_clk)
 		sel_addr <= wb_addr;
 
@@ -674,11 +668,16 @@ module	busmaster(i_clk, i_rst,
 	// the address that caused an error: in the case of none_sel it will
 	// be, but if many_ack or slow_many_ack are true then we might just be
 	// looking at an address on the bus that was nearby the one requested.
-	reg	[31:0]	bus_err_addr;
-	initial	bus_err_addr = 32'h00;
+	reg	[(ZA-1):0]	r_bus_err_addr;
+	initial	r_bus_err_addr = 0;
 	always @(posedge i_clk)
 		if (wb_err)
-			bus_err_addr <= sel_addr;
+			r_bus_err_addr <= sel_addr;
+	wire	[31:0]	bus_err_addr;
+	assign bus_err_addr[(ZA+1):0] = { r_bus_err_addr, 2'b00 };
+	generate if (ZA < 30)
+		assign bus_err_addr[31:(ZA+2)] = 0;
+	endgenerate
 
 	//
 	// I/O peripheral
