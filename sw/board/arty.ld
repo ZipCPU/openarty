@@ -64,7 +64,7 @@ SECTIONS
 	_sdram_image_start = . ;
 	.ramcode : {
 		*(.text.startup)
-		*(.text)
+		*(.text*)
 		*(.rodata*) *(.strings)
 		*(.data) *(COMMON)
 		}> sdram AT> flash
