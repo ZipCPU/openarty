@@ -177,7 +177,10 @@ module	zipbones(i_clk, i_rst,
 	generate
 	if (HIGHSPEED_CPU==0)
 	begin
-	zipcpu	#(RESET_ADDRESS,ADDRESS_WIDTH,LGICACHE)
+	zipcpu	#(.RESET_ADDRESS(RESET_ADDRESS),
+			.ADDRESS_WIDTH(ADDRESS_WIDTH),
+			.LGICACHE(LGICACHE),
+			.WITH_LOCAL_BUS(0))
 		thecpu(i_clk, cpu_reset, i_ext_int,
 			cpu_halt, cmd_clear_pf_cache, cmd_addr[4:0], cpu_dbg_we,
 				i_dbg_data, cpu_dbg_stall, cpu_dbg_data,
@@ -193,7 +196,10 @@ module	zipbones(i_clk, i_rst,
 `endif
 			);
 	end else begin
-	zipcpu	#(RESET_ADDRESS,ADDRESS_WIDTH,LGICACHE)
+	zipcpu	#(.RESET_ADDRESS(RESET_ADDRESS),
+			.ADDRESS_WIDTH(ADDRESS_WIDTH),
+			.LGICACHE(LGICACHE),
+			.WITH_LOCAL_BUS(0))
 		thecpu(i_clk, cpu_reset, i_ext_int,
 			cpu_halt, cmd_clear_pf_cache, cmd_addr[4:0], cpu_dbg_we,
 				i_dbg_data, cpu_dbg_stall, cpu_dbg_data,
