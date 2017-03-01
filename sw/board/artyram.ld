@@ -53,7 +53,7 @@ SECTIONS
 		_kernel_image_start = . ;
 		*(.kernel)
 		*(.text.startup)
-		*(.text)
+		*(.text*)
 		*(.rodata*) *(.strings)
 		*(.data) *(COMMON) *(.bss)
 		}> blkram
