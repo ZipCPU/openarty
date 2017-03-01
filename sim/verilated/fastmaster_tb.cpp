@@ -131,7 +131,7 @@ public:
 		m_bomb = 0;
 		m_traceticks = 0;
 		//
-		m_core->i_aux_rts = 1;
+		m_core->i_aux_cts_n = 0; // The sim doesnt use h/w flow control
 		//
 		m_halt_in_count = 0;
 	}
@@ -675,12 +675,13 @@ public:
 				);
 
 			printf(" %s[%s%s%s%s]",
-				m_core->v__DOT__swic__DOT__thecpu__DOT__wr_reg_ce?"F":"-",
+				m_core->v__DOT__swic__DOT__thecpu__DOT__wr_flags_ce?"F":"-",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&1)?"Z":".",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&2)?"C":".",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&4)?"N":".",
 				(m_core->v__DOT__swic__DOT__thecpu__DOT__alu_flags&8)?"V":".");
 
+			/*
 			printf(" DBG%s%s%s[%s/%02x]=%08x/%08x",
 				(m_core->v__DOT__swic__DOT__dbg_cyc)?"CYC":"   ",
 				(m_core->v__DOT__swic__DOT__dbg_stb)?"STB":((m_core->v__DOT__swic__DOT__dbg_ack)?"ACK":"   "),
@@ -693,6 +694,7 @@ public:
 
 			printf(" %s,0x%08x", (m_core->i_ram_ack)?"RCK":"   ",
 				m_core->i_ram_rdata);
+			*/
 
 
 			/*
