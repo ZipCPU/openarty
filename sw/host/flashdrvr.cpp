@@ -53,7 +53,8 @@
 
 const	bool	HIGH_SPEED = false;
 
-#define SETSCOPE m_fpga->writeio(R_QSCOPE, 8180)
+#define	SETSCOPE
+// #define SETSCOPE m_fpga->writeio(R_QSCOPE, 8180)
 
 
 void	FLASHDRVR::flwait(void) {
