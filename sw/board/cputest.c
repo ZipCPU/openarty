@@ -591,8 +591,6 @@ unsigned	hard_mpyuhi(unsigned, unsigned);
 asm("\t.text\n\t.global\thard_mpyuhi\n"
 	"\t.type\thard_mpyuhi,@function\n"
 "hard_mpyuhi:\n"
-	"\tNOOP\n"
-	"\tNOOP\n"
 	"\tMPYUHI\tR2,R1\n"
 	"\tRETN\n");
 
