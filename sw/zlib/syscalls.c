@@ -217,9 +217,11 @@ _gettimeofday_r(struct _reent *reent, struct timeval *ptimeval, void *ptimezone)
 
 		ptimeval->tv_usec = 0;
 	}
-#endif
+	return 0;
+#else
 	reent->_errno = ENOSYS;
 	return -1;
+#endif
 }
 
 int
