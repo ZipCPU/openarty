@@ -172,7 +172,7 @@ module	wbuart(i_clk, i_rst,
 	always @(posedge i_clk)
 		o_rts_n = ((HARDWARE_FLOW_CONTROL_PRESENT)
 			&&(!uart_setup[30])
-			&&(rxf_status[(LCLLGFLEN-1):2]=={(LCLLGFLEN-2){1'b1}}));
+			&&(rxf_status[(LCLLGFLEN+1):2]=={(LCLLGFLEN-2){1'b1}}));
 
 	// If the bus requests that we read from the receive FIFO, we need to
 	// tell this to the receive FIFO.  Note that because we are using a 
