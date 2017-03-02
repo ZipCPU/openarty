@@ -82,6 +82,9 @@ $(OBJDIR)/cputestcis.o: cputest.c
 $(OBJDIR)/cputest.s: cputest.c
 	$(CC) $(CFLAGS) -S -Wa,-cis -fno-builtin $< -o $@
 
+$(OBJDIR)/cmptst.o: cmptst.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 cputest: $(OBJDIR)/cputest.o artyram.ld
 	$(CC) $(CFLAGS) -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputest.map $(OBJDIR)/cputest.o -o $@
 cputestcis: $(OBJDIR)/cputestcis.o artyram.ld
@@ -111,6 +114,9 @@ oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
 simple_ping: $(OBJDIR)/simple_ping.o
 simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o arty.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $^ -o simple_ping
+
+cmptst: $(OBJDIR)/cmptst.o
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/cmptst.o -o $@
 
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
