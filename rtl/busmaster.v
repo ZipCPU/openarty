@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -27,7 +27,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -372,12 +372,12 @@ module	busmaster(i_clk, i_rst,
 		dwb_cyc, dwb_stb, dwb_we, dwb_addr, dwb_odata,
 			dwb_ack, dwb_stall, dwb_err);
 
-	// 
-	// 
+	//
+	//
 	// And because the ZIP CPU and the Arbiter create an unacceptable
 	// delay, we fail timing.  So we add in a delay cycle ...
-	// 
-	// 
+	//
+	//
 	assign	wbu_idata = dwb_idata;
 	busdelay	wbu_zip_delay(i_clk,
 			dwb_cyc, dwb_stb, dwb_we, dwb_addr, dwb_odata,
@@ -459,7 +459,7 @@ module	busmaster(i_clk, i_rst,
 	// flash_sel (the memory line select).  Hence we have one fewer ack
 	// line.
 	wire	io_ack, oled_ack,
-			rtc_ack, sdcard_ack, 
+			rtc_ack, sdcard_ack,
 			net_ack, gps_ack, mio_ack, cfg_ack,
 			mem_ack, flash_ack, ram_ack;
 	reg	many_ack, slow_many_ack;
@@ -505,12 +505,12 @@ module	busmaster(i_clk, i_rst,
 	// Peripheral data lines
 	//
 	wire	[31:0]	io_data, oled_data,
-			rtc_data, sdcard_data, 
+			rtc_data, sdcard_data,
 			net_data, gps_data, mio_data, cfg_data,
 			mem_data, flash_data, ram_data;
 	reg	[31:0]	slow_data, scop_data;
 
-	// 4 control lines, 5x32 data lines ... 
+	// 4 control lines, 5x32 data lines ...
 	always @(posedge i_clk)
 		if ((ram_ack)||(flash_ack))
 			wb_idata <= (ram_ack)?ram_data:flash_data;
@@ -537,7 +537,7 @@ module	busmaster(i_clk, i_rst,
 	// *must* be done via combinatorial logic.
 	//
 	wire	io_stall, scop_stall, oled_stall,
-			rtc_stall, sdcard_stall, 
+			rtc_stall, sdcard_stall,
 			net_stall, gps_stall, mio_stall, cfg_stall, netb_stall,
 			mem_stall, flash_stall, ram_stall,
 			many_stall;
@@ -648,7 +648,7 @@ module	busmaster(i_clk, i_rst,
 	//
 	// The I/O processor, herein called an fastio.  This is a unique
 	// set of peripherals--these are all of the peripherals that can answer
-	// in a single clock--or, rather, they are the peripherals that can 
+	// in a single clock--or, rather, they are the peripherals that can
 	// answer the bus before their clock.  Hence, the fastio simply consists
 	// of a mux that selects between various peripheral responses.  Further,
 	// these peripherals are not allowed to stall the bus.
@@ -665,7 +665,7 @@ module	busmaster(i_clk, i_rst,
 		.AUXUART_SETUP(30'd705),	// 115200 Baud, 8N1, from 81.25M
 		.GPSUART_SETUP(30'd8464),	//   9600 Baud, 8N1
 		.EXTRACLOCK(0)
-		) runio(i_clk, i_sw, i_btn, 
+		) runio(i_clk, i_sw, i_btn,
 			w_led, o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 			i_aux_rx, o_aux_tx, o_aux_cts, i_gps_rx, o_gps_tx,
 			wb_cyc, (io_sel)&&(wb_stb), wb_we, wb_addr[4:0],
@@ -754,7 +754,7 @@ module	busmaster(i_clk, i_rst,
 			wb_cyc, (wb_stb)&&(sdcard_sel), wb_we,
 				wb_addr[1:0], wb_data,
 				sdcard_ack, sdcard_stall, sdcard_data,
-			w_sd_cs_n, o_sd_sck, w_sd_mosi, w_sd_miso, 
+			w_sd_cs_n, o_sd_sck, w_sd_mosi, w_sd_miso,
 			sdcard_int, 1'b1, sd_dbg);
 	assign	w_sd_miso = i_sd_data[0];
 	assign	o_sd_data = { w_sd_cs_n, 3'b111 };
@@ -913,7 +913,7 @@ module	busmaster(i_clk, i_rst,
 	// 2kW memory, 1kW for each of transmit and receive.  (Max pkt length
 	// is 512W, so this allows for two 512W in memory.)  Since we don't
 	// really have ethernet without ETHERNET_ACCESS defined, this just
-	// consumes resources for us so we have an idea of what might be 
+	// consumes resources for us so we have an idea of what might be
 	// available when we do have ETHERNET_ACCESS defined.
 	//
 	memdev #(11) enet_buffers(i_clk, wb_cyc, (wb_stb)&&((netb_sel)||(netp_sel)), wb_we,
@@ -921,7 +921,6 @@ module	busmaster(i_clk, i_rst,
 	assign	o_mdclk = 1'b1;
 	assign	o_mdio = 1'b1;
 	assign	o_mdwe = 1'b1;
-	
 `endif
 
 
@@ -1257,7 +1256,6 @@ module	busmaster(i_clk, i_rst,
 	assign	scop_d_stall     = scop_net_stall;
 	assign	scop_d_data      = scop_net_data;
 	assign	scop_d_interrupt = scop_net_interrupt;
-	
 `else
 	assign	scop_d_data = 32'h00;
 	assign	scop_d_stall = 1'b0;
