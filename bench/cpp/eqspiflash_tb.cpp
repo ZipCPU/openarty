@@ -72,6 +72,7 @@ public:
 			m_core->o_qspi_sck, m_core->o_qspi_dat);
 
 		m_core->i_clk_82mhz = 1;
+#ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s/%s %s %s[%s%s%s%s%s] %s %s@0x%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -208,6 +209,7 @@ public:
 
 
 		printf("\n");
+#endif
 
 		m_core->eval();
 		m_core->i_clk_82mhz = 0;

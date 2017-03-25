@@ -66,6 +66,7 @@ public:
 			((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
+#ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s %s%s %s@0x%02x[%04x/%04x] -- %d[%d->(%d)->%d]",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -96,6 +97,7 @@ public:
 			m_sim->m_outreg);
 
 		printf("\n");
+#endif
 
 		m_core->eval();
 		m_core->i_clk = 0;
