@@ -172,6 +172,9 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 			fprintf(stderr, "ERR: Could not read from TTY\n");
 			perror("O/S Err:");
 			exit(EXIT_FAILURE);
+		} else if (nr == 0) {
+			fprintf(stderr, "TTY device has closed\n");
+			exit(EXIT_SUCCESS);
 		} for(int i=0; i<nr; i++) {
 			lb.m_iline[lb.m_ilen++] = lb.m_buf[i];
 			if ((lb.m_iline[lb.m_ilen-1]=='\n')
@@ -220,6 +223,11 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 					fprintf(stderr, "ERR: %4d\n", errno);
 					perror("O/S Err: ");
 					assert(nw > 0);
+					break;
+				} else if (nw == 0) {
+					// TTY device has closed our connection
+					fprintf(stderr, "TTY device has closed\n");
+					exit(EXIT_SUCCESS);
 					break;
 				}
 				// if (nw != nr-ttlw)
