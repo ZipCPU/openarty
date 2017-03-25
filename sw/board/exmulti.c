@@ -41,14 +41,9 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 #include <stdio.h>
+#include <string.h>
 
 #define	sys	_sys
-
-#define	udivdi3	__udivdi3
-#include "udiv.c"
-
-#define	umoddi3	__umoddi3
-#include "umod.c"
 
 void	idle_task(void) {
 	while(1)
@@ -115,6 +110,73 @@ int	mpyuhi(int a, int b) {
 	// return ahi;
 }
 
+
+int	gps_lock = 0;
+void	gps_process_line(const char *line) {
+	if ((line[0] != '$')||(line[1] != 'G')
+			||(line[2] != 'P'))
+		return;
+
+	// GGA, GSV(x3), RMC, VTG
+	if (line[3] == 'G') {
+		/*
+		if ((line[4] == 'G')&&(line[5] == 'A')) {
+		} // else if ((line[5] == 'S')&&(line[6] == 'V')) {
+		}
+		*/
+		// printf("GPS Line: %s\r\n", line);
+	} else if (line[3] == 'R') {
+		// if ((line[4] == 'M')&&(line[5] == 'C')&&(line[6] == ','))
+		{
+			// char	outbuf[256], *outptr = outbuf;
+			// const char *here = &line[8], *there;
+			// there = strchr(here, ',');
+			fputs("RMC-Line\r\n", stdout);
+#ifdef	PROCLINE
+			if ((there)&&(there - here > 6)) {
+				outptr += sprintf(outptr,
+					"TIME: %c%c:%c%c:%c%c\r\n", 
+						here[0], here[1],
+						here[2], here[3],
+						here[4], here[5]);
+				here = there + 1;
+				there = strchr(here, ',');
+			} if (there) {
+				if (*here == 'A')
+					gps_lock = 1;
+				else
+					gps_lock = 0;
+				here = there + 1;
+				there = strchr(there+1, ',');
+			} if (there) {
+				there = strchr(there+1, ',');
+			} if (there) {
+				char	tmp[32];
+				strncpy(tmp, here, there-here);
+				outptr += sprintf(outptr, "LATITUDE: %s\r\n");
+				here = there + 1;
+				there = strchr(there+1, ',');
+			} if (there) {
+				there = strchr(there+1, ',');
+			} if (there) {
+				char	tmp[32];
+				strncpy(tmp, here, there-here);
+				outptr += sprintf(outptr, "LONGITUDE: %s\r\n");
+			} if (gps_lock)
+				fputs(outbuf, stdout);
+			else	puts("No GPS lock\r\n");
+#endif
+		}
+		printf("GPS RMC Line: %s\r\n", line);
+	} else if (line[3] == 'V') {
+		/*
+		if ((line[4] == 'T')&&(line[5] == 'G')) {
+		}
+		*/
+		// printf("GPS Line: %s\r\n", line);
+	} else printf("Other GPS Line: %s\r\n", line);
+}
+
 char	errstring[128];
 
 
@@ -123,8 +185,6 @@ void	main(int argc, char **argv) {
 		white = 0x070707, black = 0, dimgreen = 0x1f00,
 		second = CLOCKFREQHZ;
 	int	i, sw;
-
-	_uart->u_setup = 703;
 
 	// Start the GPS converging ...
 	sys->io_gps.g_alpha = 2;
@@ -213,6 +273,9 @@ void	main(int argc, char **argv) {
 
 	printf("GPS RECORD START\r\n");
 
+	zip->z_tma = TMR_INTERVAL | (second/1000);
+	wait_on_interrupt(SYSINT_TMA);
+	sys->io_gpsu.u_rx = 0x01000;
 	while(1) {
 		char	*s = errstring;
 
@@ -241,14 +304,30 @@ void	main(int argc, char **argv) {
 
 		sys->io_b.i_leds = 0x080;
 
-		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS;
-		do {
-			int	v;
-			wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF);
+		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS | SYSINT_TMA;
+		{
+			const int	LINEBUFSZ = 80;
+			char	line[LINEBUFSZ], *linep = line;
+			do {
+				int	v;
+				wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF|SYSINT_TMA);
 
-			while(((v = sys->io_gpsu.u_rx)&0x100)==0)
-				sys->io_uart.u_tx = v & 0x0ff;
-		} while((zip->z_pic & SYSINT_PPS)==0);
+				while(((v = sys->io_gpsu.u_rx)&0x100)==0) {
+					v &= 0x0ff;
+					// putchar(v);
+					// sys->io_uart.u_tx = v;
+					*linep++ = v;
+					if(linep-line > LINEBUFSZ)
+						linep = line;
+					if ((v == '\r')||(v == '\n')) {
+						*linep = '\0';
+						if (line[0] == '$')
+							gps_process_line(line);
+						linep = line;
+					}
+				}
+			} while((zip->z_pic & SYSINT_PPS)==0);
+		}
 	}
 
 	zip_halt();
