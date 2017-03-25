@@ -1,0 +1,7 @@
+legal.txt
+svn-commit*
+.*.swp
+*-arty.tjz
+.svn/
+obj-zip
+obj-pc
