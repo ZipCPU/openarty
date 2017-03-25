@@ -1914,6 +1914,12 @@ module	zipcpu(i_clk, i_rst, i_interrupt,
 	assign	o_i_count  = (alu_pc_valid)&&(!clear_pipeline);
 
 `ifdef	DEBUG_SCOPE
+	wire	this_write;
+	assign	this_write = ((mem_valid)||((!clear_pipeline)&&(!alu_illegal)
+				&&(((alu_wR)&&(alu_valid))
+					||(div_valid)||(fpu_valid))));
+	reg	last_write;
+
 	always @(posedge i_clk)
 		last_write <= this_write;
 
