@@ -263,16 +263,6 @@ module toplevel(sys_clk_i, i_reset_btn,
 				tx_stb, tx_data, 1'b1, o_uart_tx, tx_busy);
 
 
-	wire	[3:0]	w_led;
-	reg	[24:0]	dbg_counter;
-	always @(posedge  sys_clk)
-		dbg_counter <= dbg_counter + 25'h01;
-	assign o_led = { w_led[3:2],
-			((!pwr_reset)&(dbg_counter[24]))
-				||((pwr_reset)&&(w_led[1])), 
-			(s_reset & dbg_counter[23])
-				||((!s_reset)&&(w_led[0])) };
-
 
 
 	//////
@@ -316,7 +306,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		// External USB-UART bus control
 		rx_stb, rx_data, tx_stb, tx_data, tx_busy,
 		// Board lights and switches
-		i_sw, i_btn, w_led,
+		i_sw, i_btn, o_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
 		i_aux_rx, o_aux_tx, i_aux_cts_n, o_aux_rts_n,i_gps_rx, o_gps_tx,
