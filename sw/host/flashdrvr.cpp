@@ -164,11 +164,13 @@ bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
 }
 
 #define	VCONF_VALUE	0x8b
+#define	VCONF_VALUE_ALT	0x83
 
 bool	FLASHDRVR::verify_config(void) {
 	unsigned cfg = m_fpga->readio(R_QSPI_VCONF);
-	// printf("CFG = %02x\n", cfg);
-	return (cfg == VCONF_VALUE);
+	if (cfg != VCONF_VALUE)
+		printf("Unexpected volatile configuration = %02x\n", cfg);
+	return ((cfg == VCONF_VALUE)||(cfg == VCONF_VALUE_ALT));
 }
 
 void	FLASHDRVR::set_config(void) {
