@@ -163,10 +163,10 @@ module	memops(i_clk, i_rst, i_stb, i_lock,
 
 	initial	o_valid = 1'b0;
 	always @(posedge i_clk)
-		o_valid <= ((o_wb_cyc_gbl)||(o_wb_cyc_lcl))&&(i_wb_ack)&&(~o_wb_we);
+		o_valid <= (!i_rst)&&((o_wb_cyc_gbl)||(o_wb_cyc_lcl))&&(i_wb_ack)&&(~o_wb_we);
 	initial	o_err = 1'b0;
 	always @(posedge i_clk)
-		o_err <= ((o_wb_cyc_gbl)||(o_wb_cyc_lcl))&&(i_wb_err);
+		o_err <= (!i_rst)&&((o_wb_cyc_gbl)||(o_wb_cyc_lcl))&&(i_wb_err);
 	assign	o_busy = (o_wb_cyc_gbl)||(o_wb_cyc_lcl);
 
 	always @(posedge i_clk)
@@ -182,7 +182,7 @@ module	memops(i_clk, i_rst, i_stb, i_lock,
 		4'b01??: o_result <= i_wb_data;
 		4'b100?: o_result <= { 16'h00, i_wb_data[31:16] };
 		4'b101?: o_result <= { 16'h00, i_wb_data[15: 0] };
-		4'h1100: o_result <= { 24'h00, i_wb_data[31:24] };
+		4'b1100: o_result <= { 24'h00, i_wb_data[31:24] };
 		4'b1101: o_result <= { 24'h00, i_wb_data[23:16] };
 		4'b1110: o_result <= { 24'h00, i_wb_data[15: 8] };
 		4'b1111: o_result <= { 24'h00, i_wb_data[ 7: 0] };
