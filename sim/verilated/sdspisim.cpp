@@ -69,7 +69,7 @@ static	const unsigned	DEVID = 0x0115,
 static	const	unsigned
 	CCS = 1; // 0: SDSC card, 1: SDHC or SDXC card
 
-SDSPISIM::SDSPISIM(void) {
+SDSPISIM::SDSPISIM(const bool debug) {
 	m_dev = NULL;
 	m_last_sck = 1;
 	m_block_address = (CCS==1);
@@ -120,6 +120,7 @@ SDSPISIM::SDSPISIM(void) {
 	//
 	m_reading_data = false;
 	m_have_token = false;
+	m_debug = debug;
 }
 
 void	SDSPISIM::load(const char *fname) {
@@ -133,7 +134,7 @@ void	SDSPISIM::load(const char *fname) {
 
 		m_devblocks = devln>>9;
 
-		printf("SDCARD: NBLOCKS = %ld\n", m_devblocks);
+		if (m_debug) printf("SDCARD: NBLOCKS = %ld\n", m_devblocks);
 	}
 }
 
@@ -181,22 +182,22 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 	// Only change our output on the falling edge
 
 	m_last_sck = sck;
-	printf("SDSPI: (%3d) [%d,%d,%d] ", m_delay, csn, sck, m_mosi);
+	if (m_debug) printf("SDSPI: (%3d) [%d,%d,%d] ", m_delay, csn, sck, m_mosi);
 	// assert(m_delay > 20);
 
 	m_bitpos++;
 	m_dat_in = (m_dat_in<<1)|m_mosi;
 
 
-	printf("(bitpos=%d,dat_in=%02x)\n", m_bitpos&7, m_dat_in&0x0ff);
+	if (m_debug) printf("(bitpos=%d,dat_in=%02x)\n", m_bitpos&7, m_dat_in&0x0ff);
 
 	if ((m_bitpos&7)==0) {
-		printf("SDSPI--RX BYTE %02x\n", m_dat_in&0x0ff);
+		if (m_debug) printf("SDSPI--RX BYTE %02x\n", m_dat_in&0x0ff);
 		m_dat_out = 0xff;
 		if (m_reading_data) {
 			if (m_have_token) {
 				m_block_buf[m_rxloc++] = m_dat_in;
-				printf("SDSPI: WR[%3d] = %02x\n", m_rxloc-1,
+				if (m_debug) printf("SDSPI: WR[%3d] = %02x\n", m_rxloc-1,
 					m_dat_in&0x0ff);
 				if (m_rxloc >= 512+2) {
 					unsigned crc, rxcrc;
@@ -204,8 +205,8 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 					rxcrc = ((m_block_buf[512]&0x0ff)<<8)
 						|(m_block_buf[513]&0x0ff);
 
-					printf("LEN = %d\n", m_rxloc);
-					printf("CHECKING CRC: (rx) %04x =? %04x (calc)\n",
+					if (m_debug) printf("LEN = %d\n", m_rxloc);
+					if (m_debug) printf("CHECKING CRC: (rx) %04x =? %04x (calc)\n",
 						crc, rxcrc);
 					m_reading_data = false;
 					m_have_token = false;
@@ -218,13 +219,14 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 				}
 			} else {
 				if ((m_dat_in&0x0ff) == 0x0fe) {
-					printf("SDSPI: TOKEN!!\n");
+					if (m_debug) printf("SDSPI: TOKEN!!\n");
 					m_have_token = true;
 					m_rxloc = 0;
-				} else printf("SDSPI: waiting on token\n");
+				} else if (m_debug)
+					printf("SDSPI: waiting on token\n");
 			}
 		} else if (m_cmdidx < 6) {
-			printf("SDSPI: CMDIDX = %d\n", m_cmdidx);
+			if (m_debug) printf("SDSPI: CMDIDX = %d\n", m_cmdidx);
 			// All commands *must* start with a 01... pair of bits.
 			if (m_cmdidx == 0)
 				assert((m_dat_in&0xc0)==0x40);
@@ -236,10 +238,12 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 			m_rspidx = 0;
 			m_blkdly = 0;
 			m_blkidx = SDSPI_MAXBLKLEN;
-			printf("SDSPI: CMDIDX = %d -- WE HAVE A COMMAND! [ ", m_cmdidx);
-			for(int i=0; i<6; i++)
-				printf("%02x ", m_cmdbuf[i] & 0xff);
-			printf("]\n"); fflush(stdout);
+			if (m_debug) {
+				printf("SDSPI: CMDIDX = %d -- WE HAVE A COMMAND! [ ", m_cmdidx);
+				for(int i=0; i<6; i++)
+					printf("%02x ", m_cmdbuf[i] & 0xff);
+				printf("]\n"); fflush(stdout);
+			}
 
 			unsigned	arg;
 			arg = ((((((m_cmdbuf[1]<<8)|(m_cmdbuf[2]&0x0ff))<<8)
@@ -292,7 +296,7 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 			} else {
 				m_altcmd_flag = false;
 				memset(m_rspbuf, 0x0ff, SDSPI_RSPLEN);
-				printf("SDSPI: Received a command 0x%02x (%d)\n",
+				if (m_debug) printf("SDSPI: Received a command 0x%02x (%d)\n",
 					m_cmdbuf[0], m_cmdbuf[0]&0x03f);
 				switch(m_cmdbuf[0]&0x3f) {
 				case  0: // CMD0  -- GO_IDLE_STATE
@@ -367,7 +371,7 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 					m_rspbuf[0] = 0x00;
 					memset(m_block_buf, 0x0ff, SDSPI_MAXBLKLEN);
 					if (m_dev) {
-						printf("Reading from block %08x of %08lx\n", arg, m_devblocks);
+						if (m_debug) printf("Reading from block %08x of %08lx\n", arg, m_devblocks);
 						if (m_block_address) {
 							assert(arg < m_devblocks);
 							fseek(m_dev, arg<<9, SEEK_SET);
@@ -424,7 +428,7 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 				default: // Unimplemented command
 					m_rspbuf[0] = 0x04;
 					m_rspdly = 4;
-					printf("SDSPI ERR: Command CMD%d not implemented!\n", m_cmdbuf[0]&0x03f);
+					if (m_debug) printf("SDSPI ERR: Command CMD%d not implemented!\n", m_cmdbuf[0]&0x03f);
 					fflush(stdout);
 					assert(0 && "Not Implemented");
 				}
@@ -479,7 +483,7 @@ unsigned SDSPISIM::cmdcrc(int len, char *buf) const {
 
 bool	SDSPISIM::check_cmdcrc(char *buf) const {
 	unsigned fill = cmdcrc(5, buf);
-	printf("SDSPI: CRC-CHECK, should have a CRC of %02x\n", fill);
+	if (m_debug) printf("SDSPI: CRC-CHECK, should have a CRC of %02x\n", fill);
 	return (fill == (buf[5]&0x0ff));
 }
 
@@ -499,7 +503,7 @@ unsigned SDSPISIM::blockcrc(int len, char *buf) const {
 	}
 
 	fill &= 0x0ffff;
-	if (dbg) { printf("BLOCKCRC(%d,??) = %04x\n", len, fill); }
+	if (dbg) { printf("BLOCKCRC(%d,...) = %04x\n", len, fill); }
 	return fill;
 }
 

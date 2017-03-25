@@ -1,18 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	testb.h
+// Filename:	zipelf.h
 //
-// Project:	Zip CPU -- a small, lightweight, RISC CPU core
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	A wrapper for a common interface to a clocked FPGA core
-//		begin exercised in Verilator.
+// Purpose:	
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
-//		Gisselquist Tecnology, LLC
+//		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015, Gisselquist Technology, LLC
+// Copyright (C) 2015-2016, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -34,43 +34,20 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
-#ifndef	TESTB_H
-#define	TESTB_H
+//
+//
+#ifndef	ZIPELF_H
+#define	ZIPELF_H
 
-template <class VA>	class TESTB {
+#include <stdint.h>
+
+class	ELFSECTION {
 public:
-	VA	*m_core;
-	unsigned long	m_tickcount;
-
-	TESTB(void) { m_core = new VA; }
-	~TESTB(void) { delete m_core; m_core = NULL; }
-
-	virtual	void	eval(void) {
-		m_core->eval();
-	}
-
-	virtual	void	tick(void) {
-		// Make sure we have our evaluations straight before the top
-		// of the clock.  This is necessary since some of the 
-		// connection modules may have made changes, for which some
-		// logic depends.  This forces that logic to be recalculated
-		// before the top of the clock.
-		eval();
-		m_core->i_clk = 1;
-		eval();
-		m_core->i_clk = 0;
-		eval();
-
-		m_tickcount++;
-	}
-
-	virtual	void	reset(void) {
-		m_core->i_rst = 1;
-		tick();
-		m_core->i_rst = 0;
-		m_tickcount = 0l;
-		// printf("RESET\n");
-	}
+	uint32_t	m_start, m_len;
+	char		m_data[4];
 };
+
+bool	iself(const char *fname);
+void	elfread(const char *fname, uint32_t &entry, ELFSECTION **&sections);
 
 #endif

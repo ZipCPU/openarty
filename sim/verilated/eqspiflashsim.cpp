@@ -18,7 +18,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -31,7 +31,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -46,10 +46,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "eqspiflashsim.h"
-
-#define	MEMBYTES	(1<<24)
 
 static	const unsigned
 	DEVESD = 0x014,
@@ -91,17 +90,20 @@ static	const	char	IDSTR[20]= {
 		(char)0xf0, (char)0xef 
 	};
 
-EQSPIFLASHSIM::EQSPIFLASHSIM(void) {
-	const	int	NSECTORS = MEMBYTES>>16;
-	m_mem = new char[MEMBYTES];
+EQSPIFLASHSIM::EQSPIFLASHSIM(const int lglen, bool debug) {
+	int	nsectors;
+	m_membytes = (1<<lglen);
+	m_memmask = (m_membytes - 1);
+	m_mem = new char[m_membytes];
 	m_pmem = new char[256];
 	m_otp  = new char[65];
 	for(int i=0; i<65; i++)
 		m_otp[i] = 0x0ff;
 	m_otp[64] = 1;
 	m_otp_wp = false;
-	m_lockregs = new char[NSECTORS];
-	for(int i=0; i<NSECTORS; i++)
+	nsectors = m_membytes>>16;
+	m_lockregs = new char[nsectors];
+	for(int i=0; i<nsectors; i++)
 		m_lockregs[i] = 0;
 
 	m_state = EQSPIF_IDLE;
@@ -116,31 +118,42 @@ EQSPIFLASHSIM::EQSPIFLASHSIM(void) {
 	m_mode_byte = 0;
 	m_flagreg = 0x0a5;
 
-	m_debug = true;
+	m_debug = debug;
 
-	memset(m_mem, 0x0ff, MEMBYTES);
+	memset(m_mem, 0x0ff, m_membytes);
 }
 
 void	EQSPIFLASHSIM::load(const unsigned addr, const char *fname) {
 	FILE	*fp;
-	size_t	len;
+	size_t	len, nr = 0;
 
-	if (addr >= MEMBYTES)
+	if (addr >= m_membytes)
 		return; // return void
-	len = MEMBYTES-addr*4;
+
+	// If not given, then length is from the given address until the end
+	// of the flash memory
+	len = m_membytes-addr*4;
 
 	if (NULL != (fp = fopen(fname, "r"))) {
-		int	nr = 0;
 		nr = fread(&m_mem[addr*4], sizeof(char), len, fp);
 		fclose(fp);
 		if (nr == 0) {
-			fprintf(stderr, "SPI-FLASH: Could not read %s\n", fname);
+			fprintf(stderr, "EQSPI-FLASH: Could not read %s\n", fname);
 			perror("O/S Err:");
 		}
 	} else {
-		fprintf(stderr, "SPI-FLASH: Could not open %s\n", fname);
+		fprintf(stderr, "EQSPI-FLASH: Could not open %s\n", fname);
 		perror("O/S Err:");
 	}
+
+	for(unsigned i=nr; i<m_membytes; i++)
+		m_mem[i] = 0x0ff;
+}
+
+void	EQSPIFLASHSIM::load(const uint32_t offset, const char *data, const uint32_t len) {
+	uint32_t	moff = (offset & (m_memmask));
+
+	memcpy(&m_mem[moff], data, len);
 }
 
 #define	QOREG(A)	m_oreg = ((m_oreg & (~0x0ff))|(A&0x0ff))
@@ -240,7 +253,7 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			m_sreg &= (~EQSPIF_WEL_FLAG);
 			m_sreg |= (EQSPIF_WIP_FLAG);
 			// Should I be checking the lock register(s) here?
-			for(int i=0; i<MEMBYTES; i++)
+			for(unsigned i=0; i<m_membytes; i++)
 				m_mem[i] = 0x0ff;
 		} else if (m_state == EQSPIF_PROGRAM_OTP) {
 			// Program the One-Time Programmable (OTP memory
@@ -318,8 +331,8 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		if (m_count == 24) {
 			if (m_debug) printf("EQSPI: Entering from Quad-Read Idle to Quad-Read\n");
 			if (m_debug) printf("EQSPI: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
-			m_addr = (m_ireg) & 0x0ffffff;
-			assert((m_addr & 0xfc00000)==0);
+			m_addr = (m_ireg) & m_memmask;
+			assert((m_addr & (~(m_memmask)))==0);
 		} else if (m_count == 24 + 4*8) {// After the idle bits
 			m_state = EQSPIF_QUAD_READ;
 			if (m_debug) printf("EQSPI: QI/O Dummy = %04x\n", m_ireg);
@@ -509,19 +522,19 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		case EQSPIF_WRCR: // Write volatile config register, 0x81
 			if (m_count == 8+8+8) {
 				m_vconfig = m_ireg & 0x0ff;
-				printf("Setting volatile config register to %08x\n", m_vconfig);
+				if (m_debug) printf("Setting volatile config register to %08x\n", m_vconfig);
 				assert((m_vconfig & 0xfb)==0x8b);
 			} break;
 		case EQSPIF_WRNVCONFIG: // Write nonvolatile config register
 			if (m_count == 8+8+8) {
 				m_nvconfig = m_ireg & 0x0ffdf;
-				printf("Setting nonvolatile config register to %08x\n", m_nvconfig);
+				if (m_debug) printf("Setting nonvolatile config register to %08x\n", m_nvconfig);
 				assert((m_nvconfig & 0xffc5)==0x8fc5);
 			} break;
 		case EQSPIF_WREVCONFIG: // Write enhanced volatile config reg
 			if (m_count == 8+8) {
 				m_evconfig = m_ireg & 0x0ff;
-				printf("Setting enhanced volatile config register to %08x\n", m_evconfig);
+				if (m_debug) printf("Setting enhanced volatile config register to %08x\n", m_evconfig);
 				assert((m_evconfig & 0x0d7)==0xd7);
 			} break;
 		case EQSPIF_WRLOCK:
@@ -529,13 +542,13 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				m_addr = (m_ireg>>24)&0x0ff;
 				if ((m_lockregs[m_addr]&2)==0)
 					m_lockregs[m_addr] = m_ireg&3;
-				printf("Setting lock register[%02x] to %d\n", m_addr, m_lockregs[m_addr]);
+				if (m_debug) printf("Setting lock register[%02x] to %d\n", m_addr, m_lockregs[m_addr]);
 			} break;
 		case EQSPIF_RDLOCK:
 			if (m_count == 24) {
 				m_addr = (m_ireg>>16)&0x0ff;
 				QOREG(m_lockregs[m_addr]);
-				printf("Reading lock register[%02x]: %d\n", m_addr, m_lockregs[m_addr]);
+				if (m_debug) printf("Reading lock register[%02x]: %d\n", m_addr, m_lockregs[m_addr]);
 			} else
 				QOREG(m_lockregs[m_addr]);
 			break;
@@ -597,12 +610,14 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_count < 32) {
 				QOREG(0x0c3);
 			} else if (m_count == 32) {
-				m_addr = m_ireg & 0x0ffffff;
+				m_addr = m_ireg & m_memmask;
 				if (m_debug) printf("FAST READ, ADDR = %08x\n", m_addr);
 				QOREG(0x0c3);
-				assert((m_addr & 0xf000003)==0);
+				if (m_addr & (~(m_memmask))) {
+					printf("EQSPI: ADDR = %08x ? !!\n", m_addr);
+				} assert((m_addr & (~(m_memmask)))==0);
 			} else if ((m_count >= 40)&&(0 == (m_sreg&0x01))) {
-				if (m_count == 40)
+				if ((m_debug)&&(m_count == 40))
 					printf("DUMMY BYTE COMPLETE ...\n");
 				QOREG(m_mem[m_addr++]);
 				if (m_debug) printf("SPIF[%08x] = %02x -> %02x\n", m_addr-1, m_mem[m_addr-1]&0x0ff, m_oreg);
@@ -612,14 +627,14 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			} else printf("How did I get here, m_count = %d\n", m_count);
 			break;
 		case EQSPIF_QUAD_IOREAD_CMD:
-			if (m_count == 8+24) {
-				m_addr = m_ireg & 0x0ffffff;
-				printf("EQSPI: QUAD I/O READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
+			if (m_count == 32) {
+				m_addr = m_ireg & m_memmask;
+				if (m_debug) printf("EQSPI: QUAD I/O READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
 					(m_addr<0x1000000)?(m_mem[m_addr]&0x0ff):0,
 					(m_addr<0x0ffffff)?(m_mem[m_addr+1]&0x0ff):0,
 					(m_addr<0x0fffffe)?(m_mem[m_addr+2]&0x0ff):0,
 					(m_addr<0x0fffffd)?(m_mem[m_addr+3]&0x0ff):0);
-				assert((m_addr & (~(MEMBYTES-1)))==0);
+				assert((m_addr & (~(m_memmask)))==0);
 			} else if (m_count == 8+24+8*4) {
 				QOREG(m_mem[m_addr++]);
 				m_quad_mode = EQSPIF_QMODE_QSPI_ADDR;
@@ -631,36 +646,36 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			break;
 		case EQSPIF_QUAD_OREAD_CMD:
 			if (m_count == 8+24) {
-				m_addr = m_ireg & 0x0ffffff;
+				m_addr = m_ireg & m_memmask;
 				// printf("FAST READ, ADDR = %08x\n", m_addr);
-				printf("EQSPI: QUAD READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
+				if (m_debug) printf("EQSPI: QUAD READ, ADDR = %06x (%02x:%02x:%02x:%02x)\n", m_addr,
 					(m_addr<0x1000000)?(m_mem[m_addr]&0x0ff):0,
 					(m_addr<0x0ffffff)?(m_mem[m_addr+1]&0x0ff):0,
 					(m_addr<0x0fffffe)?(m_mem[m_addr+2]&0x0ff):0,
 					(m_addr<0x0fffffd)?(m_mem[m_addr+3]&0x0ff):0);
-				assert((m_addr & (~(MEMBYTES-1)))==0);
+				assert((m_addr & (~(m_memmask)))==0);
 			} else if (m_count == 8+24+4*8) {
 				QOREG(m_mem[m_addr]);
 				m_quad_mode = EQSPIF_QMODE_SPI_ADDR;
 				m_mode_byte = (m_ireg & 0x080);
-				printf("EQSPI: (QUAD) MODE BYTE = %02x\n", m_mode_byte);
+				if (m_debug) printf("EQSPI: (QUAD) MODE BYTE = %02x\n", m_mode_byte);
 				m_state = EQSPIF_QUAD_READ;
 			}
 			break;
 		case EQSPIF_QUAD_READ:
 			if ((m_count >= 64)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
-				printf("EQSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
+				// printf("EQSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			} else {
 				m_oreg = 0;
-				printf("EQSPI/QR ... m_count = %d\n", m_count);
+				if (m_debug) printf("EQSPI/QR ... m_count = %d\n", m_count);
 			}
 			break;
 		case EQSPIF_PP:
 			if (m_count == 32) {
-				m_addr = m_ireg & 0x0ffffff;
+				m_addr = m_ireg & m_memmask;
 				if (m_debug) printf("EQSPI: PAGE-PROGRAM ADDR = %06x\n", m_addr);
-				assert((m_addr & 0xfc00000)==0);
+				assert((m_addr & (~(m_memmask)))==0);
 				// m_page = m_addr >> 8;
 				for(int i=0; i<256; i++)
 					m_pmem[i] = 0x0ff;
@@ -671,14 +686,14 @@ int	EQSPIFLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			} break;
 		case EQSPIF_QPP:
 			if (m_count == 32) {
-				m_addr = m_ireg & 0x0ffffff;
+				m_addr = m_ireg & m_memmask;
 				m_quad_mode = EQSPIF_QMODE_SPI_ADDR;
 				if (m_debug) printf("EQSPI/QR: PAGE-PROGRAM ADDR = %06x\n", m_addr);
-				assert((m_addr & 0xfc00000)==0);
+				assert((m_addr & (~(m_memmask)))==0);
 				for(int i=0; i<256; i++)
 					m_pmem[i] = 0x0ff;
 			} else if (m_count >= 40) {
-				printf("EQSPI: PROGRAM[%06x] = %02x\n", m_addr, m_ireg & 0x0ff);
+				if (m_debug) printf("EQSPI: PROGRAM[%06x] = %02x\n", m_addr, m_ireg & 0x0ff);
 				m_pmem[m_addr & 0x0ff] = m_ireg & 0x0ff;
 				m_addr = (m_addr & (~0x0ff)) | ((m_addr+1)&0x0ff);
 			} break;
