@@ -77,10 +77,10 @@ set_property -dict { PACKAGE_PIN U12 IOSTANDARD LVCMOS33 } [get_ports i_gps_3df]
 set_property -dict { PACKAGE_PIN V12 IOSTANDARD LVCMOS33 } [get_ports o_gps_tx]
 set_property -dict { PACKAGE_PIN V10 IOSTANDARD LVCMOS33 } [get_ports i_gps_rx]
 set_property -dict { PACKAGE_PIN V11 IOSTANDARD LVCMOS33 } [get_ports i_gps_pps]
-set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports i_aux_rts]
+set_property -dict { PACKAGE_PIN U14 IOSTANDARD LVCMOS33 } [get_ports i_aux_cts_n]
 set_property -dict { PACKAGE_PIN V14 IOSTANDARD LVCMOS33 } [get_ports o_aux_tx]
 set_property -dict { PACKAGE_PIN T13 IOSTANDARD LVCMOS33 } [get_ports i_aux_rx]
-set_property -dict { PACKAGE_PIN U13 IOSTANDARD LVCMOS33 } [get_ports o_aux_cts]
+set_property -dict { PACKAGE_PIN U13 IOSTANDARD LVCMOS33 } [get_ports o_aux_rts_n]
 
 ##Pmod Header JD: SD-Card
 
@@ -175,9 +175,9 @@ set_property -dict { PACKAGE_PIN A9  IOSTANDARD LVCMOS33 } [get_ports i_uart_rx]
 ## ChipKit SPI
 
 #set_property -dict { PACKAGE_PIN G1    IOSTANDARD LVCMOS33 } [get_ports { ck_miso }]; #IO_L17N_T2_35 Sch=ck_miso
-#set_property -dict { PACKAGE_PIN H1    IOSTANDARD LVCMOS33 } [get_ports { ck_mosi }]; #IO_L17P_T2_35 Sch=ck_mosi
-#set_property -dict { PACKAGE_PIN F1    IOSTANDARD LVCMOS33 } [get_ports { ck_sck }]; #IO_L18P_T2_35 Sch=ck_sck
-#set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { ck_ss }]; #IO_L16N_T2_35 Sch=ck_ss
+set_property -dict { PACKAGE_PIN H1    IOSTANDARD LVCMOS33 } [get_ports { o_ck_mosi }]; #IO_L17P_T2_35 Sch=ck_mosi
+set_property -dict { PACKAGE_PIN F1    IOSTANDARD LVCMOS33 } [get_ports { o_ck_sck }]; #IO_L18P_T2_35 Sch=ck_sck
+set_property -dict { PACKAGE_PIN C1    IOSTANDARD LVCMOS33 } [get_ports { o_ck_csn }]; #IO_L16N_T2_35 Sch=ck_ss
 
 ## ChipKit I2C
 

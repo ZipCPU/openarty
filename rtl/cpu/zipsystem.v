@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	zipsystem.v
 //
@@ -62,9 +62,9 @@
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -76,11 +76,17 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
 //
 `include "cpudefs.v"
 //
@@ -157,7 +163,7 @@
 //
 module	zipsystem(i_clk, i_rst,
 		// Wishbone master interface from the CPU
-		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
+		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
 			i_wb_ack, i_wb_stall, i_wb_data, i_wb_err,
 		// Incoming interrupts
 		i_ext_int,
@@ -170,7 +176,7 @@ module	zipsystem(i_clk, i_rst,
 		, o_cpu_debug
 `endif
 		);
-	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=32,
+	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=30,
 			LGICACHE=10, START_HALTED=1, EXTERNAL_INTERRUPTS=1,
 `ifdef	OPT_MULTIPLY
 			IMPLEMENT_MPY = `OPT_MULTIPLY,
@@ -187,15 +193,15 @@ module	zipsystem(i_clk, i_rst,
 `else
 			IMPLEMENT_FPU=0,
 `endif
-			IMPLEMENT_LOCK=1,
-			HIGHSPEED_CPU=0,
-			// Derived parameters
+			IMPLEMENT_LOCK=1;
+	localparam	// Derived parameters
 			AW=ADDRESS_WIDTH;
 	input	i_clk, i_rst;
 	// Wishbone master
 	output	wire		o_wb_cyc, o_wb_stb, o_wb_we;
 	output	wire	[(AW-1):0]	o_wb_addr;
 	output	wire	[31:0]	o_wb_data;
+	output	wire	[3:0]	o_wb_sel;
 	input			i_wb_ack, i_wb_stall;
 	input		[31:0]	i_wb_data;
 	input			i_wb_err;
@@ -221,16 +227,16 @@ module	zipsystem(i_clk, i_rst,
 	wire		ctri_int, tma_int, tmb_int, tmc_int, jif_int, dmac_int;
 	wire		mtc_int, moc_int, mpc_int, mic_int,
 			utc_int, uoc_int, upc_int, uic_int;
+
+	assign	main_int_vector[5:0] = { ctri_int, tma_int, tmb_int, tmc_int,
+					jif_int, dmac_int };
+
 	generate
 	if (EXTERNAL_INTERRUPTS < 9)
-		assign	main_int_vector = { {(9-EXTERNAL_INTERRUPTS){1'b0}},
-					i_ext_int, ctri_int,
-					tma_int, tmb_int, tmc_int,
-					jif_int, dmac_int };
+		assign	main_int_vector[14:6] = { {(9-EXTERNAL_INTERRUPTS){1'b0}},
+					i_ext_int };
 	else
-		assign	main_int_vector = { i_ext_int[8:0], ctri_int,
-					tma_int, tmb_int, tmc_int,
-					jif_int, dmac_int };
+		assign	main_int_vector[14:6] = i_ext_int[8:0];
 	endgenerate
 	generate
 	if (EXTERNAL_INTERRUPTS <= 9)
@@ -252,7 +258,7 @@ module	zipsystem(i_clk, i_rst,
 					i_ext_int[(EXTERNAL_INTERRUPTS-1):9] };
 `endif
 	endgenerate
-		
+
 
 	// Delay the debug port by one clock, to meet timing requirements
 	wire		dbg_cyc, dbg_stb, dbg_we, dbg_addr, dbg_stall;
@@ -260,11 +266,12 @@ module	zipsystem(i_clk, i_rst,
 	reg		dbg_ack;
 `ifdef	DELAY_DBG_BUS
 	wire		dbg_err, no_dbg_err;
+	wire	[3:0]	dbg_sel;
 	assign		dbg_err = 1'b0;
 	busdelay #(1,32) wbdelay(i_clk,
-		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data,
+		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data, 4'hf,
 			o_dbg_ack, o_dbg_stall, o_dbg_data, no_dbg_err,
-		dbg_cyc, dbg_stb, dbg_we, dbg_addr, dbg_idata,
+		dbg_cyc, dbg_stb, dbg_we, dbg_addr, dbg_idata, dbg_sel,
 			dbg_ack, dbg_stall, dbg_odata, dbg_err);
 `else
 	assign	dbg_cyc     = i_dbg_cyc;
@@ -672,14 +679,11 @@ module	zipsystem(i_clk, i_rst,
 	wire		cpu_gbl_stb, cpu_lcl_cyc, cpu_lcl_stb, 
 			cpu_we, cpu_dbg_we;
 	wire	[31:0]	cpu_data, wb_data;
+	wire	[3:0]	cpu_sel;
 	wire		cpu_ack, cpu_stall, cpu_err;
 	wire	[31:0]	cpu_dbg_data;
 	assign cpu_dbg_we = ((dbg_cyc)&&(dbg_stb)&&(~cmd_addr[5])
 					&&(dbg_we)&&(dbg_addr));
-
-	generate
-	if (HIGHSPEED_CPU==0)
-	begin
 	zipcpu	#(
 			.RESET_ADDRESS(RESET_ADDRESS),
 			.ADDRESS_WIDTH(ADDRESS_WIDTH),
@@ -695,7 +699,7 @@ module	zipsystem(i_clk, i_rst,
 				cpu_dbg_cc, cpu_break,
 			cpu_gbl_cyc, cpu_gbl_stb,
 				cpu_lcl_cyc, cpu_lcl_stb,
-				cpu_we, cpu_addr, cpu_data,
+				cpu_we, cpu_addr, cpu_data, cpu_sel,
 				cpu_ack, cpu_stall, wb_data,
 				cpu_err,
 			cpu_op_stall, cpu_pf_stall, cpu_i_count
@@ -703,31 +707,6 @@ module	zipsystem(i_clk, i_rst,
 			, o_cpu_debug
 `endif
 			);
-	end else begin
-	zipcpu	#(
-			.RESET_ADDRESS(RESET_ADDRESS),
-			.ADDRESS_WIDTH(ADDRESS_WIDTH),
-			.LGICACHE(LGICACHE),
-			.IMPLEMENT_MPY(IMPLEMENT_MPY),
-			.IMPLEMENT_DIVIDE(IMPLEMENT_DIVIDE),
-			.IMPLEMENT_FPU(IMPLEMENT_FPU),
-			.IMPLEMENT_LOCK(IMPLEMENT_LOCK)
-		)
-		thecpu(i_clk, cpu_reset, pic_interrupt,
-			cpu_halt, cmd_clear_pf_cache, cmd_addr[4:0], cpu_dbg_we,
-				dbg_idata, cpu_dbg_stall, cpu_dbg_data,
-				cpu_dbg_cc, cpu_break,
-			cpu_gbl_cyc, cpu_gbl_stb,
-				cpu_lcl_cyc, cpu_lcl_stb,
-				cpu_we, cpu_addr, cpu_data,
-				cpu_ack, cpu_stall, wb_data,
-				cpu_err,
-			cpu_op_stall, cpu_pf_stall, cpu_i_count
-`ifdef	DEBUG_SCOPE
-			, o_cpu_debug
-`endif
-			);
-	end endgenerate
 
 	// Now, arbitrate the bus ... first for the local peripherals
 	// For the debugger to have access to the local system bus, the
@@ -774,30 +753,32 @@ module	zipsystem(i_clk, i_rst,
 				cpu_ext_err;
 	wire	[(AW-1):0]	ext_addr;
 	wire	[31:0]		ext_odata;
+	wire	[3:0]		ext_sel;
 	wbpriarbiter #(32,AW) dmacvcpu(i_clk,
-			cpu_gbl_cyc, cpu_gbl_stb, cpu_we, cpu_addr, cpu_data,
+			cpu_gbl_cyc, cpu_gbl_stb, cpu_we, cpu_addr, cpu_data, cpu_sel,
 				cpu_ext_ack, cpu_ext_stall, cpu_ext_err,
-			dc_cyc, dc_stb, dc_we, dc_addr, dc_data,
+			dc_cyc, dc_stb, dc_we, dc_addr, dc_data, 4'hf,
 					dc_ack, dc_stall, dc_err,
-			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata,
+			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
 				ext_ack, ext_stall, ext_err);
 
 `ifdef	DELAY_EXT_BUS
 	busdelay #(AW,32) extbus(i_clk,
 			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata,
 				ext_ack, ext_stall, ext_idata, ext_err,
-			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
+			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
 				i_wb_ack, i_wb_stall, i_wb_data, (i_wb_err)||(wdbus_int));
 `else
-	assign	o_wb_cyc   = ext_cyc;
-	assign	o_wb_stb   = ext_stb;
-	assign	o_wb_we    = ext_we;
-	assign	o_wb_addr  = ext_addr;
-	assign	o_wb_data  = ext_odata;
-	assign	ext_ack    = i_wb_ack;
-	assign	ext_stall  = i_wb_stall;
-	assign	ext_idata  = i_wb_data;
-	assign	ext_err    = (i_wb_err)||(wdbus_int);
+	assign	o_wb_cyc  = ext_cyc;
+	assign	o_wb_stb  = ext_stb;
+	assign	o_wb_we   = ext_we;
+	assign	o_wb_addr = ext_addr;
+	assign	o_wb_data = ext_odata;
+	assign	o_wb_sel  = ext_sel;
+	assign	ext_ack   = i_wb_ack;
+	assign	ext_stall = i_wb_stall;
+	assign	ext_idata = i_wb_data;
+	assign	ext_err   = (i_wb_err)||(wdbus_int);
 `endif
 
 	wire		tmr_ack;

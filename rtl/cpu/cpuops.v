@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	cpuops.v
 //
@@ -12,9 +12,9 @@
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -26,11 +26,16 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
-///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 `include "cpudefs.v"
 //
@@ -44,12 +49,6 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 	output	wire	[3:0]	o_f;
 	output	reg		o_valid;
 	output	wire		o_busy;
-
-	// Rotate-left pre-logic
-	wire	[63:0]	w_rol_tmp;
-	assign	w_rol_tmp = { i_a, i_a } << i_b[4:0];
-	wire	[31:0]	w_rol_result;
-	assign	w_rol_result = w_rol_tmp[63:32]; // Won't set flags
 
 	// Shift register pre-logic
 	wire	[32:0]		w_lsr_result, w_asr_result, w_lsl_result;
@@ -75,28 +74,20 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 		assign w_brev_result[k] = i_b[31-k];
 	end endgenerate
 
-	// Popcount pre-logic
-	wire	[31:0]	w_popc_result;
-	assign	w_popc_result[5:0]=
-		 ({5'h0,i_b[ 0]}+{5'h0,i_b[ 1]}+{5'h0,i_b[ 2]}+{5'h0,i_b[ 3]})
-		+({5'h0,i_b[ 4]}+{5'h0,i_b[ 5]}+{5'h0,i_b[ 6]}+{5'h0,i_b[ 7]})
-		+({5'h0,i_b[ 8]}+{5'h0,i_b[ 9]}+{5'h0,i_b[10]}+{5'h0,i_b[11]})
-		+({5'h0,i_b[12]}+{5'h0,i_b[13]}+{5'h0,i_b[14]}+{5'h0,i_b[15]})
-		+({5'h0,i_b[16]}+{5'h0,i_b[17]}+{5'h0,i_b[18]}+{5'h0,i_b[19]})
-		+({5'h0,i_b[20]}+{5'h0,i_b[21]}+{5'h0,i_b[22]}+{5'h0,i_b[23]})
-		+({5'h0,i_b[24]}+{5'h0,i_b[25]}+{5'h0,i_b[26]}+{5'h0,i_b[27]})
-		+({5'h0,i_b[28]}+{5'h0,i_b[29]}+{5'h0,i_b[30]}+{5'h0,i_b[31]});
-	assign	w_popc_result[31:6] = 26'h00;
-
 	// Prelogic for our flags registers
 	wire	z, n, v;
-	reg	c, pre_sign, set_ovfl;
+	reg	c, pre_sign, set_ovfl, keep_sgn_on_ovfl;
 	always @(posedge i_clk)
 		if (i_ce) // 1 LUT
-			set_ovfl =(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
+			set_ovfl<=(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
 				||((i_op==4'h2)&&(i_a[31] == i_b[31])) // ADD
 				||(i_op == 4'h6) // LSL
 				||(i_op == 4'h5)); // LSR
+	always @(posedge i_clk)
+		if (i_ce) // 1 LUT
+			keep_sgn_on_ovfl<=
+				(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
+				||((i_op==4'h2)&&(i_a[31] == i_b[31]))); // ADD
 
 	wire	[63:0]	mpy_result; // Where we dump the multiply result
 	reg	mpyhi;		// Return the high half of the multiply
@@ -110,7 +101,7 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 	// this will cost a minimum of 132 6-LUTs.
 
 	wire	this_is_a_multiply_op;
-	assign	this_is_a_multiply_op = (i_ce)&&((i_op[3:1]==3'h5)||(i_op[3:0]==4'h8));
+	assign	this_is_a_multiply_op = (i_ce)&&((i_op[3:1]==3'h5)||(i_op[3:0]==4'hc));
 
 	generate
 	if (IMPLEMENT_MPY == 0)
@@ -137,8 +128,8 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 		assign	mpy_result = r_mpy_a_input * r_mpy_b_input;
 		assign	mpybusy = 1'b0;
 
-		initial	mpypipe = 1'b0;
 		reg	mpypipe;
+		initial	mpypipe = 1'b0;
 		always @(posedge i_clk)
 			if (i_rst)
 				mpypipe <= 1'b0;
@@ -214,6 +205,7 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 		reg	[2:0]	mpypipe;
 
 		// First clock, latch in the inputs
+		initial	mpypipe = 3'b0;
 		always @(posedge i_clk)
 		begin
 			// mpypipe indicates we have a multiply in the
@@ -333,13 +325,11 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 		4'b0101:{o_c,c } <= w_lsr_result[32:0];	// LSR
 		4'b0110:{c,o_c } <= w_lsl_result[32:0]; // LSL
 		4'b0111:{o_c,c } <= w_asr_result[32:0];	// ASR
-		4'b1000:   o_c   <= mpy_result[31:0]; // MPY
+		4'b1000:   o_c   <= w_brev_result;	// BREV
 		4'b1001:   o_c   <= { i_a[31:16], i_b[15:0] }; // LODILO
-		4'b1010:   o_c   <= mpy_result[63:32]; // MPYHU
-		4'b1011:   o_c   <= mpy_result[63:32]; // MPYHS
-		4'b1100:   o_c   <= w_brev_result;	// BREV
-		4'b1101:   o_c   <= w_popc_result;	// POPC
-		4'b1110:   o_c   <= w_rol_result;	// ROL
+		4'b1010:   o_c   <= mpy_result[63:32];	// MPYHU
+		4'b1011:   o_c   <= mpy_result[63:32];	// MPYHS
+		4'b1100:   o_c   <= mpy_result[31:0];	// MPY
 		default:   o_c   <= i_b;		// MOV, LDI
 		endcase
 	end else // if (mpydone)
@@ -359,8 +349,9 @@ module	cpuops(i_clk,i_rst, i_ce, i_op, i_a, i_b, o_c, o_f, o_valid,
 	assign	z = (o_c == 32'h0000);
 	assign	n = (o_c[31]);
 	assign	v = (set_ovfl)&&(pre_sign != o_c[31]);
+	wire	vx = (keep_sgn_on_ovfl)&&(pre_sign != o_c[31]);
 
-	assign	o_f = { v, n, c, z };
+	assign	o_f = { v, n^vx, c, z };
 
 	initial	o_valid = 1'b0;
 	always @(posedge i_clk)

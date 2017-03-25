@@ -234,7 +234,7 @@ debugger depends upon the ncurses library.  If you have these two libraries,
 your build should proceed without problems.  If now, you may get them simply
 by ussuing a:
 \begin{lstlisting}[language=bash]
-% sudo apt-get install ncurses-dev libelf-dev
+% sudo apt-get install ncurses-dev libelf-dev texinfo
 \end{lstlisting}
 
 
@@ -913,32 +913,35 @@ any (bare metal, supervisor) program in order to properly load it into memory.
 There are several address regions within the {\tt OpenArty}, as shown in
 Tbl.~\ref{tbl:memregions}.
 \begin{table}[htbp]
-\begin{center}\begin{tabular}{|p{2.25in}|p{0.6in}|p{0.45in}|p{2.0in}|}\hline
-\rowcolor[gray]{0.85} Binary Address & Base & Size(W) & Purpose \\\hline\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 000x xxxx} & \scalebox{0.9}{\tt 0x00000100} & \hfill 32 & Peripheral I/O Control \\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 0yyx} & \scalebox{0.9}{\tt 0x00000120} & \hfill 8 & Debug scope control\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 10xx} & \scalebox{0.9}{\tt 0x00000128} & \hfill 4 & RTC control\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0010 11xx} & \scalebox{0.9}{\tt 0x0000012c} & \hfill 4 & SDCard controller\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 00xx} & \scalebox{0.9}{\tt 0x00000130} & \hfill 4 & GPS Clock loop control\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 01xx} & \scalebox{0.9}{\tt 0x00000134} & \hfill 4 & OLEDrgb control\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0011 1xxx} & \scalebox{0.9}{\tt 0x00000138} & \hfill 8 & Network packet interface\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0100 0xxx} & \scalebox{0.9}{\tt 0x00000140} & \hfill 8 & GPS Testbench\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0100 1xxx} & \scalebox{0.9}{\tt 0x00000148} & \hfill  8 & {\em Unused}\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 0101 xxxx} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 011x xxxx} & \scalebox{0.9}{\tt 0x00000160} & \hfill 32 & {\em Unused}\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 100x xxxx} & \scalebox{0.9}{\tt 0x00000180} & \hfill 32 & {\em Unused}\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 101x xxxx} & \scalebox{0.9}{\tt 0x000001a0} & \hfill 32 & Ethernet configuration registers\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 110x xxxx} & \scalebox{0.9}{\tt 0x000001c0} & \hfill 32 & Extended Flash Control Port\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 0001 111x xxxx} & \scalebox{0.9}{\tt 0x000001e0} & \hfill 32 & ICAPE2 Configuration Port\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 10xx xxxx xxxx} & \scalebox{0.9}{\tt 0x00000800} & \hfill 1k & Ethernet RX Buffer\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 0000 11xx xxxx xxxx} & \scalebox{0.9}{\tt 0x00000c00} & \hfill 1k & Ethernet TX Buffer\\\hline
-\scalebox{0.9}{\tt 0000 0000 0000 1xxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00008000} & \hfill 32k & On-chip Block RAM\\\hline
-\scalebox{0.9}{\tt 0000 01xx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00400000} & \hfill 4M & QuadSPI Flash\\\hline
-\scalebox{0.9}{\tt 0000 0100 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x00400000} & & Configuration Start\\\hline
-\scalebox{0.9}{\tt 0000 0100 0111 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x00470000} & & Alternate Configuration\\\hline
-\scalebox{0.9}{\tt 0000 0100 1110 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x004e0000} & & CPU Reset Address\\\hline
-\scalebox{0.9}{\tt 01xx xxxx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x04000000} & \hfill 64M & DDR3 SDRAM\\\hline
-\scalebox{0.9}{\tt 1000 0000 0000 0000 0000 0000 000x} & \scalebox{0.9}{\tt 0x08000000} & \hfill 2 & ZipCPU debug control port---only visible to debug WB master\\\hline
+\begin{center}\begin{tabular}{|p{2.25in}|p{0.6in}|p{0.35in}|p{2.0in}|}\hline
+\rowcolor[gray]{0.85} Binary Address & \multicolumn{1}{c|}{Base} & \multicolumn{1}{c|}{Size} & Purpose \\\hline\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 0xxx xx--} & \scalebox{0.9}{\tt 0x00000400} & \hfill 128 & Peripheral I/O Control \\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 100y yx--} & \scalebox{0.9}{\tt 0x00000480} & \hfill 32& Debug scope control\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 1010 xx--} & \scalebox{0.9}{\tt 0x000004a0} & \hfill 16 & RTC control\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 1011 xx--} & \scalebox{0.9}{\tt 0x000004b0} & \hfill 16 & OLEDrgb control\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 1100 xx--} & \scalebox{0.9}{\tt 0x000004c0} & \hfill 16 & AUX UART\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 1101 xx--} & \scalebox{0.9}{\tt 0x000004d0} & \hfill 16 & GPS UART\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0100 1110 xx--} & \scalebox{0.9}{\tt 0x000004e0} & \hfill 16 & SDCard controller\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0101 0000 xx--} & \scalebox{0.9}{\tt 0x00000500} & \hfill 16 & GPS Clock loop control\\\hline
+%\scalebox{0.8}{\tt 00 0000 0000 0000 0001 0101 0001 ----} & \scalebox{0.9}{\tt 0x00000148} & \hfill 16 & {\em Unused}\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0101 001x xx--} & \scalebox{0.9}{\tt 0x00000520} & \hfill 32 & GPS Testbench\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0101 010x xx--} & \scalebox{0.9}{\tt 0x00000540} & \hfill 32 & Network packet interface\\\hline
+%\scalebox{0.8}{\tt 00 0000 0000 0000 0001 0101 011- ----} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0101 1xxx xx--} & \scalebox{0.9}{\tt 0x00000580} & \hfill 128 & Ethernet MIO configuration\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0110 0xxx xx--} & \scalebox{0.9}{\tt 0x00000600} & \hfill 128 & Extended Flash Control Port\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0110 1xxx xx--} & \scalebox{0.9}{\tt 0x00000680} & \hfill 128 & ICAPE2 Configuration Port\\\hline
+%\scalebox{0.8}{\tt 00 0000 0000 0000 0000 0111 ---- ----} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
+%\scalebox{0.8}{\tt 00 0000 0000 0000 0000 1--- ---- ----} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
+%\scalebox{0.8}{\tt 00 0000 0000 0000 0001 ---- ---- ----} & \scalebox{0.9}{\tt 0x00000150} & \hfill 16 & {\em Unused}\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0010 xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00002000} & \hfill 4k & Ethernet RX Buffer\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 0000 0011 xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00003000} & \hfill 4k & Ethernet TX Buffer\\\hline
+\scalebox{0.8}{\tt 00 0000 0000 001x xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x00020000} & \hfill 128k & On-chip Block RAM\\\hline
+\scalebox{0.8}{\tt 00 0001 xxxx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x01000000} & \hfill 16M & QuadSPI Flash\\\hline
+\scalebox{0.8}{\tt 00 0001 0000 0000 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x01000000} & & Configuration Start\\\hline
+\scalebox{0.8}{\tt 00 0001 0100 0111 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x011c0000} & & Alternate Configuration\\\hline
+\scalebox{0.8}{\tt 00 0001 0000 1110 0000 0000 0000 0000} & \scalebox{0.9}{\tt 0x01380000} & & CPU Reset Address\\\hline
+\scalebox{0.8}{\tt 01 xxxx xxxx xxxx xxxx xxxx xxxx xxxx} & \scalebox{0.9}{\tt 0x10000000} & \hfill 256M & DDR3 SDRAM\\\hline
+\scalebox{0.8}{\tt 10 0000 0000 0000 0000 0000 0000 0x00} & \scalebox{0.9}{\tt 0x20000000} & \hfill 8 & ZipCPU debug control port---only visible to debug WB master\\\hline
 \end{tabular}
 \caption{Address Regions}\label{tbl:memregions}
 \end{center}\end{table}
@@ -961,30 +964,33 @@ The ZipSystem wrapper around the ZipCPU provides access to roughly twenty
 registers that are tightly integrated with the ZipCPU.  These registers are
 shown in Tbl.~\ref{tbl:zipio}
 \begin{table}[htbp]
-\begin{center}\begin{tabular}{|p{0.9in}|p{0.45in}|p{3.5in}|}\hline
-\rowcolor[gray]{0.85} Base & Size(W) & Purpose \\\hline\hline
-\scalebox{0.9}{\tt 0xc0000000} & 1 & Primary Zip PIC\\\hline
-\scalebox{0.9}{\tt 0xc0000001} & 1 & Watchdog Timer\\\hline
-\scalebox{0.9}{\tt 0xc0000002} & 1 & Bus Watchdog Timer\\\hline
-\scalebox{0.9}{\tt 0xc0000003} & 1 & Alternate Zip PIC\\\hline
-\scalebox{0.9}{\tt 0xc0000004} & 1 & ZipTimer-A\\\hline
-\scalebox{0.9}{\tt 0xc0000005} & 1 & ZipTimer-B\\\hline
-\scalebox{0.9}{\tt 0xc0000006} & 1 & ZipTimer-C\\\hline
-\scalebox{0.9}{\tt 0xc0000007} & 1 & ZipJiffies\\\hline
-\scalebox{0.9}{\tt 0xc0000008} & 1 & Master task counter\\\hline
-\scalebox{0.9}{\tt 0xc0000009} & 1 & Master prefetch stall counter\\\hline
-\scalebox{0.9}{\tt 0xc000000a} & 1 & Master memory stall counter\\\hline
-\scalebox{0.9}{\tt 0xc000000b} & 1 & Master instruction counter\\\hline
-\scalebox{0.9}{\tt 0xc000000c} & 1 & User task counter\\\hline
-\scalebox{0.9}{\tt 0xc000000d} & 1 & User prefetch stall counter\\\hline
-\scalebox{0.9}{\tt 0xc000000e} & 1 & User memory stall counter\\\hline
-\scalebox{0.9}{\tt 0xc000000f} & 1 & User instruction counter\\\hline
-\scalebox{0.9}{\tt 0xc0000010} & 1 & DMA command register\\\hline
-\scalebox{0.9}{\tt 0xc0000011} & 1 & DMA length\\\hline
-\scalebox{0.9}{\tt 0xc0000012} & 1 & DMA source address\\\hline
-\scalebox{0.9}{\tt 0xc0000013} & 1 & DMA destination address\\\hline
-\scalebox{0.9}{\tt 0xc0000040} & 2 & {\em Reserved for MMU context register}\\\hline
-\scalebox{0.9}{\tt 0x0c0000080} & 32 & {\em Reserved for MMU TLB}\\\hline
+\begin{center}\begin{tabular}{|p{0.9in}|p{0.35in}|p{2.5in}|}\hline
+\rowcolor[gray]{0.85} Address & \multicolumn{1}{c|}{Size} & Purpose \\\hline\hline
+\scalebox{0.9}{\tt 0xff000000} & 4 & Primary Zip PIC\\\hline
+\scalebox{0.9}{\tt 0xff000004} & 4 & Watchdog Timer\\\hline
+\scalebox{0.9}{\tt 0xff000008} & 4 & Bus Watchdog Timer\\\hline
+\scalebox{0.9}{\tt 0xff00000c} & 4 & Alternate Zip PIC\\\hline
+\scalebox{0.9}{\tt 0xff000010} & 4 & ZipTimer-A\\\hline
+\scalebox{0.9}{\tt 0xff000014} & 4 & ZipTimer-B\\\hline
+\scalebox{0.9}{\tt 0xff000018} & 4 & ZipTimer-C\\\hline
+\scalebox{0.9}{\tt 0xff00001c} & 4 & ZipJiffies\\\hline
+%
+\scalebox{0.9}{\tt 0xff000020} & 4 & Master task counter\\\hline
+\scalebox{0.9}{\tt 0xff000024} & 4 & Master prefetch stall counter\\\hline
+\scalebox{0.9}{\tt 0xff000028} & 4 & Master memory stall counter\\\hline
+\scalebox{0.9}{\tt 0xff00002c} & 4 & Master instruction counter\\\hline
+\scalebox{0.9}{\tt 0xff000030} & 4 & User task counter\\\hline
+\scalebox{0.9}{\tt 0xff000034} & 4 & User prefetch stall counter\\\hline
+\scalebox{0.9}{\tt 0xff000038} & 4 & User memory stall counter\\\hline
+\scalebox{0.9}{\tt 0xff00003c} & 4 & User instruction counter\\\hline
+%
+\scalebox{0.9}{\tt 0xff000040} & 4 & DMA command register\\\hline
+\scalebox{0.9}{\tt 0xff000044} & 4 & DMA length\\\hline
+\scalebox{0.9}{\tt 0xff000048} & 4 & DMA source address\\\hline
+\scalebox{0.9}{\tt 0xff00004c} & 4 & DMA destination address\\\hline
+%
+\scalebox{0.9}{\tt 0xff000050} & 8 & {\em Reserved for MMU context register}\\\hline
+\scalebox{0.9}{\tt 0xff8xxxxx} & ? & {\em Reserved for MMU TLB}\\\hline
 \end{tabular}
 \caption{ZipSystem Addresses}\label{tbl:zipio}
 \end{center}\end{table}
@@ -1001,26 +1007,27 @@ accessed without ever stalling the bus, and with a known and fixed (minimum)
 delay.  Tbl.~\ref{tbl:ioregs}
 \begin{table}[htbp]
 \begin{center}\begin{reglist}
-VERSION  &\scalebox{0.8}{\tt 0x0100} & 32 & R & Build date\\\hline
-PIC      &\scalebox{0.8}{\tt 0x0101} & 32 & R/W & Bus Interrupt Controller \\\hline
-BUSERR   &\scalebox{0.8}{\tt 0x0102} & 32 & R & Last Bus Error Address\\\hline
-PWRCOUNT &\scalebox{0.8}{\tt 0x0103} & 32 & R & Ticks since startup\\\hline
-BTNSW    &\scalebox{0.8}{\tt 0x0104} & 32 & R/W & Button/Switch controller\\\hline
-LEDCTRL  &\scalebox{0.8}{\tt 0x0105} & 32 & R/W & LED Controller \\\hline
-AUXSETUP &\scalebox{0.8}{\tt 0x0106} & 29 & R/W & Auxilliary UART config\\\hline
-GPSSETUP &\scalebox{0.8}{\tt 0x0107} & 29 & R/W & GPS UART config\\\hline
-CLR-LEDx &\scalebox{0.8}{\tt 0x0108-b} & 32 & R/W & Color LED controller\\\hline
-RTCDATE  &\scalebox{0.8}{\tt 0x010c} & 32 & R/W & BCD Calendar Date\\\hline
-GPIO     &\scalebox{0.8}{\tt 0x010d} & 32 & R/W & {\em Reserved for} GPIO controller\\\hline
-UARTRX   &\scalebox{0.8}{\tt 0x010e} & 32 & R/W & Aux UART receive byte\\\hline
-UARTTX   &\scalebox{0.8}{\tt 0x010f} & 32 & R/W & Aux UART transmit byte\\\hline
-GPSRX    &\scalebox{0.8}{\tt 0x0110} & 32 & R/W & GPS UART receive byte\\\hline
-GPSTX    &\scalebox{0.8}{\tt 0x0111} & 32 & R/W & GPS UART transmit byte\\\hline
-GPSSECS  &\scalebox{0.8}{\tt 0x0112} & 32 & R/W & {\em Reserved for a one-up seconds counter}\\\hline
-GPSSUB   &\scalebox{0.8}{\tt 0x0113} & 32 & R/W & GPS PPS tracking subsecond info\\\hline
-GPSSTEP  &\scalebox{0.8}{\tt 0x0114} & 32 & R/W & Current GPS step size, units TBD\\\hline
+VERSION  &\scalebox{0.8}{\tt 0x0400} & 32 & R & Build date\\\hline
+PIC      &\scalebox{0.8}{\tt 0x0404} & 32 & R/W & Bus Interrupt Controller \\\hline
+BUSERR   &\scalebox{0.8}{\tt 0x0408} & 32 & R & Last Bus Error Address\\\hline
+PWRCOUNT &\scalebox{0.8}{\tt 0x040c} & 32 & R & Ticks since startup (roughly)\\\hline
+BTNSW    &\scalebox{0.8}{\tt 0x0410} & 32 & R/W & Button/Switch controller\\\hline
+LEDCTRL  &\scalebox{0.8}{\tt 0x0414} & 32 & R/W & LED Controller \\\hline
+RTCDATE  &\scalebox{0.8}{\tt 0x0418} & 32 & R/W & BCD Calendar Date\\\hline
+GPIO     &\scalebox{0.8}{\tt 0x041c} & 32 & R/W & GPIO controller\\\hline
+CLR-LEDx &\scalebox{0.8}{\tt 0x0420-c} & 32 & R/W & Color LED controller\\\hline
+GPSSECS  &\scalebox{0.8}{\tt 0x0430} & 32 & R/W & {\em Reserved for a one-up seconds counter}\\\hline
+GPSSUB   &\scalebox{0.8}{\tt 0x0414} & 32 & R/W & GPS PPS tracking subsecond info\\\hline
+GPSSTEP  &\scalebox{0.8}{\tt 0x0418} & 32 & R/W & Current GPS step size, units TBD\\\hline
+% Unused  &\scalebox{0.8}{\tt 0x041c--0x047f} & 32 & {\em Unused, writes ignored, returns zero upon read}\\\hline
 % 0x010c-0x010f
 \end{reglist}
+% UARTRX   &\scalebox{0.8}{\tt 0x0430} & 32 & R/W & Aux UART receive byte\\\hline
+% UARTTX   &\scalebox{0.8}{\tt 0x0434} & 32 & R/W & Aux UART transmit byte\\\hline
+% GPSRX    &\scalebox{0.8}{\tt 0x0438} & 32 & R/W & GPS UART receive byte\\\hline
+% GPSTX    &\scalebox{0.8}{\tt 0x0411} & 32 & R/W & GPS UART transmit byte\\\hline
+% AUXSETUP &\scalebox{0.8}{\tt 0x0418} & 29 & R/W & Auxilliary UART config\\\hline
+% GPSSETUP &\scalebox{0.8}{\tt 0x041c} & 29 & R/W & GPS UART config\\\hline
 \caption{I/O Peripheral Registers}\label{tbl:ioregs}
 \end{center}\end{table}
 shows the addresses of these I/O peripherals included as part of OpenArty.
@@ -1061,7 +1068,7 @@ interrupt to a waiting host program.  If what you saw instead was a
 The primary interrupt controller handles interrupts from the sources listed
 in Tbl.~\ref{tbl:sys-ints}. 
 \begin{table}[htbp]
-\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{0.75in}|p{3.00in}|}\hline
+\begin{center}\begin{tabular}{|p{1.0in}|c|r|p{3.00in}|}\hline
 \rowcolor[gray]{0.85} Name & Bit Mask & DMAC ID &Description \\\hline\hline
 SYS\_DMAC   & 0x0001 && The DMA controller is idle.\\\hline
 SYS\_JIF    & 0x0002 & 1 & A Jiffies timer has expired.\\\hline
@@ -1073,12 +1080,11 @@ SYS\_PPS    & 0x0040 & 6 & An interrupt marking the top of the second\\\hline
 SYS\_NETRX  & 0x0080 & 7 & A packet has been received via the network\\\hline
 SYS\_NETTX  & 0x0100 & 8 & The network controller is idle, having sent its
 			last packet\\\hline
-SYS\_UARTRX & 0x200 &  9 & A character has been received via the UART\\\hline
-SYS\_UARTTX & 0x400 & 10 & The transmit UART is idle, and ready for its next
-		character.\\\hline
-SYS\_GPSRX  & 0x0800 & 11 & A character has been received via GPS\\\hline
-SYS\_GPSTX  & 0x1000 & 12 & The GPS serial port transmit is idle\\\hline
-SYS\_SDCARD & 0x2000 & 13 & The SD-Card controller has become idle\\\hline
+SYS\_UARTRXF & 0x0200 &  9 & The receive UART FIFO is half-full\\\hline
+SYS\_UARTTXF & 0x0400 & 10 & The transmit UART FIFO is less than half-full\\\hline
+SYS\_GPSRXF  & 0x0800 & 11 & The GPS receive UART FIFO is half-full\\\hline
+SYS\_GPSTXF  & 0x1000 & 12 & The GPS transmit UART FIFO is half-empty\\\hline
+SYS\_BUS    & 0x2000 & 13 & The BUS interrupt controller sends an interrupt\\\hline
 SYS\_OLED   & 0x4000 & 14 & The OLED port is idle\\\hline
 \end{tabular}
 \caption{Primary System Interrupts}\label{tbl:sys-ints}
@@ -1088,7 +1094,7 @@ mask that would need to be used when referencing them to the interrupt
 controller.  In a similar fashion, the auxilliary interrupt controller accepts
 inputs from the sources listed in Tbl.~\ref{tbl:aux-ints}.  
 \begin{table}[htbp]
-\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{0.75in}|p{3.00in}|}\hline
+\begin{center}\begin{tabular}{|p{0.9in}|c|r|p{3.00in}|}\hline
 \rowcolor[gray]{0.85} Name & Bit Mask & DMAC ID &Description \\\hline\hline
 AUX\_UIC & 0x0001 & 16 & The user instruction counter has overflowed.\\\hline
 AUX\_UPC & 0x0002 & 17 & The user prefetch stall counter has overflowed.\\\hline
@@ -1098,13 +1104,12 @@ AUX\_MIC & 0x0010 & 20 & The supervisor instruction counter has overflowed.\\\hl
 AUX\_MPC & 0x0020 & 21 & The supervisor prefetch stall counter has overflowed.\\\hline
 AUX\_MOC & 0x0040 & 22 & The supervisor ops stall counter has overflowed.\\\hline
 AUX\_MTC & 0x0080 & 23 & The supervisor clock tick counter has overflowed.\\\hline
-AUX\_RTC    & 0x0100 & 24& An alarm or timer has taken place (assuming the RTC
-		is installed, and includes both alarm or timer)\\\hline
-AUX\_BTN    & 0x0200 & 25 & A button has been pressed\\\hline
-AUX\_SWITCH & 0x0400 & 26 & A switch has changed state\\\hline
-AUX\_FLASH  & 0x0800 & 27 & The flash controller has completed a write/erase cycle\\\hline
-AUX\_SCOPE  & 0x1000 & 28 & The Scope has completed its collection\\\hline
-AUX\_GPIO   & 0x2000 & 29 & The GPIO input lines have changed values.\\\hline
+%
+AUX\_PPD    & 0x0100 & 24& True at midnight\\\hline
+AUX\_UARTRX & 0x0200 & 25& A byte has been received from the AUX UART port and is ready to be read\\\hline
+AUX\_UARTTX & 0x0400 & 26& There's room for another byte in the TXFIFO queue\\\hline
+AUX\_GPSRX  & 0x0800 & 27& A byte has been received in the GPS UART interface, and is now ready to be read\\\hline
+AUX\_GPSTX  & 0x1000 & 28& There's room in the GPS UART transmit FIFO for another byte\\\hline
 \end{tabular}
 \caption{Auxilliary System Interrupts}\label{tbl:aux-ints}
 \end{center}\end{table}
@@ -1114,7 +1119,7 @@ and {\tt sw/board/zipsys.h}.
 Finally, the bus interrupt controller handles the interrupts from the sources
 listed in Tbl.~\ref{tbl:bus-ints}.
 \begin{table}[htbp]
-\begin{center}\begin{tabular}{|p{0.9in}|p{0.75in}|p{3.75in}|}\hline
+\begin{center}\begin{tabular}{|p{0.9in}|c|p{3.75in}|}\hline
 \rowcolor[gray]{0.85} Name & Bit Mask & Description \\\hline\hline
 BUS\_BUTTON & 0x0001 & A Button has been pressed. \\\hline
 BUS\_SWITCH & 0x0002 & The Scope has completed its collection\\\hline
@@ -1412,10 +1417,10 @@ The coefficients for the PLL that tracks the GPS PPS can be controlled via the
 registers listed in Tbl.~\ref{tbl:gpsctrl}.
 \begin{table}
 \begin{center}\begin{reglist}
-alpha  &\scalebox{0.8}{\tt 0x0130} & 8 & R/W & Recursive Error Averaging Coefficient\\\hline
-beta   &\scalebox{0.8}{\tt 0x0131} & 32 & R/W & Phase Tracking Coefficient\\\hline
-gamma  &\scalebox{0.8}{\tt 0x0132} & 32 & R/W & Frequency Tracking Coefficient\\\hline
-defstep&\scalebox{0.8}{\tt 0x0133} & 32 & R/W & Default clock step\\\hline
+alpha  &\scalebox{0.8}{\tt 0x0500} & 8 & R/W & Recursive Error Averaging Coefficient\\\hline
+beta   &\scalebox{0.8}{\tt 0x0504} & 32 & R/W & Phase Tracking Coefficient\\\hline
+gamma  &\scalebox{0.8}{\tt 0x0508} & 32 & R/W & Frequency Tracking Coefficient\\\hline
+defstep&\scalebox{0.8}{\tt 0x050c} & 32 & R/W & Default clock step\\\hline
 \end{reglist}
 \caption{GPS PPS Tracking Control Registers}\label{tbl:gpsctrl}
 \end{center}\end{table}
@@ -1458,10 +1463,10 @@ The OLEDrgb can be controlled by four registers, listed in
 Tbl.~\ref{tbl:oledctrl}.
 \begin{table}
 \begin{center}\begin{reglist}
-CTRL &\scalebox{0.8}{\tt 0x0130} & 32 & R/W & Control register\\\hline
-REGA &\scalebox{0.8}{\tt 0x0131} & 32 & R/W & First excess control word\\\hline
-REGB &\scalebox{0.8}{\tt 0x0132} & 32 & R/W & Second excess control word\\\hline
-DATA &\scalebox{0.8}{\tt 0x0133} & 32 & R/W & Data and power register\\\hline
+CTRL &\scalebox{0.8}{\tt 0x04b0} & 32 & R/W & Control register\\\hline
+REGA &\scalebox{0.8}{\tt 0x04b4} & 32 & R/W & First excess control word\\\hline
+REGB &\scalebox{0.8}{\tt 0x04b8} & 32 & R/W & Second excess control word\\\hline
+DATA &\scalebox{0.8}{\tt 0x04bc} & 32 & R/W & Data and power register\\\hline
 \end{reglist}
 \caption{OLED Control Registers}\label{tbl:oledctrl}
 \end{center}\end{table}
@@ -1586,13 +1591,13 @@ The success of this configuration request may be determined from the
 Tbl.~\ref{tbl:netpkt}
 \begin{table}
 \begin{center}\begin{reglist}
-NETRX  &\scalebox{0.8}{\tt 0x0138} & 32 & R/W & Packet receive control register\\\hline
-NETTX  &\scalebox{0.8}{\tt 0x0139} & 32 & R/W & Packet transmit control register\\\hline
-MACHI &\scalebox{0.8}{\tt 0x013a} & 16 & R/W & Ethernet MAC, hi order 16-bits\\\hline
-MACLO &\scalebox{0.8}{\tt 0x013b} & 32 & R/W & Ethernet MAC, low order 32-bits\\\hline
-RXMISS  &\scalebox{0.8}{\tt 0x013c} & 32 & R & Number of valid receive packets missed\\\hline
-RXERR&\scalebox{0.8}{\tt 0x013d} & 32 & R & Number of packets not properly received\\\hline
-RXCRC&\scalebox{0.8}{\tt 0x013e} & 32 & R & Packets received with CRC errors\\\hline
+NETRX  &\scalebox{0.8}{\tt 0x0540} & 32 & R/W & Packet receive control register\\\hline
+NETTX  &\scalebox{0.8}{\tt 0x0544} & 32 & R/W & Packet transmit control register\\\hline
+MACHI &\scalebox{0.8}{\tt 0x0548} & 16 & R/W & Ethernet MAC, hi order 16-bits\\\hline
+MACLO &\scalebox{0.8}{\tt 0x054c} & 32 & R/W & Ethernet MAC, low order 32-bits\\\hline
+RXMISS  &\scalebox{0.8}{\tt 0x0550} & 32 & R & Number of valid receive packets missed\\\hline
+RXERR&\scalebox{0.8}{\tt 0x0554} & 32 & R & Number of packets not properly received\\\hline
+RXCRC&\scalebox{0.8}{\tt 0x0558} & 32 & R & Packets received with CRC errors\\\hline
 {\em Unused} &\scalebox{0.8}{\tt 0x013f} & 32 & R & Reads zero (Reserved for transmit collision counting)\\\hline
 \end{reglist}
 \caption{Network Packet control registers}\label{tbl:netpkt}
@@ -1784,19 +1789,19 @@ controlling the flash.  A quick list of these registers is shown in
 Tbl.~\ref{tbl:flctl}.
 \begin{table}
 \begin{center}\begin{reglist}
-ewreg  &\scalebox{0.8}{\tt 0x0180} & 32 & R & Erase/write control and status\\\hline
-status      &\scalebox{0.8}{\tt 0x0181} & 8 & R/W & Bus Interrupt Controller \\\hline
-nvconf   &\scalebox{0.8}{\tt 0x0182} & 16 & R & Last Bus Error Address\\\hline
-vconf &\scalebox{0.8}{\tt 0x0183} & 8 & R & Ticks since startup\\\hline
-evonc    &\scalebox{0.8}{\tt 0x0184} & 8 & R/W & Button/Switch controller\\\hline
-lock  &\scalebox{0.8}{\tt 0x0185} & 8 & R/W & LED Controller \\\hline
-flagstatus&\scalebox{0.8}{\tt 0x0186} & 8 & R/W & Auxilliary UART config\\\hline
-clear	&\scalebox{0.8}{\tt 0x0187} & 8 & R/W & Clear status on write\\\hline
-Device ID &\scalebox{0.8}{\tt 0x0188-}\hfill & 5x32 & R & Device ID\\
-	&\scalebox{0.8}{\tt -0x018c}\hfill & & & \\\hline
+EWREG  &\scalebox{0.8}{\tt 0x0600} & 32 & R & Erase/write control and status\\\hline
+ESTATUS      &\scalebox{0.8}{\tt 0x0604} & 8 & R/W & Bus Interrupt Controller \\\hline
+NVCONF   &\scalebox{0.8}{\tt 0x0608} & 16 & R & Last Bus Error Address\\\hline
+VCONF &\scalebox{0.8}{\tt 0x060c} & 8 & R & Ticks since startup\\\hline
+EVCONF    &\scalebox{0.8}{\tt 0x0610} & 8 & R/W & Button/Switch controller\\\hline
+LOCK  &\scalebox{0.8}{\tt 0x0614} & 8 & R/W & LED Controller \\\hline
+flagstatus&\scalebox{0.8}{\tt 0x0618} & 8 & R/W & Auxilliary UART config\\\hline
+CLEAR	&\scalebox{0.8}{\tt 0x061c} & 8 & R/W & Clear status on write\\\hline
+DevID &\scalebox{0.8}{\tt 0x0620-}\hfill & 5x32 & R & Device ID\\
+	&\scalebox{0.8}{\tt -0x0630}\hfill & & & \\\hline
 % asyncID &\scalebox{0.8}{\tt 0x018d} & 32 & R/W & Asynch Read ID.  Write starts the ASynch read, 0xff returned until complete\\\hline
-asyncOTP  &\scalebox{0.8}{\tt 0x18e} & 32 & W & Asynch Read OTP.  Write starts the ASynch read, 0xff returned until complete\\\hline
-OTP     &\scalebox{0.8}{\tt 0x0190-}\hfill &16x32 & R/W & OTP Memory\\
+% asyncOTP  &\scalebox{0.8}{\tt 0x18e} & 32 & W & Asynch Read OTP.  Write starts the ASynch read, 0xff returned until complete\\\hline
+OTP     &\scalebox{0.8}{\tt 0x0640-}\hfill &16x32 & R/W & OTP Memory\\
 	&\scalebox{0.8}{\hfill\tt -0x19f} & & & \\\hline
 % 0x010c-0x010f
 \end{reglist}
@@ -1953,8 +1958,8 @@ i\_uart\_rx & 1 & Input &  UART receive input\\\hline
 o\_uart\_tx & 1 & Output & UART transmit output\\\hline\hline
 i\_aux\_rx & 1 & Input &  Auxiliary/Pmod UART receive input\\\hline
 o\_aux\_tx & 1 & Output & Auxiliary/Pmod UART transmit output\\\hline
-i\_aux\_rts & 1 & Input &  Auxiliary/Pmod UART receive input\\\hline
-o\_aux\_cts & 1 & Output & Auxiliary/Pmod UART transmit output\\\hline\hline
+i\_aux\_rts & 1 & Input &  Auxiliary/Pmod UART ready--to--send\\\hline
+o\_aux\_cts & 1 & Output & Auxiliary/Pmod UART clear--to--send\\\hline\hline
 i\_gps\_rx & 1 & Input &  GPS/Pmod UART receive input\\\hline
 o\_gps\_tx & 1 & Output & GPS/Pmod UART transmit output\\\hline
 i\_gps\_pps & 1 & Input & GPS Part-per-second (PPS) signal\\\hline

@@ -56,10 +56,10 @@ asm(ASMFNSTR("ipcksum")			// R1 = length (W), R2 = packet pointer
 	"\tMOV	R1,R3\n"		// R3 is now the remaining length
 	"\tCLR	R1\n"			// R1 will be our checksum accumulator
 ".Lloop:\n"
-	"\tLOD	(R2),R4\n"
+	"\tLW	(R2),R4\n"
 	"\tADD	R4,R1\n"
 	"\tADD.C	1,R1\n"
-	"\tADD	1,R2\n"
+	"\tADD	4,R2\n"
 	"\tSUB	1,R3\n"
 	"\tBZ	.Lexit\n"
 	"\tBRA	.Lloop\n"

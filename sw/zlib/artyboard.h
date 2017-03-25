@@ -37,54 +37,36 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-
 #ifndef	ARTYBOARD_H
 #define	ARTYBOARD_H
 
-// BUS Interrupts
-#define	BUS_BUTTON	0x0001
-#define	BUS_SWITCH	0x0002
-#define	BUS_PPS		0x0004
-#define	BUS_RTC		0x0008
-#define	BUS_NETRX	0x0010
-#define	BUS_NETTX	0x0020
-#define	BUS_UARTRX	0x0040
-#define	BUS_UARTTX	0x0080
-#define	BUS_GPIO	0x0100
-#define	BUS_FLASH	0x0200
-#define	BUS_SCOPE	0x0400
-#define	BUS_GPSRX	0x0800
-#define	BUS_SDCARD	0x1000
-#define	BUS_OLED	0x2000
-#define	BUS_ZIP		0x4000
+#include <stdint.h>
 
-// DMA Interrupt parameters
-#define	DMA_ONPPS	DMA_ONINT(6)
-#define	DMA_ONNETRX	DMA_ONINT(7)
-#define	DMA_ONNETTX	DMA_ONINT(8)
-#define	DMA_ONUARTRX	DMA_ONINT(9)
-#define	DMA_ONUARTTX	DMA_ONINT(10)
-#define	DMA_ONGPSRX	DMA_ONINT(11)
-#define	DMA_ONGPSTX	DMA_ONINT(12)
-#define	DMA_ONSDCARD	DMA_ONINT(13)
-#define	DMA_ONOLED	DMA_ONINT(14)
+// We have the full ZIP System installed
+#define	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
+#define	_HAVE_ZIPSYS_DMA
+#include "zipsys.h"
 
-// That's our maximum number of interrupts.  Any more, and we'll need to 
-// remove one.  Don't forget, the primary interrupt source will be the SYS_
-// interrupts, and there's another set of AUX_ interrupts--both available if
-// the ZipSystem is in use.
-
+#define	GPIO_SET(X)	(X |(X<<16))
+#define	GPIO_CLEAR(X)	(X<<16)
 typedef	struct	{
-	unsigned	s_ctrl, s_data;
-} SCOPE;
-#define	SCOPE_NO_RESET	0x80000000
-#define	SCOPE_TRIGGER	(SCOPE_NO_RESET|0x08000000)
-#define	SCOPE_MANUAL	SCOPE_TRIGGER
-#define	SCOPE_DISABLE	0x04000000	// Disable the scope trigger
+	uint32_t	i_version;
+	uint32_t	i_pic;
+	uint32_t	*i_buserr;
+	uint32_t	i_pwrcount;
+	uint32_t	i_btnsw, i_leds;
+	uint32_t	i_rtcdate;
+	uint32_t	i_gpio;
+	uint32_t	i_clrled[4];
+	union	{
+		unsigned long now;
+		struct { uint32_t sec; uint32_t sub; };
+	} i_tim;
 
-typedef	struct	{
-	unsigned	sd_ctrl, sd_data, sd_fifo[2];
-} SDCARD;
+	unsigned        i_gps_step;
+	uint32_t	i_unused[32-15];
+} BASICIO;
+
 #define	SD_SETAUX	0x0ff
 #define	SD_READAUX	0x0bf
 #define	SD_CMD		0x040
@@ -98,8 +80,13 @@ typedef	struct	{
 #define	SD_WRITE_SECTOR	((SD_CMD|SD_CLEARERR|SD_WRITEOP)+24)
 
 typedef	struct	{
-	unsigned	r_clock, r_stopwach, r_timer, r_alarm;
-} RTC;
+	unsigned	sd_ctrl, sd_data, sd_fifo[2];
+} SDCARD;
+
+
+typedef	struct	RTCLIGHT_S {
+	unsigned	r_clock, r_stopwatch, r_timer, r_alarm;
+} RTCLIGHT;
 
 typedef	struct	{
 	unsigned	g_alpha, g_beta, g_gamma, g_step;
@@ -152,10 +139,6 @@ typedef	struct {
 	unsigned long	tb_err, tb_count, tb_step;
 } GPSTB;
 
-typedef	struct {
-	unsigned	e_v[32];
-} ENETMDIO;
-
 #define	MDIO_BMCR	0x00
 #define	MDIO_BMSR	0x01
 #define	MDIO_PHYIDR1	0x02
@@ -176,10 +159,14 @@ typedef	struct {
 #define	MDIO_CDCTRL	0x1b
 #define	MDIO_EDCR	0x1d
 
+typedef	struct {
+	unsigned	e_v[32];
+} ENETMDIO;
+
 typedef struct {
 	unsigned	f_ereg, f_status, f_nvconfig, f_vconfig,
 			f_evconfig, f_flags, f_lock, f_;
-	unsigned	f_id[5], f_unused[3];
+	unsigned	f_id[5], f_unused[2];
 	unsigned	f_otpc, f_otp[16];
 } EFLASHCTRL;
 
@@ -195,14 +182,8 @@ typedef struct {
 #define	EQSPI_ENABLEWP	0x00000000
 #define	EQSPI_DISABLEWP	0x40000000
 
-typedef	struct	{
-	int		io_version, io_pic;
-	unsigned	*io_buserr;
-	unsigned	io_pwrcount;
-	unsigned	io_btnsw;
-	unsigned	io_ledctrl;
-	unsigned	io_auxsetup, io_gpssetup;
 #define	UART_PARITY_NONE	0
+#define	UART_HWFLOW_OFF		0x40000000
 #define	UART_PARITY_ODD		0x04000000
 #define	UART_PARITY_EVEN	0x05000000
 #define	UART_PARITY_SPACE	0x06000000
@@ -213,13 +194,6 @@ typedef	struct	{
 #define	UART_DATA_7BITS		0x10000000
 #define	UART_DATA_6BITS		0x20000000
 #define	UART_DATA_5BITS		0x30000000
-	unsigned	io_clrled[4];
-	unsigned	io_rtcdate;
-	unsigned	io_gpio;
-#define	GPIO_SET(X)	(X |(X<<16))
-#define	GPIO_CLEAR(X)	(X<<16)
-	unsigned	io_uart_rx, io_uart_tx;
-	unsigned	io_gps_rx, io_gps_tx;
 #define	UART_RX_BREAK		0x0800
 #define	UART_RX_FRAMEERR	0x0400
 #define	UART_RX_PARITYERR	0x0200
@@ -227,40 +201,129 @@ typedef	struct	{
 #define	UART_RX_ERR		(-256)
 #define	UART_TX_BUSY		0x0100
 #define	UART_TX_BREAK		0x0200
-	union {
-		unsigned long now;
-		struct { unsigned sec; unsigned sub; };
-	} io_tim;
-	unsigned	io_gps_sec, io_gps_sub, io_gps_step;
-	unsigned		io_reserved[32-23];
-	SCOPE			io_scope[4];
-	RTC			io_rtc;
-	SDCARD			io_sd;
-	GPSTRACKER		io_gps;
-	OLEDRGB			io_oled;
-	ENETPACKET		io_enet;
-	GPSTB			io_gpstb;
-	unsigned		io_ignore_1[8+16+64];
-	ENETMDIO		io_netmdio;
-	EFLASHCTRL		io_eflash;
-	unsigned		io_icape2[32];
-	unsigned		io_ignore_2[0x800-0x1e0-32-1];
-	unsigned		io_enet_rx[1024];
-	unsigned		io_enet_tx[1024];
-} IOSPACE;
 
-static volatile IOSPACE	* const sys = (IOSPACE *)0x0100;
+typedef	struct	WBUART_S {
+	unsigned	u_setup;
+	unsigned	u_fifo;
+	unsigned	u_rx, u_tx;
+} WBUART;
 
-static volatile SDCARD	* const sd = (SDCARD *)0x0120;
 
-#define	BKRAM	(void *)0x0008000
-#define	FLASH	(void *)0x0400000
-#define	SDRAM	(void *)0x4000000
+#define	WBSCOPE_NO_RESET	0x80000000
+#define	WBSCOPE_TRIGGER	(WBSCOPE_NO_RESET|0x08000000)
+#define	WBSCOPE_MANUAL	WBSCOPE_TRIGGER
+#define	WBSCOPE_DISABLE	0x04000000	// Disable the scope trigger
+typedef	struct	WBSCOPE_S {
+	unsigned	s_ctrl, s_data;
+} WBSCOPE;
+
+
+
+typedef	struct ARTYBOARD_S {
+	BASICIO		io_b;
+	WBSCOPE		io_scope[4];
+	RTCLIGHT	io_rtc;
+	OLEDRGB		io_oled;
+	WBUART		io_uart;
+	WBUART		io_gpsu;
+	SDCARD		io_sd;
+	unsigned	io_ignore_0[4];
+	GPSTRACKER	io_gps;
+	unsigned	io_ignore_1[4];
+	GPSTB		io_gpstb;
+	ENETPACKET	io_enet;
+	unsigned	io_ignore_2[8];
+	ENETMDIO	io_netmdio;
+	EFLASHCTRL	io_eflash;	// 32 positions
+	unsigned	io_icape2[32];
+	unsigned	io_ignore_3[0x800-(0x700>>2)];
+	unsigned	io_enet_rx[1024];
+	unsigned	io_enet_tx[1024];
+} ARTYBOARD;
+
+#define	PERIPHERAL_ADDR	0x400
+
+static	volatile ARTYBOARD	*const _sys    = (ARTYBOARD *)PERIPHERAL_ADDR;
+#define	_ZIP_HAS_WBUART
+static	volatile WBUART		*const _uart   = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_uart;
+#define	_ZIP_HAS_WBUARTX
+#define	_uarttx		_uart->u_tx
+#define	_ZIP_HAS_WBUARTRX
+#define	_uartrx		_uart->u_rx
+#define	_ZIP_HAS_UARTSETUP
+#define	_uartsetup	_uart->u_setup
+
+#define	_ZIP_HAS_RTC
+static	volatile RTCLIGHT	*const _rtcdev = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_rtc;
+#define	_ZIP_HAS_RTDATE
+static	volatile uint32_t	*const _rtdate = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_b.i_rtcdate;
+#define	_ZIP_HAS_SDCARD
+static	volatile SDCARD		*const _sdcard = &((ARTYBOARD *)PERIPHERAL_ADDR)->io_sd;
+
+#define	SYSTIMER	zip->z_tma
+#define	SYSPIC		zip->z_pic
+#define	ALTPIC		zip->z_zpic
+#define	COUNTER		zip->z_m.ac_ck
+
+#define	BKRAM	(void *)0x00020000
+#define	FLASH	(void *)0x01000000
+#define	SDRAM	(void *)0x10000000
 #define	CLOCKFREQHZ	81250000
 #define	CLOCKFREQ_HZ	CLOCKFREQHZ
 //
-#define	MEMWORDS	0x0008000
-#define	FLASHWORDS	0x0400000
-#define	SDRAMWORDS	0x4000000
+#define	MEMLEN		0x00020000
+#define	FLASHLEN	0x01000000
+#define	SDRAMLEN	0x10000000
 
-#endif
+// Finally, let's assign some of our interrupts:
+//
+// We're allowed nine interrupts to the master interrupt controller in the
+// ZipSys
+#define	SYSINT_PPS	SYSINT(6)
+#define	SYSINT_ENETRX	SYSINT(7)
+#define	SYSINT_ENETTX	SYSINT(8)
+#define	SYSINT_UARTRXF	SYSINT(9)
+#define	SYSINT_UARTTXF	SYSINT(10)
+#define	SYSINT_GPSRXF	SYSINT(11)
+#define	SYSINT_GPSTXF	SYSINT(12)
+#define	SYSINT_BUS	SYSINT(13)
+#define	SYSINT_OLED	SYSINT(14)
+//
+#define	ALTINT_PPD	ALTINT(8)
+#define	ALTINT_UARTRX	ALTINT(9)
+#define	ALTINT_UARTTX	ALTINT(10)
+#define	ALTINT_GPSRX	ALTINT(11)
+#define	ALTINT_GPSTX	ALTINT(12)
+//
+
+
+// BUS Interrupts
+#define	BUS_BUTTON	SYSINT(0)
+#define	BUS_SWITCH	SYSINT(1)
+#define	BUS_PPS		SYSINT(2)
+#define	BUS_RTC		SYSINT(3)
+#define	BUS_NETRX	SYSINT(4)
+#define	BUS_NETTX	SYSINT(5)
+#define	BUS_UARTRX	SYSINT(6)
+#define	BUS_UARTTX	SYSINT(7)
+#define	BUS_GPIO	SYSINT(8)
+#define	BUS_FLASH	SYSINT(9)
+#define	BUS_SCOPE	SYSINT(10)
+#define	BUS_GPSRX	SYSINT(11)
+#define	BUS_SDCARD	SYSINT(12)
+#define	BUS_OLED	SYSINT(13)
+// #define	BUS_ZIP SYSINT(14)
+
+
+// DMA Interrupt parameters
+#define	DMA_ONPPS	DMA_ONINT(6)
+#define	DMA_ONNETRX	DMA_ONINT(7)
+#define	DMA_ONNETTX	DMA_ONINT(8)
+#define	DMA_ONUARTRXF	DMA_ONINT(9)
+#define	DMA_ONUARTTXF	DMA_ONINT(10)
+#define	DMA_ONGPSRXF	DMA_ONINT(11)
+#define	DMA_ONGPSTXF	DMA_ONINT(12)
+#define	DMA_ONBUS	DMA_ONINT(13)
+#define	DMA_ONOLED	DMA_ONINT(14)
+
+#endif	// define ARTYBOARD_H

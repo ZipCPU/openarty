@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	llcomms.cpp
+// Filename:	llcomms.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -29,7 +29,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -70,6 +70,9 @@ LLCOMMSI::LLCOMMSI(void) {
 void	LLCOMMSI::write(char *buf, int len) {
 	int	nw;
 	nw = ::write(m_fdw, buf, len);
+	if (nw <= 0) {
+		throw "Write-Failure";
+	}
 	m_total_nwrit += nw;
 	assert(nw == len);
 }
@@ -77,6 +80,9 @@ void	LLCOMMSI::write(char *buf, int len) {
 int	LLCOMMSI::read(char *buf, int len) {
 	int	nr;
 	nr = ::read(m_fdr, buf, len);
+	if (nr <= 0) {
+		throw "Read-Failure";
+	}
 	m_total_nread += nr;
 	return nr;
 }

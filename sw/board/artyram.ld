@@ -6,14 +6,14 @@
 *
 * Purpose:	This script provides a description of the memory on the Arty,
 *		for the purposes of where to place programs in memory during
-*		linking.
+*	linking.
 *
 * Creator:	Dan Gisselquist, Ph.D.
 *		Gisselquist Technology, LLC
 *
 ********************************************************************************
 *
-* Copyright (C) 2016, Gisselquist Technology, LLC
+* Copyright (C) 2016-2017, Gisselquist Technology, LLC
 *
 * This program is free software (firmware): you can redistribute it and/or
 * modify it under the terms of  the GNU General Public License as published
@@ -35,15 +35,15 @@ ENTRY(_start)
 
 MEMORY
 {
-	blkram (wx) : ORIGIN = 0x0008000, LENGTH = 0x0008000
-	flash  (rx) : ORIGIN = 0x0400000, LENGTH = 0x0400000
-	sdram  (wx) : ORIGIN = 0x4000000, LENGTH = 0x4000000
+	blkram (wx) : ORIGIN = 0x00020000, LENGTH = 0x00020000
+	flash  (rx) : ORIGIN = 0x01000000, LENGTH = 0x01000000
+	sdram  (wx) : ORIGIN = 0x10000000, LENGTH = 0x10000000
 }
 
 _flash	= ORIGIN(flash);
 _blkram	= ORIGIN(blkram);
 _sdram	= ORIGIN(sdram);
-_top_of_stack = ORIGIN(blkram) + LENGTH(blkram) - 1;
+_top_of_stack = ORIGIN(blkram) + LENGTH(blkram) - 4;
 
 SECTIONS
 {
@@ -53,7 +53,7 @@ SECTIONS
 		_kernel_image_start = . ;
 		*(.kernel)
 		*(.text.startup)
-		*(.text)
+		*(.text*)
 		*(.rodata*) *(.strings)
 		*(.data) *(COMMON) *(.bss)
 		}> blkram

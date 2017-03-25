@@ -1,4 +1,4 @@
-##########################################################################/
+################################################################################
 ##
 ## Filename:	Makefile
 ##
@@ -12,9 +12,9 @@
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
-##########################################################################/
+################################################################################
 ##
-## Copyright (C) 2015, Gisselquist Technology, LLC
+## Copyright (C) 2015-2017, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -26,11 +26,16 @@
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
 ##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
 ## License:	GPL, v3, as defined and found on www.gnu.org,
-##		http:##www.gnu.org/licenses/gpl.html
+##		http://www.gnu.org/licenses/gpl.html
 ##
 ##
-##########################################################################/
+################################################################################
 ##
 ##
 all:	test
@@ -61,7 +66,7 @@ PERIPHERALS:= enetctrl.v enetpackets.v fastio.v rtcdate.v rtcgps.v	\
 	wbicapetwo.v sdspi.v gpsclock_tb.v gpsclock.v wboled.v lloled.v	\
 	wbscopc.v wbscope.v memdev.v addepreamble.v addemac.v addecrc.v	\
 	addepad.v rxecrc.v rxepreambl.v rxehwmac.v rxewrite.v		\
-	rxemin.v rxeipchk.v
+	rxemin.v rxeipchk.v clrled.v wbuart.v ufifo.v
 BIGMATH:= bigadd.v bigsmpy.v bigsub.v
 SOURCES := fastmaster.v builddate.v					\
 	$(CPUSOURCES) $(JTAGBUS) $(PERIPHERALS) $(BIGMATH)
@@ -79,7 +84,7 @@ $(VDIRFB)/Vbusmaster.h $(VDIRFB)/Vbusmaster.cpp $(VDIRFB)/Vbusmaster.mk: $(SLOWS
 $(VDIRFB)/Venetctrl.h $(VDIRFB)/Venetctrl.cpp $(VDIRFB)/Venetctrl.mk: enetctrl.v
 $(VDIRFB)/Veqspiflash.h $(VDIRFB)/Veqspiflash.cpp $(VDIRFB)/Veqspiflash.mk: eqspiflash.v lleqspi.v
 $(VDIRFB)/V%.cpp $(VDIRFB)/V%.h $(VDIRFB)/V%.mk: $(FBDIR)/%.v
-	verilator -cc -y $(CPUDR) $*.v 
+	verilator -trace -cc -y $(CPUDR) $*.v 
 
 
 $(VDIRFB)/V%__ALL.a: $(VDIRFB)/V%.mk

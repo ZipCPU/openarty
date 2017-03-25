@@ -35,9 +35,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
+
+#define	sys	_sys
 
 void main(int argc, char **argv) {
 	/*
@@ -51,12 +53,14 @@ void main(int argc, char **argv) {
 	*/
 
 	// Method two: Waiting on interrupts
-	zip->z_pic = SYSINT_GPSRX;
+	int	lglen = (1<<((sys->io_gpsu.u_fifo >> 12)&0x0f))-1;
+	zip->z_pic = SYSINT_GPSRXF;
 	while(1) {
-		while((zip->z_pic & SYSINT_GPSRX)==0)
+		while((zip->z_pic & SYSINT_GPSRXF)==0)
 			;
-		sys->io_uart_tx = sys->io_gps_rx;
-		zip->z_pic = SYSINT_GPSRX;
+		for(int i=0; i<lglen/2; i++)
+			sys->io_uart.u_tx = sys->io_gpsu.u_rx & 0x0ff;
+		zip->z_pic = SYSINT_GPSRXF;
 	}
 
 	/*

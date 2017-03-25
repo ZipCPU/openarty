@@ -33,25 +33,25 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-#include "artyboard.h"
 
 #ifndef	NULL
 #define NULL	(void *)0
 #endif
 
-static volatile	int	*const UARTTX = &((IOSPACE *)0x0100)->io_uart_tx,
-			*const UART_CTRL = &((IOSPACE *)0x0100)->io_auxsetup;
-static volatile	int * const PIC = (volatile int *)0xff000000;
-static const int	INT_UARTTX = SYSINT_UARTTX; // 0x2000;
-static volatile	int	*const COUNTER = &((ZIPSYS *)ZIPSYS_ADDR)->z_m.ac_ck;
+#define	UARTTX		_uart->u_tx
+#define	UART_CTRL	_uart->u_setup
+#define	PIC		SYSPIC
+#define	TIMER		SYSTIMER
+#define	COUNTER		zip->z_m.ac_ck
 
-#define	HAVE_COUNTER
+// #define	HAVE_COUNTER
 #define	HAVE_SCOPE
-#define	SCOPEc	sys->io_scope[0].s_ctrl
+#define	SCOPEc			_sys->io_scope[0].s_ctrl
 #define	SCOPE_DELAY		4
-#define	TRIGGER_SCOPE_NOW	(SCOPE_TRIGGER|SCOPE_DELAY)
+#define	TRIGGER_SCOPE_NOW	(WBSCOPE_TRIGGER|SCOPE_DELAY)
 #define	PREPARE_SCOPE		SCOPE_DELAY
 
 unsigned	zip_ucc(void);
@@ -91,13 +91,13 @@ asm("\t.section\t.start\n"
 	"\tBUSY\n"
 	"\t.section\t.text");
 
-#ifdef	HAVE_COUNTER
-#define	MARKSTART	start_time = *COUNTER
-#define	MARKSTOP	stop_time  = *COUNTER
+#ifdef	COUNTER
+#define	MARKSTART	start_time = COUNTER
+#define	MARKSTOP	stop_time  = COUNTER
 #else
-#ifdef	HAVE_TIMER
-#define	MARKSTART	start_time = *TIMER
-#define	MARKSTOP	stop_time  = *TIMER
+#ifdef	TIMER
+#define	MARKSTART	start_time = TIMER
+#define	MARKSTOP	stop_time  = TIMER
 #else
 #define	MARKSTART
 #define	MARKSTOP
@@ -339,15 +339,7 @@ asm("\t.text\n\t.global\tloop_test\n"
 // How about a reverse do{} while loop?  These are usually cheaper than for()
 // loops.
 	"\tLDI\t0,R2\n"
-	"\tLDI\t5,R3\n"
-"bgt_loop_test:\n"
-	"\tADD\t1,R2\n"
-	"\tSUB\t1,R3\n"
-	"\tBGT\tbgt_loop_test\n"
-	"\tCMP\t5,R2\n"
-	"\tOR.NZ\t2,R1\n"
 // What if we use >=?
-	"\tLDI\t0,R2\n"
 	"\tLDI\t5,R3\n"
 "bge_loop_test:\n"
 	"\tADD\t1,R2\n"
@@ -357,20 +349,20 @@ asm("\t.text\n\t.global\tloop_test\n"
 	"\tOR.NZ\t4,R1\n"
 // Once more with the reverse loop, this time storing the loop variable in
 // memory
-	"\tSUB\t1,SP\n"
+	"\tSUB\t4,SP\n"
 	"\tLDI\t0,R2\n"
-	"\tLDI\t5,R3\n"
-	"\tSTO\tR3,(SP)\n"
+	"\tLDI\t4,R3\n"
+	"\tSW\tR3,(SP)\n"
 "mem_loop_test:\n"
-	"\tADD\t1,R2\n"
+	"\tADD\t1,R2\n"	// Keep track of the number of times loop is executed
 	"\tADD\t14,R3\n"
-	"\tLOD\t(SP),R3\n"
+	"\tLW\t(SP),R3\n"
 	"\tSUB\t1,R3\n"
-	"\tSTO\tR3,(SP)\n"
-	"\tBGT\tmem_loop_test\n"
+	"\tSW\tR3,(SP)\n"
+	"\tBGE\tmem_loop_test\n"
 	"\tCMP\t5,R2\n"
 	"\tOR.NZ\t8,R1\n"
-	"\tADD\t1,SP\n"
+	"\tADD\t4,SP\n"
 //
 	"\tJMP\tR0\n");
 
@@ -380,9 +372,10 @@ void	shift_test(void);
 asm("\t.text\n\t.global\tshift_test\n"
 	"\t.type\tshift_test,@function\n"
 "shift_test:\n"
-	"\tLDI\t0,R1\n"
-	"\tLDI\t0,R3\n"
-	"\tLDI\t0,R4\n"
+	"\tLDI\t0,R1\n"	// Bit-field of tests that have failed
+	"\tLDI\t0,R3\n"	// Bit-field of tests that have worked
+	"\tLDI\t0,R4\n"	// Upper 16-bits of the same bit field
+	"\tLDI\t0,R5\n"	// Upper 16-bits of tests that have failed
 // Does shifting right by 32 result in a zero?
 	"\tLDI\t-1,R2\n"
 	"\tLSR\t32,R2\n"
@@ -427,12 +420,14 @@ asm("\t.text\n\t.global\tshift_test\n"
 	"\tOR.Z\t1,R4\n"
 // 
 	"\tLSR\t0,R2\n"
-	"\tOR.C\t131072,R1\n"
+	"\tLDI\t131072,R5\n"
+	"\tOR.C\tR5,R1\n"
 	"\tCMP\t-1,R2\n"
 	"\tOR.Z\t2,R4\n"
 //
 	"\tLSL\t0,R2\n"
-	"\tOR.C\t524288,R1\n"
+	"\tLDI\t524288,R5\n"
+	"\tOR.C\tR5,R1\n"
 	"\tCMP\t-1,R2\n"
 	"\tOR.Z\t4,R4\n"
 // Tally up our results and return
@@ -447,9 +442,9 @@ int	sw_brev(int v);
 asm("\t.text\n\t.global\tsw_brev\n"
 	"\t.type\tsw_brev,@function\n"
 "sw_brev:\n"
-	"\tSUB\t2,SP\n"
-	"\tSTO\tR2,(SP)\n"
-	"\tSTO\tR3,1(SP)\n"
+	"\tSUB\t8,SP\n"
+	"\tSW\tR2,(SP)\n"
+	"\tSW\tR3,4(SP)\n"
 	"\tLDI\t-1,R2\n"
 	"\tCLR\tR3\n"
 "sw_brev_loop:\n"
@@ -461,17 +456,17 @@ asm("\t.text\n\t.global\tsw_brev\n"
 	"\tBRA\tsw_brev_loop\n"
 "sw_brev_endloop:\n"
 	"\tMOV\tR3,R1\n"
-	"\tLOD\t(SP),R2\n"
-	"\tLOD\t1(SP),R3\n"
-	"\tADD\t2,SP\n"
+	"\tLW\t(SP),R2\n"
+	"\tLW\t4(SP),R3\n"
+	"\tADD\t8,SP\n"
 	"\tJMP\tR0");
 
 void	pipeline_stack_test(void);
 asm("\t.text\n\t.global\tpipeline_stack_test\n"
 	"\t.type\tpipeline_stack_test,@function\n"
 "pipeline_stack_test:\n"
-	"\tSUB\t1,SP\n"
-	"\tSTO\tR0,(SP)\n"
+	"\tSUB\t4,SP\n"
+	"\tSW\tR0,(SP)\n"
 	"\tLDI\t0,R0\n"
 	"\tMOV\t1(R0),R1\n"
 	"\tMOV\t1(R1),R2\n"
@@ -503,8 +498,8 @@ asm("\t.text\n\t.global\tpipeline_stack_test\n"
 	"\tCMP.Z\t11,R11\n"
 	"\tCMP.Z\t12,R12\n"
 	"\tBREV.NZ\t-1,R1\n"
-	"\tLOD\t(SP),R0\n"
-	"\tADD\t1,SP\n"
+	"\tLW\t(SP),R0\n"
+	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n"
 	);
 
@@ -512,20 +507,20 @@ void	pipeline_stack_test_component(void);
 asm("\t.text\n\t.global\tpipeline_stack_test_component\n"
 	"\t.type\tpipeline_stack_test_component,@function\n"
 "pipeline_stack_test_component:\n"
-	"\tSUB\t13,SP\n"
-	"\tSTO\tR0,(SP)\n"
-	"\tSTO\tR1,1(SP)\n"
-	"\tSTO\tR2,2(SP)\n"
-	"\tSTO\tR3,3(SP)\n"
-	"\tSTO\tR4,4(SP)\n"
-	"\tSTO\tR5,5(SP)\n"
-	"\tSTO\tR6,6(SP)\n"
-	"\tSTO\tR7,7(SP)\n"
-	"\tSTO\tR8,8(SP)\n"
-	"\tSTO\tR9,9(SP)\n"
-	"\tSTO\tR10,10(SP)\n"
-	"\tSTO\tR11,11(SP)\n"
-	"\tSTO\tR12,12(SP)\n"
+	"\tSUB\t52,SP\n"
+	"\tSW\tR0,(SP)\n"
+	"\tSW\tR1,4(SP)\n"
+	"\tSW\tR2,8(SP)\n"
+	"\tSW\tR3,12(SP)\n"
+	"\tSW\tR4,16(SP)\n"
+	"\tSW\tR5,20(SP)\n"
+	"\tSW\tR6,24(SP)\n"
+	"\tSW\tR7,28(SP)\n"
+	"\tSW\tR8,32(SP)\n"
+	"\tSW\tR9,36(SP)\n"
+	"\tSW\tR10,40(SP)\n"
+	"\tSW\tR11,44(SP)\n"
+	"\tSW\tR12,48(SP)\n"
 	"\tXOR\t-1,R0\n"
 	"\tXOR\t-1,R1\n"
 	"\tXOR\t-1,R2\n"
@@ -539,20 +534,20 @@ asm("\t.text\n\t.global\tpipeline_stack_test_component\n"
 	"\tXOR\t-1,R10\n"
 	"\tXOR\t-1,R11\n"
 	"\tXOR\t-1,R12\n"
-	"\tLOD\t(SP),R0\n"
-	"\tLOD\t1(SP),R1\n"
-	"\tLOD\t2(SP),R2\n"
-	"\tLOD\t3(SP),R3\n"
-	"\tLOD\t4(SP),R4\n"
-	"\tLOD\t5(SP),R5\n"
-	"\tLOD\t6(SP),R6\n"
-	"\tLOD\t7(SP),R7\n"
-	"\tLOD\t8(SP),R8\n"
-	"\tLOD\t9(SP),R9\n"
-	"\tLOD\t10(SP),R10\n"
-	"\tLOD\t11(SP),R11\n"
-	"\tLOD\t12(SP),R12\n"
-	"\tADD\t13,SP\n"
+	"\tLW\t(SP),R0\n"
+	"\tLW\t4(SP),R1\n"
+	"\tLW\t8(SP),R2\n"
+	"\tLW\t12(SP),R3\n"
+	"\tLW\t16(SP),R4\n"
+	"\tLW\t20(SP),R5\n"
+	"\tLW\t24(SP),R6\n"
+	"\tLW\t28(SP),R7\n"
+	"\tLW\t32(SP),R8\n"
+	"\tLW\t36(SP),R9\n"
+	"\tLW\t40(SP),R10\n"
+	"\tLW\t44(SP),R11\n"
+	"\tLW\t48(SP),R12\n"
+	"\tADD\t52,SP\n"
 	"\tJMP\tR0\n");
 
 //mpy_test
@@ -596,8 +591,6 @@ unsigned	hard_mpyuhi(unsigned, unsigned);
 asm("\t.text\n\t.global\thard_mpyuhi\n"
 	"\t.type\thard_mpyuhi,@function\n"
 "hard_mpyuhi:\n"
-	"\tNOOP\n"
-	"\tNOOP\n"
 	"\tMPYUHI\tR2,R1\n"
 	"\tRETN\n");
 
@@ -730,35 +723,52 @@ int	soft_mpyshi(int a, int b) {
 	return r;
 }
 
+int	div_test(void);
+asm("\t.text\n\t.global\tdiv_test\n"
+	"\t.type\tdiv_test,@function\n"
+"div_test:\n"
+	"\tLDI\t0x4881a7,R4\n"
+	"\tLDI\t0x2d5108b,R2\n"
+	"\tLDI\t10,R3\n"
+	"\tDIVU\tR3,R2\n"
+	"\tCMP\tR4,R2\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tRETN.NZ\n"
+	"\tLDI\t0x2d5108b,R2\n"
+	"\tDIVU\t10,R2\n"
+	"\tCMP\tR4,R2\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tRETN\n");
+
 //brev_test
 //pipeline_test -- used to be called pipeline memory race conditions
 void	pipeline_test(void);
 asm("\t.text\n\t.global\tpipeline_test\n"
 	"\t.type\tpipeline_test,@function\n"
 "pipeline_test:\n"
-	"\tSUB\t2,SP\n"
+	"\tSUB\t12,SP\n"
 	// Test setup
 	"\tLDI\t275,R2\n"
-	"\tSTO\tR2,1(SP)\n"
-	"\tMOV\t1(SP),R2\n"
-	"\tSTO\tR2,(SP)\n"
+	"\tSW\tR2,4(SP)\n"
+	"\tMOV\t4(SP),R2\n"
+	"\tSW\tR2,(SP)\n"
 	"\tCLR\tR2\n"
 	//
 	"\tMOV\tSP,R2\n"
-	"\tLOD\t(R2),R2\n"
-	"\tLOD\t(R2),R2\n"
+	"\tLW\t(R2),R2\n"
+	"\tLW\t(R2),R2\n"
 	"\tCMP\t275,R2\n"
 	"\tOR.NZ\t1,R1\n"
 	//
 	"\tMOV\tSP,R2\n"
 	// Here's the test sequence
-	"\tLOD\t(R2),R3\n"
-	"\tLOD\t1(R2),R4\n"
-	"\tSTO\tR4,1(R3)\n"
+	"\tLW\t(R2),R3\n"
+	"\tLW\t4(R2),R4\n"
+	"\tSW\tR4,4(R3)\n"
 	// Make sure we clear the load pipeline
-	"\tLOD\t(R2),R3\n"
+	"\tLW\t(R2),R3\n"
 	// Load our written value
-	"\tLOD\t2(R2),R4\n"
+	"\tLW\t8(R2),R4\n"
 	"\tCMP\t275,R4\n"
 	"\tOR.NZ\t2,R1\n"
 	//
@@ -767,18 +777,18 @@ asm("\t.text\n\t.global\tpipeline_test\n"
 	//	LOD -x(R12),R0
 	//	LOD y(R0),R0
 	"\tMOV\tSP,R2\n"
-	"\tMOV\t1(R2),R3\n"
-	"\tSTO\tR3,1(R2)\n"
+	"\tMOV\t4(R2),R3\n"
+	"\tSW\tR3,4(R2)\n"
 	"\tLDI\t3588,R4\n"	// Just some random value
-	"\tSTO\tR4,2(R2)\n"
+	"\tSW\tR4,8(R2)\n"
 	"\tMOV\tR2,R3\n"
 	// Here's the test sequence
-	"\tLOD\t(R2),R3\n"
-	"\tLOD\t1(R3),R3\n"
+	"\tLW\t(R2),R3\n"
+	"\tLW\t4(R3),R3\n"
 	"\tCMP\tR4,R3\n"
 	"\tOR.NZ\t4,R1\n"
 	//
-	"\tADD\t2,SP\n"
+	"\tADD\t12,SP\n"
 	"\tJMP\tR0\n");
 
 //mempipe_test
@@ -786,14 +796,14 @@ void	mempipe_test(void);
 asm("\t.text\n\t.global\tmempipe_test\n"
 	"\t.type\tmempipe_test,@function\n"
 "mempipe_test:\n"
-	"\tSUB\t4,SP\n"
-	"\tSTO\tR0,(SP)\n"
+	"\tSUB\t16,SP\n"
+	"\tSW\tR0,(SP)\n"
 	"\tLDI\t0x1000,R11\n"
 	// Test #1 ... Let's start by writing a value to memory
 	"\tLDI\t-1,R2\n"
 	"\tCLR\tR3\n"
-	"\tSTO\tR2,2(SP)\n"
-	"\tLOD\t2(SP),R3\n"
+	"\tSW\tR2,8(SP)\n"
+	"\tLW\t8(SP),R3\n"
 	"\tCMP\tR3,R2\n"
 	"\tOR.NZ\t1,R1\n"
 	// Test #2, reading and then writing a value from memory
@@ -801,21 +811,21 @@ asm("\t.text\n\t.global\tmempipe_test\n"
 	"\tNOOP\n"
 	"\tCLR\tR2\n"
 	"\tCLR\tR3\n"
-	"\tLOD\t2(SP),R2\n"	// This should load back up our -1 value
-	"\tSTO\tR2,3(SP)\n"
+	"\tLW\t8(SP),R2\n"	// This should load back up our -1 value
+	"\tSW\tR2,12(SP)\n"
 	// Insist that the pipeline clear
-	"\tLOD\t2(SP),R2\n"
+	"\tLW\t8(SP),R2\n"
 	// Now let's try loading into R3
 	"\tNOOP\n"
 	"\tNOOP\n"
 	"\tNOOP\n"
 	"\tNOOP\n"
-	"\tLOD\t3(SP),R3\n"
+	"\tLW\t12(SP),R3\n"
 	"\tCMP\tR3,R2\n"
 	"\tOR.NZ\t2,R1\n"
 	//
-	"\tLOD\t(SP),R0\n"
-	"\tADD\t4,SP\n"
+	"\tLW\t(SP),R0\n"
+	"\tADD\t16,SP\n"
 	"\tJMP\tR0\n");
 
 //cexec_test
@@ -823,8 +833,8 @@ void	cexec_test(void);
 asm("\t.text\n\t.global\tcexec_test\n"
 	"\t.type\tcexec_test,@function\n"
 "cexec_test:\n"
-	"\tSUB\t1,SP\n"
-	"\tSTO\tR0,(SP)\n"
+	"\tSUB\t4,SP\n"
+	"\tSW\tR0,(SP)\n"
 	//
 	"\tXOR\tR2,R2\n"
 	"\tADD.Z\t1,R2\n"
@@ -832,8 +842,8 @@ asm("\t.text\n\t.global\tcexec_test\n"
 	"\tCMP.Z\t0,R2\n"
 	"\tOR.Z\t2,R1\n"
 	//
-	"\tLOD\t(SP),R0\n"
-	"\tADD\t1,SP\n"
+	"\tLW\t(SP),R0\n"
+	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n");
 
 // Pipeline stalls have been hideous problems for me.  The CPU has been modified
@@ -847,7 +857,7 @@ void	nowaitpipe_test(void);
 asm("\t.text\n\t.global\tnowaitpipe_test\n"
 	"\t.type\tnowaitpipe_test,@function\n"
 "nowaitpipe_test:\n"
-	"\tSUB\t2,SP\n"
+	"\tSUB\t8,SP\n"
 	//
 	// Let's start with ALU-ALU testing
 	//	AA: result->input A
@@ -890,16 +900,16 @@ asm("\t.text\n\t.global\tnowaitpipe_test\n"
 	// Then we need to do the ALU-MEM input testing
 	//
 	"\tCLR\tR2\n"
-	"\tSTO\tR2,1(SP)\n"
+	"\tSW\tR2,4(SP)\n"
 	"\tLDI\t8352,R2\n"
-	"\tLOD\t1(SP),R2\n"
+	"\tLW\t4(SP),R2\n"
 	"\tTST\t-1,R2\n"
 	"\tOR.NZ\t64,R1\n"
 	// Let's try again, this time with something that's not zero
 	"\tLDI\t937,R2\n"
-	"\tSTO\tR2,1(SP)\n"
+	"\tSW\tR2,4(SP)\n"
 	"\tNOOP\n"
-	"\tLOD\t1(SP),R2\n"
+	"\tLW\t4(SP),R2\n"
 	"\tCMP\t938,R2\n"
 	"\tOR.GE\t128,R1\n"
 	"\tCMP\t936,R2\n"
@@ -908,13 +918,13 @@ asm("\t.text\n\t.global\tnowaitpipe_test\n"
 	//	Okay, we just did that as part of our last test
 	// Mem output->mem input testing
 	"\tLDI\t5328,R2\n"
-	"\tLOD\t1(SP),R2\n"
-	"\tSTO\tR2,1(SP)\n"
-	"\tLOD\t1(SP),R3\n"
+	"\tLW\t4(SP),R2\n"
+	"\tSW\tR2,4(SP)\n"
+	"\tLW\t4(SP),R3\n"
 	"\tCMP\t937,R3\n"
 	"\tOR.NZ\t512,R1\n"
 	//
-	"\tADD\t2,SP\n"
+	"\tADD\t8,SP\n"
 	"\tJMP\tR0\n");
 
 //bcmem_test
@@ -922,32 +932,32 @@ void	bcmem_test(void);
 asm("\t.text\n.global\tbcmem_test\n"
 	"\t.type\tbcmem_test,@function\n"
 "bcmem_test:\n"
-	"\tSUB\t1,SP\n"
+	"\tSUB\t4,SP\n"
 	"\tCLR\tR1\n"
 	"\tCLR\tR2\n"
 	"\tLDI\t-1,R3\n"
 	"\tLDI\t0x13000,R4\n"
-	"\tSTO\tR2,(SP)\n"
-	"\tLOD\t(SP),R3\n"
+	"\tSW\tR2,(SP)\n"
+	"\tLW\t(SP),R3\n"
 	"\tCMP\tR2,R3\n"
 	"\tOR.NZ\t1,R1\n"
 	"\tCMP\t0x13000,R4\n"
 	"\tBZ\tbcmem_test_cmploc_1\n"
-	"\tSTO\tR4,(SP)\n"
+	"\tSW\tR4,(SP)\n"
 "bcmem_test_cmploc_1:\n"
-	"\tLOD\t(SP),R2\n"
+	"\tLW\t(SP),R2\n"
 	"\tCMP\tR2,R4\n"
 	"\tOR.Z\t2,R1\n"
 	"\tCLR\tR2\n"
 	"\tCMP\tR2,R4\n"
 	"\tBZ\tbcmem_test_cmploc_2\n"
-	"\tSTO.NZ\tR4,(SP)\n"
+	"\tSW.NZ\tR4,(SP)\n"
 "bcmem_test_cmploc_2:\n"
-	"\tLOD\t(SP),R2\n"
+	"\tLW\t(SP),R2\n"
 	"\tCMP\tR2,R4\n"
 	"\tOR.NZ\t4,R1\n"
 //
-	"\tADD\t1,SP\n"
+	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n");
 
 // The illegal instruction test.  Specifically, illegal instructions cannot be
@@ -960,10 +970,46 @@ asm("\t.text\n.global\tbcmem_test\n"
 void	ill_test(void);
 asm("\t.text\n.global\till_test\n"
 	"\t.type\till_test,@function\n"
-"ill_test:\n"
-	"\t.word\t0x7ff00000\n"
+"ill_test:\n"	// 0.111_1.110_11......
+	"\t.int\t0x7ec00000\n"
 	"\tJMP\tR0\n");
 
+// Are sim instructions considered valid?  Just hit the illegal instruction
+// so we can report the result
+void	sim_test(void);
+asm("\t.text\n.global\tsim_test\n"
+	"\t.type\tsim_test,@function\n"
+"sim_test:\n"	// 0.111_1.111_10......
+	"\t.int\t0x7f800000\n"
+	"\tJMP\tR0\n");
+
+// Are CIS instructions considered valid?  Try two compare instructions to
+// see if they are built into our CPU.
+void	cis_test(void);
+asm("\t.text\n.global\tcis_test\n"
+	"\t.type\tcis_test,@function\n"
+"cis_test:\n"	// 1.000_0.011._1.101_0.000 ... 1.000_1.011._1.110_0.000
+	"\t.int\t0x83d08be0\n"
+	"\tJMP\tR0\n");
+
+void	cmpeq_test(void);
+asm("\t.text\n.global\tcmpeq_test\n"
+	"\t.type\tcmpeq_test,@function\n"
+"cmpeq_test:\n"
+	"\tCMP\tR1,R2\n"
+	"\tCMP.Z\tR3,R4\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tJMP\tR0\n");
+
+void	cmpneq_test(void);
+asm("\t.text\n.global\tcmpneq_test\n"
+	"\t.type\tcmpneq_test,@function\n"
+"cmpneq_test:\n"
+	"\tLDI\t1,R4\n"
+	"\tCMP\tR1,R2\n"
+	"\tCMP.Z\tR3,R4\n"
+	"\tLDILO.Z\t1,R0\n"
+	"\tJMP\tR0\n");
 //
 // The CC register has some ... unique requirements associated with it.
 // Particularly, flags are unavailable until after an ALU operation completes,
@@ -1031,23 +1077,40 @@ int	multiarg_test(void) {
 
 __attribute__((noinline))
 void	wait(unsigned int msk) {
-	*PIC = 0x7fff0000|msk;
+	PIC = 0x7fff0000|msk;
 	asm("MOV\tidle_task(PC),uPC\n");
-	*PIC = 0x80000000|(msk<<16);
+	PIC = 0x80000000|(msk<<16);
 	asm("WAIT\n");
-	*PIC = 0; // Turn interrupts back off, lest they confuse the test
+	PIC = 0; // Turn interrupts back off, lest they confuse the test
 }
 
 asm("\n\t.text\nidle_task:\n\tWAIT\n\tBRA\tidle_task\n");
 
 __attribute__((noinline))
 void	txchr(char v) {
+#ifdef	_ZIP_HAS_WBUART
+	while(_uart->u_fifo & 0x010000)
+		;
+	uint8_t c = v;
+	_uart->u_tx = (unsigned)c;
+#endif
+/*
 	if (zip_cc() & CC_GIE) {
 		while(*UARTTX & 0x100)
 			;
 	} else
 		wait(INT_UARTTX);
 	*UARTTX = v;
+*/
+}
+
+void	wait_for_uart_idle(void) {
+#ifdef	_ZIP_HAS_WBUART
+	while(_uart->u_fifo & 0x100)	// While the FIFO is non-empty
+		;
+#else
+#error "No uart defined"
+#endif
 }
 
 __attribute__((noinline))
@@ -1146,6 +1209,8 @@ void	test_fails(int start_time, int *listno) {
 	txreg("uPC : ", context[15]);
 	txstr("\r\n\r\n");
 
+	wait_for_uart_idle();
+	asm("NEXIT -1");
 	// While previous versions of cputest.c called zip_busy(), here we
 	// reject that notion for the simple reason that zip_busy may not
 	// necessarily halt any Verilator simulation.  Instead, we try to 
@@ -1172,22 +1237,24 @@ void entry(void) {
 	int	context[16];
 	int	user_stack[256], *user_stack_ptr = &user_stack[256];
 	int	start_time, i;
-	int	cc_fail;
+	int	cc_fail, cis_insns = 0;
 
 
 	for(i=0; i<32; i++)
 		testlist[i] = -1;
 
-#ifdef	HAVE_TIMER
-	*TIMER = 0x7fffffff;
+#ifdef	TIMER
+	TIMER = 0x7fffffff;
 #endif
-#ifdef	HAVE_COUNTER
-	*COUNTER = 0;
+#ifdef	COUNTER
+	COUNTER = 0;
 #endif
 #ifdef	HAVE_SCOPE
 	SCOPEc = PREPARE_SCOPE;
 #endif
 
+	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
+	UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
@@ -1198,6 +1265,28 @@ void entry(void) {
 
 	int	tnum = 0;
 
+	// Check whether or not this CPU correctly identifies SIM instructions
+	// as illegal instructions
+	testid("SIM Instructions"); MARKSTART;
+	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_TRAP|CC_STEP|CC_SLEEP;
+	if ((run_test(sim_test, user_stack_ptr))||(zip_ucc()&cc_fail))
+		test_fails(start_time, &testlist[tnum]);
+	else if (zip_ucc() & CC_ILL) {
+		txstr("Pass\r\n"); testlist[tnum++];	// 0
+	} else
+		txstr("Is this a simulator?\r\n");
+
+	testid("CIS Instructions"); MARKSTART;
+	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_STEP|CC_SLEEP;
+	if ((run_test(cis_test, user_stack_ptr))||(zip_ucc()&cc_fail))
+		test_fails(start_time, &testlist[tnum]);
+	else if (zip_ucc() & CC_ILL)
+		txstr("Not supported\r\n");
+	else {
+		txstr("Supported\r\n");
+		cis_insns = 1;
+	}
+
 	// Test break instruction in user mode
 	// Make sure the break works as designed
 	testid("Break test #1"); MARKSTART;
@@ -1205,11 +1294,11 @@ void entry(void) {
 	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_TRAP|CC_ILL|CC_STEP|CC_SLEEP;
 	if ((run_test(break_one, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
-
 	save_context(context);
-	if ((context[15] != (int)break_one+1)||(0==(zip_ucc()&CC_BREAK)))
+	if ((context[15] != (int)break_one+4)||(0==(zip_ucc()&CC_BREAK)))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// 0
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #1
+
 
 	// Test break instruction in user mode
 	// Make sure that a decision on the clock prior won't still cause a 
@@ -1218,7 +1307,7 @@ void entry(void) {
 	testid("Break test #2"); MARKSTART;
 	if ((run_test(break_two, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #1
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
 
 	// Test break instruction in user mode
 	// Make sure that a decision on the clock prior won't still cause a 
@@ -1231,7 +1320,7 @@ void entry(void) {
 			||(0==(zip_ucc()&CC_BREAK))//insn,that the break flag is
 			||(zip_ucc()&cc_fail))	// set, and no other excpt flags
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
 
 	// LJMP test ... not (yet) written
 
@@ -1240,7 +1329,7 @@ void entry(void) {
 	testid("Early Branch test"); MARKSTART;
 	if ((run_test(early_branch_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
 
 	// TRAP test
 	testid("Trap test/AND"); MARKSTART;
@@ -1248,38 +1337,38 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #5
 
 	testid("Trap test/CLR"); MARKSTART;
 	if ((run_test(trap_test_clr, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #5
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
 
 	// Overflow test
 	testid("Overflow test"); MARKSTART;
 	if ((run_test(overflow_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7
 
 	// Carry test
 	testid("Carry test"); MARKSTART;
 	if ((run_test(carry_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #7
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
 
 	// LOOP_TEST
 	testid("Loop test"); MARKSTART;
 	if ((run_test(loop_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #8
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
 
 	// SHIFT_TEST
 	testid("Shift test"); MARKSTART;
 	if ((run_test(shift_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #9
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #10
 
 	// BREV_TEST
 	//testid("BREV/stack test"); MARKSTART;
@@ -1333,6 +1422,20 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #17
 
+	// Compare EQuals test
+	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
+	testid("Comparison test, =="); MARKSTART;
+	if ((run_test(cmpeq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
+
+	// Compare !EQuals test
+	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
+	testid("Comparison test, !="); MARKSTART;
+	if ((run_test(cmpneq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
+
 	// Pipeline memory race condition test
 	// DIVIDE test
 
@@ -1340,29 +1443,43 @@ void entry(void) {
 	testid("CC Register test"); MARKSTART;
 	if ((run_test(ccreg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
 
 	// Multiple argument test
 	testid("Multi-Arg test"); MARKSTART;
 	if ((run_test(multiarg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
 
 	// MPY_TEST
 	testid("Multiply test"); MARKSTART;
 	if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #22
 
 	// MPYxHI_TEST
 	testid("Multiply HI-word test"); MARKSTART;
 	if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #23
+
+	// DIV_TEST
+	testid("Divide test");
+	if ((zip_cc() & 0x20000000)==0) {
+		txstr("No divide unit installed\r\n");
+	} else { MARKSTART;
+	if ((run_test(div_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	} txstr("Pass\r\n"); testlist[tnum++] = 0;	// #24
+
 
 	txstr("\r\n");
 	txstr("-----------------------------------\r\n");
 	txstr("All tests passed.  Halting CPU.\r\n");
+	wait_for_uart_idle();
+	for(int k=0; k<50000; k++)
+		asm("NOOP");
+	asm("NEXIT 0");
 	zip_halt();
 }
 

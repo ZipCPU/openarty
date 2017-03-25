@@ -106,7 +106,7 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		i_wb_cyc_stb, i_wb_we, i_wb_addr, i_wb_data,
 			o_wb_ack, o_wb_stall, o_wb_data,
 		o_tracking, o_count, o_step, o_err, o_locked, o_dbg);
-	parameter	DEFAULT_STEP = 32'h834d_c736;//2^64/81.25 MHz
+	parameter [31:0] DEFAULT_STEP = 32'h834d_c736;//2^64/81.25 MHz
 	parameter	RW=64, // Needs to be 2ceil(Log_2(i_clk frequency))
 			DW=32, // The width of our data bus
 			ONE_SECOND = 0,
@@ -438,8 +438,8 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 
 	wire	[31:0]	initial_default_step = DEFAULT_STEP;
 	// initial	o_step = 64'h002af31dc461; // 100MHz
-	initial	o_step = { 16'h00, (({ initial_default_step[27:0], 20'h00 })
-				>> initial_default_step[31:28])};
+	initial	o_step = { 16'h00, (({ DEFAULT_STEP[27:0], 20'h00 })
+				>> DEFAULT_STEP[31:28])};
 	always @(posedge i_clk)
 		if ((i_rst)||(dly_config))
 			o_step <= pre_step;

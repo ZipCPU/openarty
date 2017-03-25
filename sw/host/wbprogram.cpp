@@ -4,14 +4,15 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	Program the memory with a given '.bin' file.
+// Purpose:	Program the memory with a given '.bin' file onto the flash
+//		memory on a given board.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -24,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -49,6 +50,7 @@
 #include "llcomms.h"
 #include "regdefs.h"
 #include "flashdrvr.h"
+#include "byteswap.h"
 
 DEVBUS	*m_fpga;
 void	closeup(int v) {
@@ -56,26 +58,57 @@ void	closeup(int v) {
 	exit(0);
 }
 
-unsigned byteswap(unsigned x) {
-	unsigned r;
-
-	r  = x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff; x>>=8; r<<= 8;
-	r |= x&0x0ff;
-
-	return r;
-}
-
 void	usage(void) {
 	printf("USAGE: wbprogram [@<Address>] file.bit\n");
 	printf("\tYou can also use a .bin file in place of the file.bit.\n");
 }
 
+void	skip_bitfile_header(FILE *fp) {
+	const unsigned	SEARCHLN = 204, MATCHLN = 52;
+	const unsigned char matchstr[MATCHLN] = {
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0x00, 0x00, 0x00, 0xbb,
+		0x11, 0x22, 0x00, 0x44,
+		0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff,
+		//
+		0xaa, 0x99, 0x55, 0x66 };
+	unsigned char	buf[SEARCHLN];
+
+	rewind(fp);
+	fread(buf, sizeof(char), SEARCHLN, fp);
+	for(int start=0; start+MATCHLN<SEARCHLN; start++) {
+		int	mloc;
+
+		// Search backwards, since the starting bytes just aren't that
+		// interesting.
+		for(mloc = MATCHLN-1; mloc >= 0; mloc--)
+			if (buf[start+mloc] != matchstr[mloc])
+				break;
+		if (mloc < 0) {
+			fseek(fp, start, SEEK_SET);
+			return;
+		}
+	}
+
+	fprintf(stderr, "Could not find bin-file header within bit file\n");
+	fclose(fp);
+	exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv) {
 	FILE	*fp;
-	const int	BUFLN = (1<<20); // 4MB Flash
-	DEVBUS::BUSW	*buf = new DEVBUS::BUSW[BUFLN], v, addr = EQSPIFLASH;
+	DEVBUS::BUSW	addr = EQSPIFLASH;
+	char		*buf = new char[FLASHLEN];
 	FLASHDRVR	*flash;
 	int		argn = 1;
 
@@ -97,11 +130,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	// SPI flash testing
-	// Enable the faster (vector) reads
-	bool	vector_read = true;
 	unsigned	sz;
-	bool		esectors[NSECTORS];
 
 	argn = 1;
 	if (argc <= argn) {
@@ -135,13 +164,9 @@ int main(int argc, char **argv) {
 
 	fp = fopen(argv[argn], "r");
 	if (strcmp(&argv[argn][strlen(argv[argn])-4],".bit")==0)
-		fseek(fp, 0x5dl, SEEK_SET);
-	sz = fread(buf, sizeof(buf[0]), BUFLN, fp);
+		skip_bitfile_header(fp);
+	sz = fread(buf, sizeof(buf[0]), FLASHLEN, fp);
 	fclose(fp);
-
-	for(int i=0; i<sz; i++) {
-		buf[i] = byteswap(buf[i]);
-	}
 
 	try {
 		flash->write(addr, sz, buf, true);

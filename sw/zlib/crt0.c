@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	bootloader.c
+// Filename: 	crt0.c
 //
-// Project:	OpenArty, an entirely open SoC based upon the Arty platform
+// Project:	Zip CPU -- a small, lightweight, RISC CPU soft core
 //
 // Purpose:	To start a program from flash, loading its various components
 //		into on-chip block RAM, or off-chip DDR3 SDRAM, as indicated
@@ -81,7 +81,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -93,11 +93,6 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
-// target there if the PDF file isn't present.)  If not, see
-// <http://www.gnu.org/licenses/> for a copy.
-//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -106,8 +101,7 @@
 //
 //
 #include "zipcpu.h"
-#include "zipsys.h"
-#include "artyboard.h"
+#include "artyboard.h"		// Our current board support file
 #include "bootloader.h"
 
 // A bootloader is about nothing more than copying memory from a couple
@@ -122,7 +116,9 @@
 // however: 1) It obscures for any readers of this code what is actually
 // happening, and 2) it makes the code dependent upon yet another piece of the
 // hardware design working.  For these reasons, we allow you to turn it off.
+#ifdef _HAS_ZIPSYS_DMA
 #define	USE_DMA
+#endif
 
 //
 // _start:
@@ -145,11 +141,11 @@
 // entry function so that, should the kernel ever exit, it wouldn't exit on 
 // any error but rather it would exit by halting the CPU.
 //
-asm("\t.section\t.start\n"
+asm("\t.section\t.start,\"ax\",@progbits\n"
 	"\t.global\t_start\n"
 "_start:"	"\t; Here's the global ZipCPU entry point upon reset/reboot\n"
 	"\tLDI\t_top_of_stack,SP"	"\t; Set up our supervisor stack ptr\n"
-	"\tMOV\t_kernel_exit(PC),uPC"	"\t; Set user PC pointer to somewhere valid\n"
+	"\tMOV\t_kernel_is_dead(PC),uPC" "\t; Set user PC pointer to somewhere valid\n"
 #ifndef	SKIP_BOOTLOADER
 	"\tMOV\t_after_bootloader(PC),R0" " ; JSR to the bootloader routine\n"
 	"\tBRA\t_bootloader\n"
@@ -157,13 +153,34 @@ asm("\t.section\t.start\n"
 	"\tLDI\t_top_of_stack,SP"	"\t; Set up our supervisor stack ptr\n"
 	"\tOR\t0x4000,CC"		"\t; Clear the data cache\n"
 #endif
-	"\tCLR\tR1\n"			"\t; argc = 0\n"
-	"\tMOV\t_argv(PC),R2\n"		"\t; argv = &0\n"
-	"\tMOV\t_kernel_exit(PC),R0"	"\t; Create somewhere the kernel can return to\n"
-	"\tBRA\tmain"	"\t; Call the user main() function\n"
-"_kernel_exit:"		"\t; Main should never return.  Halt here if it does\n"
-	"\tHALT\n"
-	"\tBRA\t_kernel_exit"	"\t; We should *never* continue following a halt, do something useful if so ??\n"
+#ifdef	__USE_INIT_FINIT
+	"\tJSR\tinit"		"\t; Initialize any constructor code\n"
+	//
+	"\tLDI\tfini,R1"	"\t; \n"
+	"\tJSR\t_atexit"	"\t; Initialize any constructor code\n"
+#endif
+	//
+	"\tCLR\tR1"			"\t; argc = 0\n"
+	"\tMOV\t_argv(PC),R2"		"\t; argv = &0\n"
+	"\tLDI\t__env,R3"		"\t; env = NULL\n"
+	"\tJSR\tmain"		"\t; Call the user main() function\n"
+	//
+"_graceful_kernel_exit:"	"\t; Halt on any return from main--gracefully\n"
+	"\tJSR\texit\n"	"\t; Call the _exit as part of exiting\n"
+"\t.global\t_exit\n"
+"_exit:\n"
+#ifdef	_HAS_WBUART
+	"\tLW 0x45c,R2\n"
+	"\tTEST 0xffc,R2\n"
+	"\tBNZ _exit\n"
+	"\tLSR	16,R2\n"
+	"\tTEST 0xffc,R2\n"
+	"\tBNZ _exit\n"
+#endif
+	"\tNEXIT\tR1\n"		"\t; If in simulation, call an exit function\n"
+"_kernel_is_dead:"		"\t; Halt the CPU\n"
+	"\tHALT\n"		"\t; We should *never* continue following a\n"
+	"\tBRA\t_kernel_is_dead" "\t; halt, do something useful if so ??\n"
 "_argv:\n"
 	"\t.WORD\t0,0\n"
 	"\t.section\t.text");
@@ -190,9 +207,9 @@ extern	void	_bootloader(void) __attribute__ ((section (".boot")));
 void	_bootloader(void) {
 	int *sdend = _sdram_image_end, *bsend = _bss_image_end;
 	if (sdend < _sdram)
-		sdend = _sdram;
+		sdend = _sdram;	// R7
 	if (bsend < sdend)
-		bsend = sdend;
+		bsend = sdend;	// R6
 
 #ifdef	USE_DMA
 	zip->z_dma.d_ctrl= DMACLEAR;
@@ -233,6 +250,9 @@ void	_bootloader(void) {
 #else
 	int	*rdp = _kernel_image_start, *wrp = _blkram;
 
+	if ((((int)wrp) & -4)==0)
+		wrp = _sdram;
+
 	//
 	// Load any part of the image into block RAM, but *only* if there's a
 	// block RAM section in the image.  Based upon our LD script, the
@@ -240,9 +260,11 @@ void	_bootloader(void) {
 	// It starts at _kernel_image_start --- our last valid address within
 	// the flash address region.
 	//
-	if (_kernel_image_end != _blkram) {
-		for(int i=0; i< _kernel_image_end - _blkram; i++)
+	if (_kernel_image_end != _kernel_image_start) {
+		while(wrp < _kernel_image_end)
 			*wrp++ = *rdp++;
+		if (_kernel_image_end < _sdram)
+			wrp = _sdram;
 	}
 
 	//
@@ -251,7 +273,7 @@ void	_bootloader(void) {
 	// As with the last pointer, this one is also created for us by the
 	// linker.
 	// 
-	wrp = _sdram;
+	// while(wrp < sdend)	// Could also be done this way ...
 	for(int i=0; i< sdend - _sdram; i++)
 		*wrp++ = *rdp++;
 

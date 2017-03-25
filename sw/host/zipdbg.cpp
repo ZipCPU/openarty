@@ -1,10 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	
+// Filename: 	zipdbg.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
-//
-// Project:	XuLA2-LX25 SoC based upon the ZipCPU
 //
 // Purpose:	Provide a debugger to step through the ZipCPU assembler,
 //		evaluate the ZipCPU's current state, modify registers as(if)
@@ -16,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -29,7 +27,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -38,6 +36,11 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
+//
+// BUGS:
+//	- No ability to verify CPU functionality (3rd party simulator)
+//	- No ability to set/clear breakpoints
 //
 //
 #include <stdlib.h>
@@ -50,7 +53,6 @@
 #include <ncurses.h>
 
 #include "zopcodes.h"
-#include "zparser.h"
 #include "devbus.h"
 #include "regdefs.h"
 
@@ -119,7 +121,7 @@ public:
 		if (m_state.m_last_pc_valid)
 			m_state.m_imem[0].m_a = m_state.m_last_pc;
 		else
-			m_state.m_imem[0].m_a = m_state.m_pc - 1;
+			m_state.m_imem[0].m_a = m_state.m_pc - 4;
 		try {
 			m_state.m_imem[0].m_d = readio(m_state.m_imem[0].m_a);
 			m_state.m_imem[0].m_valid = true;
@@ -137,7 +139,7 @@ public:
 		for(int i=1; i<4; i++) {
 			if (!m_state.m_imem[i].m_valid) {
 				m_state.m_imem[i+1].m_valid = false;
-				m_state.m_imem[i+1].m_a = m_state.m_imem[i].m_a+1;
+				m_state.m_imem[i+1].m_a = m_state.m_imem[i].m_a+4;
 				continue;
 			}
 			m_state.m_imem[i+1].m_a = zop_early_branch(
@@ -153,7 +155,7 @@ public:
 
 		m_state.m_smem[0].m_a = m_state.m_sp;
 		for(int i=1; i<5; i++)
-			m_state.m_smem[i].m_a = m_state.m_smem[i-1].m_a+1;
+			m_state.m_smem[i].m_a = m_state.m_smem[i-1].m_a+4;
 		for(int i=0; i<5; i++) {
 			m_state.m_smem[i].m_valid = true;
 			if (m_state.m_smem[i].m_valid)
@@ -215,9 +217,9 @@ public:
 			mvprintw(y, x, " %s: 0x%08x ", n, v);
 	}
 
-	int	showins(int y, const char *lbl, const unsigned int pcidx) {
+	int	showins(int y, const char *lbl, const unsigned int pcidx, bool ignore_a) {
 		char	la[80], lb[80];
-		int	r = y-1;
+		int	r = y-1, bln = r;
 
 		mvprintw(y, 0, "%s0x%08x", lbl, m_state.m_imem[pcidx].m_a);
 
@@ -227,13 +229,17 @@ public:
 		la[0] = '\0';
 		lb[0] = '\0';
 		if (m_state.m_imem[pcidx].m_valid) {
-			zipi_to_string(m_state.m_imem[pcidx].m_d, la, lb);
-			printw(" 0x%08x", m_state.m_imem[pcidx].m_d);
-			printw("  %-25s", la);
-			if (lb[0]) {
-				mvprintw(y-1, 0, "%s", lbl);
-				mvprintw(y-1, strlen(lbl)+10+3+8+2, "%-25s", lb);
+			zipi_to_double_string(m_state.m_imem[pcidx].m_a,
+				m_state.m_imem[pcidx].m_d, la, lb);
+			if ((lb[0]=='\0')||(!ignore_a)) {
+				printw(" 0x%08x", m_state.m_imem[pcidx].m_d);
+				printw("  %-25s", la);
+			} if (lb[0]) {
+				mvprintw(bln, 0, "%11s", "");
+				mvprintw(bln, strlen(lbl)+10+3+8+2, "%-25s", lb);
 				r--;
+			} else {
+				mvprintw(y-1, 0, "%46s", "");
 			}
 		} else {
 			printw(" 0x--------  %-25s", "(Bus Error)");
@@ -471,11 +477,11 @@ public:
 		attroff(A_BOLD);
 		ln+=3;
 
-		showins(ln+4, " ", 0);
+		showins(ln+4, " ", 0, true);
 		{
 			int	lclln = ln+3;
-			for(int i=1; i<5; i++)
-				lclln = showins(lclln, (i==1)?">":" ", i);
+			for(int i=1; ((i<5)&&(lclln > ln)); i++)
+				lclln = showins(lclln, (i==1)?">":" ", i, false);
 			for(int i=0; i<5; i++)
 				showstack(ln+i, (i==0)?">":" ", i);
 		}
@@ -595,88 +601,92 @@ int	main(int argc, char **argv) {
 	// FPGAOPEN(m_fpga);
 	ZIPPY	*zip; //
 
-	int	skp=0, port = FPGAPORT;
-
 	FPGAOPEN(m_fpga);
 	zip = new ZIPPY(m_fpga);
 
+	try {
 
-	initscr();
-	raw();
-	noecho();
-	keypad(stdscr, true);
+		initscr();
+		raw();
+		noecho();
+		keypad(stdscr, true);
 
-	signal(SIGINT, on_sigint);
+		signal(SIGINT, on_sigint);
 
-	int	chv;
-	bool	done = false;
+		int	chv;
+		bool	done = false;
 
-	zip->halt();
-	for(int i=0; (i<5)&&(zip->stalled()); i++)
-		;
-	if (!zip->stalled())
-		zip->read_state();
-	else
-		stall_screen();
-	while((!done)&&(!gbl_err)) {
-		chv = getch();
-		switch(chv) {
-		case 'c': case 'C':
-			zip->toggle_cc();
-			break;
-		case 'g': case 'G':
-			m_fpga->writeio(R_ZIPCTRL, CPU_GO);
-			// We just released the CPU, so we're now done.
-			done = true;
-			break;
-		case 'l': case 'L': case CTRL('L'):
-			redrawwin(stdscr);
-		case 'm': case 'M':
-			zip->show_user_timers(false);
-			break;
-		case 'q': case 'Q': case CTRL('C'):
-		case KEY_CANCEL: case KEY_CLOSE: case KEY_EXIT:
-		case KEY_ESCAPE:
-			done = true;
-			break;
-		case 'r': case 'R':
-			zip->reset();
-			erase();
-			break;
-		case 't': case 'T':
-		case 's': case 'S':
-			zip->step();
-			break;
-		case 'u': case 'U':
-			zip->show_user_timers(true);
-			break;
-		case '\r': case  '\n':
-		case KEY_IC: case KEY_ENTER:
-			get_value(zip);
-			break;
-		case KEY_UP:
-			zip->cursor_up();
-			break;
-		case KEY_DOWN:
-			zip->cursor_down();
-			break;
-		case KEY_LEFT:
-			zip->cursor_left();
-			break;
-		case KEY_RIGHT:
-			zip->cursor_right();
-			break;
-		case ERR: case KEY_CLEAR:
-		default:
+		zip->halt();
+		for(int i=0; (i<5)&&(zip->stalled()); i++)
 			;
-		}
-
-		if ((done)||(gbl_err))
-			break;
-		else if (zip->stalled())
-			stall_screen();
-		else
+		if (!zip->stalled())
 			zip->read_state();
+		else
+			stall_screen();
+		while((!done)&&(!gbl_err)) {
+			chv = getch();
+			switch(chv) {
+			case 'c': case 'C':
+				zip->toggle_cc();
+				break;
+			case 'g': case 'G':
+				m_fpga->writeio(R_ZIPCTRL, CPU_GO);
+				// We just released the CPU, so we're now done.
+				done = true;
+				break;
+			case 'l': case 'L': case CTRL('L'):
+				redrawwin(stdscr);
+			case 'm': case 'M':
+				zip->show_user_timers(false);
+				break;
+			case 'q': case 'Q': case CTRL('C'):
+			case KEY_CANCEL: case KEY_CLOSE: case KEY_EXIT:
+			case KEY_ESCAPE:
+				done = true;
+				break;
+			case 'r': case 'R':
+				zip->reset();
+				erase();
+				break;
+			case 't': case 'T':
+			case 's': case 'S':
+				zip->step();
+				break;
+			case 'u': case 'U':
+				zip->show_user_timers(true);
+				break;
+			case '\r': case  '\n':
+			case KEY_IC: case KEY_ENTER:
+				get_value(zip);
+				break;
+			case KEY_UP:
+				zip->cursor_up();
+				break;
+			case KEY_DOWN:
+				zip->cursor_down();
+				break;
+			case KEY_LEFT:
+				zip->cursor_left();
+				break;
+			case KEY_RIGHT:
+				zip->cursor_right();
+				break;
+			case ERR: case KEY_CLEAR:
+			default:
+				;
+			}
+
+			if ((done)||(gbl_err))
+				break;
+			else if (zip->stalled())
+				stall_screen();
+			else
+				zip->read_state();
+		}
+	} catch(const char *err) {
+		fprintf(stderr, "ERR: Caught exception -- %s", err);
+	} catch(...) {
+		fprintf(stderr, "ERR: Caught anonymous exception!!\n");
 	}
 
 	endwin();

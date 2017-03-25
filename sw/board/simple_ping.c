@@ -74,15 +74,17 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include "artyboard.h"
 #include "zipcpu.h"
 #include "zipsys.h"
 #define	KTRAPID_SENDPKT	0
-#include "artyboard.h"
 #include "etcnet.h"
 #include "protoconst.h"
 #include "ledcolors.h"
 #include "ipcksum.h"
 #include "arp.h"
+
+#define	sys	_sys
 
 unsigned	pkts_received = 0, replies_received=0, arp_requests_received=0,
 		arp_pkt_count =0, arp_pkt_invalid =0,
@@ -163,7 +165,7 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 		pkt[0] = (unsigned)(hwaddr>>16);
 		pkt[1] = ((unsigned)(hwaddr<<16))|ETHERTYPE_IP;
 		pkt[2] = icmp_request[0] & 0xff00ffff;
-		id = pkt_id + sys->io_tim.sub;
+		id = pkt_id + sys->io_b.i_tim.sub;
 		pkt[3] = (id&0x0ffff)<<16; // no fragments
 		pkt[4] = 0xff010000;//No flags,frag offset=0,ttl=0,proto=1(ICMP)
 		pkt[5] = icmp_request[4];	// Swap sender and receiver
@@ -241,8 +243,8 @@ void	user_task(void) {
 				unsigned icmp_type = ippayload[0]>>24;
 				if (icmp_type == ICMP_ECHOREPLY) {
 					// We got our ping response
-					sys->io_clrled[3] = LEDC_GREEN;
-					sys->io_ledctrl = 0x80;
+					sys->io_b.i_clrled[3] = LEDC_GREEN;
+					sys->io_b.i_leds = 0x80;
 					ping_rx_count++;
 				} else if (icmp_type == ICMP_ECHO) {
 					// Someone is pinging us
@@ -302,7 +304,7 @@ void	send_ping(void) {
 
 	// If we don't know our destination MAC address yet, just return
 	if (ping_mac_addr==0) {
-		sys->io_clrled[1] = LEDC_YELLOW;
+		sys->io_b.i_clrled[1] = LEDC_YELLOW;
 		return;
 	}
 
@@ -357,8 +359,8 @@ int main(int argc, char **argv) {
 	init_arp_table();
 
 	for(int i=0; i<4; i++)
-		sys->io_clrled[i] = LEDC_BRIGHTRED;
-	sys->io_ledctrl = 0x0ff;
+		sys->io_b.i_clrled[i] = LEDC_BRIGHTRED;
+	sys->io_b.i_leds = 0x0ff;
 
 	// Start up the network interface
 	if ((sys->io_enet.n_txcmd & ENET_RESET)!=0)
@@ -369,9 +371,9 @@ int main(int argc, char **argv) {
 	}
 
 	// Turn off our right-hand LED, first part of startup is complete
-	sys->io_ledctrl = 0x010;
+	sys->io_b.i_leds = 0x010;
 	// Turn our first CLR LED green as well
-	sys->io_clrled[0] = LEDC_GREEN;
+	sys->io_b.i_clrled[0] = LEDC_GREEN;
 
 	// Set our timer to have us send a ping 1/sec
 	zip->z_tma = CLOCKFREQ_HZ | TMR_INTERVAL;
@@ -388,20 +390,20 @@ int main(int argc, char **argv) {
 		bmsr = sys->io_netmdio.e_v[MDIO_BMSR];
 		if ((bmsr & 4)==0) {
 			// Link is down, do nothing this time through
-			sys->io_clrled[1] = LEDC_BRIGHTRED;
-			sys->io_clrled[2] = LEDC_BRIGHTRED;
-			sys->io_clrled[3] = LEDC_BRIGHTRED;
+			sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
+			sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
+			sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
 		} else {
-			sys->io_ledctrl = 0x020;
-			sys->io_clrled[1] = LEDC_GREEN;
+			sys->io_b.i_leds = 0x020;
+			sys->io_b.i_clrled[1] = LEDC_GREEN;
 			send_ping();
-			sys->io_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
-			sys->io_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
+			sys->io_b.i_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
+			sys->io_b.i_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
 		}
 
 		// Clear any timer or PPS interrupts, disable all others
 		zip->z_pic = DALLPIC;
-		zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS|SYSINT_NETRX);
+		zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS|SYSINT_ENETRX);
 		do {
 			if ((zip->z_pic & INTNOW)==0)
 				zip_rtu();
@@ -415,11 +417,11 @@ int main(int argc, char **argv) {
 			zip->z_pic = (picv & 0x0ffff);
 
 			if (zip_ucc() & CC_FAULT) {
-				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_clrled[3] = LEDC_BRIGHTRED;
+				sys->io_b.i_leds = 0x0ff;
+				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if (zip_ucc() & CC_TRAP) {
 				save_context((int *)user_context);
@@ -444,52 +446,52 @@ int main(int argc, char **argv) {
 					//
 					// At this point, we are also ready to
 					// receive another packet
-					zip->z_pic = EINT(SYSINT_NETTX|SYSINT_NETRX);
+					zip->z_pic = EINT(SYSINT_ENETTX|SYSINT_ENETRX);
 				}
 
 				user_context[14] &= ~CC_TRAP;
 				restore_context(user_context);
 			} else if ((picv & INTNOW)==0) {
-				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_clrled[1] = LEDC_WHITE;
-				sys->io_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_clrled[3] = LEDC_BRIGHTRED;
+				sys->io_b.i_leds = 0x0ff;
+				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[1] = LEDC_WHITE;
+				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_TMA))==0) {
-				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_clrled[2] = LEDC_WHITE;
-				sys->io_clrled[3] = LEDC_BRIGHTRED;
+				sys->io_b.i_leds = 0x0ff;
+				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[2] = LEDC_WHITE;
+				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_PPS))==0) {
-				sys->io_ledctrl = 0x0ff;
-				sys->io_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_clrled[3] = LEDC_WHITE;
+				sys->io_b.i_leds = 0x0ff;
+				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
+				sys->io_b.i_clrled[3] = LEDC_WHITE;
 				zip_halt();
-			} if (picv & SYSINT_NETRX) {
+			} if (picv & SYSINT_ENETRX) {
 				// This will not clear until the packet has
 				// been removed and the interface reset.  For
 				// now, just double check that the interrupt
 				// has been disabled.
-				if (picv&(DINT(SYSINT_NETRX))) {
-					zip->z_pic = DINT(SYSINT_NETRX);
-					sys->io_ledctrl = 0x040;
-					sys->io_clrled[2] = LEDC_GREEN;
+				if (picv&(DINT(SYSINT_ENETRX))) {
+					zip->z_pic = DINT(SYSINT_ENETRX);
+					sys->io_b.i_leds = 0x040;
+					sys->io_b.i_clrled[2] = LEDC_GREEN;
 				}
 			} else
-				zip->z_pic = EINT(SYSINT_NETRX);
-			if (picv & SYSINT_NETTX) {
+				zip->z_pic = EINT(SYSINT_ENETRX);
+			if (picv & SYSINT_ENETTX) {
 				// This will also likewise not clear until a 
 				// packet has been queued up for transmission.
 				// Hence, let's just disable the interrupt.
-				if (picv&(DINT(SYSINT_NETTX)))
-					zip->z_pic = DINT(SYSINT_NETTX);
+				if (picv&(DINT(SYSINT_ENETTX)))
+					zip->z_pic = DINT(SYSINT_ENETTX);
 			} else
-				zip->z_pic = EINT(SYSINT_NETTX);
+				zip->z_pic = EINT(SYSINT_ENETTX);
 			// Make certain interrupts remain enabled
 			zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS);
 

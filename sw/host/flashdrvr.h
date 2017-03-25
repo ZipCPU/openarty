@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -37,13 +37,6 @@
 //
 //
 //
-//
-// Creator:	Dan Gisselquist
-//		Gisselquist Tecnology, LLC
-//
-// Copyright:	2015
-//
-//
 #ifndef	FLASHDRVR_H
 #define	FLASHDRVR_H
 
@@ -52,17 +45,18 @@
 class	FLASHDRVR {
 private:
 	DEVBUS	*m_fpga;
+	bool	m_debug;
 
 	bool	verify_config(void);
 	void	set_config(void);
 	void	flwait(void);
 public:
-	FLASHDRVR(DEVBUS *fpga) : m_fpga(fpga) {}
+	FLASHDRVR(DEVBUS *fpga) : m_fpga(fpga), m_debug(false) {}
 	bool	erase_sector(const unsigned sector, const bool verify_erase=true);
-	bool	write_page(const unsigned addr, const unsigned len,
-			const unsigned *data, const bool verify_write=true);
+	bool	page_program(const unsigned addr, const unsigned len,
+			const char *data, const bool verify_write=true);
 	bool	write(const unsigned addr, const unsigned len,
-			const unsigned *data, const bool verify=false);
+			const char *data, const bool verify=false);
 };
 
 #endif

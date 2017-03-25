@@ -2,7 +2,7 @@
 //
 // Filename: 	uartsim.cpp
 //
-// Project:	XuLA2-LX25 SoC based upon the ZipCPU
+// Project:	wbuart32, a full featured UART with simulator
 //
 // Purpose:	To forward a Verilator simulated UART link over a TCP/IP pipe.
 //
@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -104,6 +104,13 @@ UARTSIM::UARTSIM(const int port) {
 }
 
 void	UARTSIM::kill(void) {
+	fflush(stdout);
+
+	// Quickly double check that we aren't about to close stdin/stdout
+	if (m_conrd == STDIN_FILENO)
+		m_conwr = -1;
+	if (m_conwr == STDOUT_FILENO)
+		m_conwr = -1;
 	// Close any active connection
 	if (m_conrd >= 0)				close(m_conrd);
 	if ((m_conwr >= 0)&&(m_conwr != m_conrd))	close(m_conwr);
@@ -340,12 +347,3 @@ int	UARTSIM::fdtick(int i_tx) {
 	return o_rx;
 }
 
-/*
-	0x00	-> c0	= 1100 0000???
-	0x01	-> c0	= 1100 0000??
-	0x02	-> c0	= 1100 0000?
-	0x04	-> c1	= 1100 0001
-	0x20	-> c5	= 1100 0101
-	0x40	-> ca	= 1100 1010
-	0x80	-> d4	= 1101 0100
- */

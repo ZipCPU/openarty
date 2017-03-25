@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -39,155 +39,176 @@
 #define	REGDEFS_H
 
 #define	CLOCKFREQ_HZ	81250000
-#define	R_VERSION	0x00000100
-#define	R_ICONTROL	0x00000101
-#define	R_BUSERR	0x00000102
-#define	R_PWCOUNT	0x00000103
-#define	R_BTNSW		0x00000104
-#define	R_LEDS		0x00000105
-#define	R_UART_SETUP	0x00000106
-#define	R_GPS_SETUP	0x00000107
-#define	R_CLR0		0x00000108
-#define	R_CLR1		0x00000109
-#define	R_CLR2		0x0000010a
-#define	R_CLR3		0x0000010b
-#define	R_DATE		0x0000010c
-#define	R_GPIO		0x0000010d	// No GPIO device exists ... yet
-#define	R_UARTRX	0x0000010e
-#define	R_UARTTX	0x0000010f
-#define	R_GPSRX		0x00000110
-#define	R_GPSTX		0x00000111
-// WB Scope registers
-#define	R_QSCOPE	0x00000120	// Scope #0: Quad SPI scope ctrl
-#define	R_QSCOPED	0x00000121	//	and data
-#define	R_CPUSCOPE	0x00000120	// CPU scope (if so configured)
-#define	R_CPUSCOPED	0x00000121	//	and data
-#define	R_GPSCOPE	0x00000122	// Scope #1: GPS config scope control
-#define	R_GPSCOPED	0x00000123	//	and data
-#define	R_CFGSCOPE	0x00000122	// ICAPE2 configuration scop control
-#define	R_CFGSCOPED	0x00000123	//	and data
-#define	R_BUSSCOPE	0x00000122	// WBUBUS scope control
-#define	R_BUSSCOPED	0x00000123	//	and data
-#define	R_RAMSCOPE	0x00000124	// Scope #2: DDR3 SDRAM Scope
-#define	R_RAMSCOPED	0x00000125	//
-#define	R_NETSCOPE	0x00000126	// Scope #3: Ethernet debug scope
-#define	R_NETSCOPED	0x00000127	//
-// RTC Clock Registers
-#define	R_CLOCK		0x00000128
-#define	R_TIMER		0x00000129
-#define	R_STOPWATCH	0x0000012a
-#define	R_CKALARM	0x0000012b
-// SD Card Control
-#define	R_SDCARD_CTRL	0x0000012c
-#define	R_SDCARD_DATA	0x0000012d
-#define	R_SDCARD_FIFOA	0x0000012e
-#define	R_SDCARD_FIFOB	0x0000012f
-// GPS Loop control, 0x0130
-#define	R_GPS_ALPHA	0x00000130
-#define	R_GPS_BETA	0x00000131
-#define	R_GPS_GAMMA	0x00000132
-#define	R_GPS_STEP	0x00000133
-// OLED
-#define	R_OLED_CMD	0x00000134
-#define	R_OLED_CDATA	0x00000135
-#define	R_OLED_CDATB	0x00000136
-#define	R_OLED_DATA	0x00000137
-// Network packet interface, 0x0184
-#define	R_NET_RXCMD	0x00000138
-#define	R_NET_TXCMD	0x00000139
-#define	R_NET_MACHI	0x0000013a
-#define	R_NET_MACLO	0x0000013b
-#define	R_NET_RXMISS	0x0000013c
-#define	R_NET_RXERR	0x0000013d
-#define	R_NET_RXCRC	0x0000013e
-#define	R_NET_TXCOL	0x0000013f
-// Unused: 0x13c-0x13f
-// GPS Testbench: 0x140-0x147
-#define	R_GPSTB_FREQ	0x00000140
-#define	R_GPSTB_JUMP	0x00000141
-#define	R_GPSTB_ERRHI	0x00000142
-#define	R_GPSTB_ERRLO	0x00000143
-#define	R_GPSTB_COUNTHI	0x00000144
-#define	R_GPSTB_COUNTLO	0x00000145
-#define	R_GPSTB_STEPHI	0x00000146
-#define	R_GPSTB_STEPLO	0x00000147
-// Unused: 0x148-0x19f
-// Ethernet configuration (MDIO) port: 0x1a0-0x1bf
-#define	R_MDIO_BMCR	0x000001a0
-#define	R_MDIO_BMSR	0x000001a1
-#define	R_MDIO_PHYIDR1	0x000001a2
-#define	R_MDIO_PHYIDR2	0x000001a3
-#define	R_MDIO_ANAR	0x000001a4
-#define	R_MDIO_ANLPAR	0x000001a5
-// #define	R_MDIO_ANLPARNP	0x000001a5
-#define	R_MDIO_ANER	0x000001a6
-#define	R_MDIO_ANNPTR	0x000001a7
-#define	R_MDIO_PHYSTS	0x000001b0
-#define	R_MDIO_FCSCR	0x000001b4
-#define	R_MDIO_RECR	0x000001b5
-#define	R_MDIO_PCSR	0x000001b6
-#define	R_MDIO_RBR	0x000001b7
-#define	R_MDIO_LEDCR	0x000001b8
-#define	R_MDIO_PHYCR	0x000001b9
-#define	R_MDIO_BTSCR	0x000001ba
-#define	R_MDIO_CDCTRL	0x000001bb
-#define	R_MDIO_EDCR	0x000001bd
-// Flash: 0x1c0-0x1df
-#define	R_QSPI_EREG	0x000001c0
-#define	R_QSPI_STAT	0x000001c1
-#define	R_QSPI_NVCONF	0x000001c2
-#define	R_QSPI_VCONF	0x000001c3
-#define	R_QSPI_EVCONF	0x000001c4
-#define	R_QSPI_LOCK	0x000001c5
-#define	R_QSPI_FLAG	0x000001c6
-// #define	R_QSPI_ASYNC	0x000001c7
-#define	R_QSPI_ID	0x000001c8
-#define	R_QSPI_IDA	0x000001c9
-#define	R_QSPI_IDB	0x000001ca
-#define	R_QSPI_IDC	0x000001cb
-#define	R_QSPI_IDD	0x000001cc
-//
-#define	R_QSPI_OTPWP	0x000001cf
-#define	R_QSPI_OTP	0x000001d0
+#define	R_VERSION	0x00000400
+#define	R_ICONTROL	0x00000404
+#define	R_BUSERR	0x00000408
+#define	R_PWCOUNT	0x0000040c
+#define	R_BTNSW		0x00000410
+#define	R_LEDS		0x00000414
+#define	R_DATE		0x00000418
+#define	R_GPIO		0x0000041c
+#define	R_CLR0		0x00000420
+#define	R_CLR1		0x00000424
+#define	R_CLR2		0x00000428
+#define	R_CLR3		0x0000042c
+#define	R_IOTIMES	0x00000430
+#define	R_IOSUBSEC	0x00000434
+#define	R_IOTIMSTEP	0x00000438
 
-// FPGA CONFIG REGISTERS: 0x1e0-0x1ff
-#define	R_CFG_CRC	0x000001e0
-#define	R_CFG_FAR	0x000001e1
-#define	R_CFG_FDRI	0x000001e2
-#define	R_CFG_FDRO	0x000001e3
-#define	R_CFG_CMD	0x000001e4
-#define	R_CFG_CTL0	0x000001e5
-#define	R_CFG_MASK	0x000001e6
-#define	R_CFG_STAT	0x000001e7
-#define	R_CFG_LOUT	0x000001e8
-#define	R_CFG_COR0	0x000001e9
-#define	R_CFG_MFWR	0x000001ea
-#define	R_CFG_CBC	0x000001eb
-#define	R_CFG_IDCODE	0x000001ec
-#define	R_CFG_AXSS	0x000001ed
-#define	R_CFG_COR1	0x000001ee
-#define	R_CFG_WBSTAR	0x000001f0
-#define	R_CFG_TIMER	0x000001f1
-#define	R_CFG_BOOTSTS	0x000001f6
-#define	R_CFG_CTL1	0x000001f8
-#define	R_CFG_BSPI	0x000001ff
+// WB Scope registers
+#define	R_QSCOPE	0x00000480	// Scope #0: Quad SPI scope ctrl
+#define	R_QSCOPED	0x00000484	//	and data
+#define	R_CPUSCOPE	0x00000480	// CPU scope (if so configured)
+#define	R_CPUSCOPED	0x00000484	//	and data
+#define	R_GPSCOPE	0x00000488	// Scope #1: GPS config scope control
+#define	R_GPSCOPED	0x0000048c	//	and data
+#define	R_CFGSCOPE	0x00000488	// ICAPE2 configuration scop control
+#define	R_CFGSCOPED	0x0000048c	//	and data
+#define	R_BUSSCOPE	0x00000488	// WBUBUS scope control
+#define	R_BUSSCOPED	0x0000048c	//	and data
+#define	R_RAMSCOPE	0x00000490	// Scope #2: DDR3 SDRAM Scope
+#define	R_RAMSCOPED	0x00000494	//
+#define	R_NETSCOPE	0x00000498	// Scope #3: Ethernet debug scope
+#define	R_NETSCOPED	0x0000049c	//
+// RTC Clock Registers
+#define	R_CLOCK		0x000004a0
+#define	R_TIMER		0x000004a4
+#define	R_STOPWATCH	0x000004a8
+#define	R_CKALARM	0x000004ac
+// OLED
+#define	R_OLED_CMD	0x000004b0
+#define	R_OLED_CDATA	0x000004b4
+#define	R_OLED_CDATB	0x000004b8
+#define	R_OLED_DATA	0x000004bc
+// WBUART - AUX
+#define	R_UART_SETUP	0x000004c0
+#define	R_UART_FIFO	0x000004c4
+#define	R_UARTRX	0x000004c8
+#define	R_UARTTX	0x000004cc
+// WBUART - GPS
+#define	R_GPS_SETUP	0x000004d0
+#define	R_GPS_FIFO	0x000004d4
+#define	R_GPSRX		0x000004d8
+#define	R_GPSTX		0x000004dc
+// SD Card Control
+#define	R_SDCARD_CTRL	0x000004e0
+#define	R_SDCARD_DATA	0x000004e4
+#define	R_SDCARD_FIFOA	0x000004e8
+#define	R_SDCARD_FIFOB	0x000004ec
+// Unused, 4x positions
+// Unused		0x000004f0
+// Unused		0x000004f4
+// Unused		0x000004f8
+// Unused		0x000004fc
+// GPS Loop control
+#define	R_GPS_ALPHA	0x00000500
+#define	R_GPS_BETA	0x00000504
+#define	R_GPS_GAMMA	0x00000508
+#define	R_GPS_STEP	0x0000050c
+// Unused, 4x positions
+// Unused		0x00000510
+// Unused		0x00000514
+// Unused		0x00000518
+// Unused		0x0000051c
+// GPS Testbench:
+#define	R_GPSTB_FREQ	0x00000520
+#define	R_GPSTB_JUMP	0x00000524
+#define	R_GPSTB_ERRHI	0x00000528
+#define	R_GPSTB_ERRLO	0x0000052c
+#define	R_GPSTB_COUNTHI	0x00000530
+#define	R_GPSTB_COUNTLO	0x00000534
+#define	R_GPSTB_STEPHI	0x00000538
+#define	R_GPSTB_STEPLO	0x0000053c
+// Network packet interface
+#define	R_NET_RXCMD	0x00000540
+#define	R_NET_TXCMD	0x00000544
+#define	R_NET_MACHI	0x00000548
+#define	R_NET_MACLO	0x0000054c
+#define	R_NET_RXMISS	0x00000550
+#define	R_NET_RXERR	0x00000554
+#define	R_NET_RXCRC	0x00000558
+#define	R_NET_TXCOL	0x0000055c
+// Unused: 0x560-0x57f
+// Ethernet configuration (MDIO) port: 0x1a0-0x1bf
+#define	R_MDIO_BMCR	0x00000580
+#define	R_MDIO_BMSR	0x00000584
+#define	R_MDIO_PHYIDR1	0x00000588
+#define	R_MDIO_PHYIDR2	0x0000058c
+#define	R_MDIO_ANAR	0x00000590
+#define	R_MDIO_ANLPAR	0x00000594
+// #define R_MDIO_ANLPARNP	0x00000594 // (duplicate reg)
+#define	R_MDIO_ANER	0x00000598
+#define	R_MDIO_ANNPTR	0x0000059c
+// 8-15
+#define	R_MDIO_PHYSTS	0x000005c0
+#define	R_MDIO_FCSCR	0x000005d0
+#define	R_MDIO_RECR	0x000005d4
+#define	R_MDIO_PCSR	0x000005d8
+#define	R_MDIO_RBR	0x000005dc
+#define	R_MDIO_LEDCR	0x000005d0
+#define	R_MDIO_PHYCR	0x000005d4
+#define	R_MDIO_BTSCR	0x000005d8
+#define	R_MDIO_CDCTRL	0x000005dc
+#define	R_MDIO_EDCR	0x000005e4
+//
+// Flash: 0x1c0-0x1df
+#define	R_QSPI_EREG	0x00000600
+#define	R_QSPI_STAT	0x00000604
+#define	R_QSPI_NVCONF	0x00000608
+#define	R_QSPI_VCONF	0x0000060c
+#define	R_QSPI_EVCONF	0x00000610
+#define	R_QSPI_LOCK	0x00000614
+#define	R_QSPI_FLAG	0x00000618
+// #define	R_QSPI_ASYNC	0x0000061c
+#define	R_QSPI_ID	0x00000620
+#define	R_QSPI_IDA	0x00000624
+#define	R_QSPI_IDB	0x00000628
+#define	R_QSPI_IDC	0x0000062c
+#define	R_QSPI_IDD	0x00000630
+//
+#define	R_QSPI_OTPWP	0x0000063c
+#define	R_QSPI_OTP	0x00000640
+
+// FPGA CONFIG REGISTERS: 0x4e0-0x4ff
+#define	R_CFG_CRC	0x00000680
+#define	R_CFG_FAR	0x00000684
+#define	R_CFG_FDRI	0x00000688
+#define	R_CFG_FDRO	0x0000068c
+#define	R_CFG_CMD	0x00000690
+#define	R_CFG_CTL0	0x00000694
+#define	R_CFG_MASK	0x00000698
+#define	R_CFG_STAT	0x0000069c
+#define	R_CFG_LOUT	0x000006a0
+#define	R_CFG_COR0	0x000006a4
+#define	R_CFG_MFWR	0x000006a8
+#define	R_CFG_CBC	0x000006ac
+#define	R_CFG_IDCODE	0x000006b0
+#define	R_CFG_AXSS	0x000006b4
+#define	R_CFG_COR1	0x000006b8
+#define	R_CFG_WBSTAR	0x000006c0
+#define	R_CFG_TIMER	0x000006c4
+#define	R_CFG_BOOTSTS	0x000006d8
+#define	R_CFG_CTL1	0x000006e0
+#define	R_CFG_BSPI	0x000006fc
 // Network buffer space
-#define	R_NET_RXBUF	0x00000800
-#define	R_NET_TXBUF	0x00000c00
+#define	R_NET_RXBUF	0x00002000
+#define	R_NET_TXBUF	0x00003000
 // Block RAM memory space
-#define	MEMBASE		0x00008000
-#define	MEMWORDS	0x00008000
+#define	MEMBASE		0x00020000
+#define	MEMLEN		0x00020000
 // Flash memory space
-#define	EQSPIFLASH	0x00400000
-#define	RESET_ADDRESS	0x004e0000
-#define	FLASHWORDS	(1<<22)
+#define	EQSPIFLASH	0x01000000
+#define	RESET_ADDRESS	0x01380000
+// #define	FLASHWORDS	(1<<22)
+#define	FLASHLEN	(1<<24)
 // DDR3 SDRAM memory space
-#define	RAMBASE		0x04000000
+#define	RAMBASE		0x10000000
 #define	SDRAMBASE	RAMBASE
-#define	RAMWORDS	(1<<26)
+// #define	RAMWORDS	(1<<26)
+#define	RAMLEN		(1<<28)
 // Zip CPU Control and Debug registers
-#define	R_ZIPCTRL	0x08000000
-#define	R_ZIPDATA	0x08000001
+#define	R_ZIPCTRL	0x20000000
+#define	R_ZIPDATA	0x20000004
 
 // Interrupt control constants
 #define	GIE		0x80000000	// Enable all interrupts
@@ -209,9 +230,9 @@
 #define	SECTORSZB	(NPAGES * SZPAGEB)	// In bytes, not words!!
 #define	SECTORSZW	(NPAGES * SZPAGEW)	// In words
 #define	NSECTORS	64
-#define	SECTOROF(A)	((A) & (-1<<14))
-#define	SUBSECTOROF(A)	((A) & (-1<<10))
-#define	PAGEOF(A)	((A) & (-1<<6))
+#define	SECTOROF(A)	((A) & (-1<<16))
+#define	SUBSECTOROF(A)	((A) & (-1<<12))
+#define	PAGEOF(A)	((A) & (-1<<8))
 
 #define	CPU_GO		0x0000
 #define	CPU_RESET	0x0040

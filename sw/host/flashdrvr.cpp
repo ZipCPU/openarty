@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -38,6 +38,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <strings.h>
 #include <ctype.h>
@@ -48,10 +49,12 @@
 #include "port.h"
 #include "regdefs.h"
 #include "flashdrvr.h"
+#include "byteswap.h"
 
 const	bool	HIGH_SPEED = false;
 
-#define SETSCOPE m_fpga->writeio(R_QSCOPE, 8180)
+#define	SETSCOPE
+// #define SETSCOPE m_fpga->writeio(R_QSCOPE, 8180)
 
 
 void	FLASHDRVR::flwait(void) {
@@ -84,13 +87,13 @@ void	FLASHDRVR::flwait(void) {
 bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	DEVBUS::BUSW	page[SZPAGEW];
 
-	printf("EREG before   : %08x\n", m_fpga->readio(R_QSPI_EREG));
-	printf("Erasing sector: %08x\n", sector);
+	if (m_debug) printf("EREG before   : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	if (m_debug) printf("Erasing sector: %08x\n", sector);
 	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
-	printf("EREG with WEL : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	if (m_debug) printf("EREG with WEL : %08x\n", m_fpga->readio(R_QSPI_EREG));
 	SETSCOPE;
-	m_fpga->writeio(R_QSPI_EREG, ERASEFLAG + sector);
-	printf("EREG after    : %08x\n", m_fpga->readio(R_QSPI_EREG));
+	m_fpga->writeio(R_QSPI_EREG, ERASEFLAG + (sector>>2));
+	if (m_debug) printf("EREG after    : %08x\n", m_fpga->readio(R_QSPI_EREG));
 
 	// If we're in high speed mode and we want to verify the erase, then
 	// we can skip waiting for the erase to complete by issueing a read
@@ -100,12 +103,14 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	if  ((!HIGH_SPEED)||(!verify_erase)) {
 		flwait();
 
-		printf("@%08x -> %08x\n", R_QSPI_EREG,
+		if (m_debug) {
+			printf("@%08x -> %08x\n", R_QSPI_EREG,
 				m_fpga->readio(R_QSPI_EREG));
-		printf("@%08x -> %08x\n", R_QSPI_STAT,
+			printf("@%08x -> %08x\n", R_QSPI_STAT,
 				m_fpga->readio(R_QSPI_STAT));
-		printf("@%08x -> %08x\n", sector,
+			printf("@%08x -> %08x\n", sector,
 				m_fpga->readio(sector));
+		}
 	}
 
 	// Now, let's verify that we erased the sector properly
@@ -121,42 +126,55 @@ bool	FLASHDRVR::erase_sector(const unsigned sector, const bool verify_erase) {
 	return true;
 }
 
-bool	FLASHDRVR::write_page(const unsigned addr, const unsigned len,
-		const unsigned *data, const bool verify_write) {
-	DEVBUS::BUSW	buf[SZPAGEW];
+bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
+		const char *data, const bool verify_write) {
+	DEVBUS::BUSW	buf[SZPAGEW], bswapd[SZPAGEW];
 
 	assert(len > 0);
-	assert(len <= PGLENW);
+	assert(len <= PGLENB);
 	assert(PAGEOF(addr)==PAGEOF(addr+len-1));
 
 	if (len <= 0)
 		return true;
 
-	// Write the page
-	m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
-	m_fpga->clear();
-	m_fpga->writeio(R_ICONTROL, ISPIF_EN);
-	printf("Writing page: 0x%08x - 0x%08x\n", addr, addr+len-1);
-	m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
-	SETSCOPE;
-	m_fpga->writei(addr, len, data);
+	bool	empty_page = true;
+	for(unsigned i=0; i<len; i+=4) {
+		DEVBUS::BUSW v;
+		v = buildword((const unsigned char *)&data[i]);
+		bswapd[(i>>2)] = v;
+		if (v != 0xffffffff)
+			empty_page = false;
+	}
 
-	// If we're in high speed mode and we want to verify the write, then
-	// we can skip waiting for the write to complete by issueing a read
-	// command immediately.  As soon as the write completes the read will
-	// begin sending commands back.  This allows us to recover the lost 
-	// time between the interrupt and the next command being received.
-	flwait();
+	if (!empty_page) {
+		// Write the page
+		m_fpga->writeio(R_ICONTROL, ISPIF_DIS);
+		m_fpga->clear();
+		m_fpga->writeio(R_ICONTROL, ISPIF_EN);
+		printf("Writing page: 0x%08x - 0x%08x\r", addr, addr+len-1);
+		m_fpga->writeio(R_QSPI_EREG, DISABLEWP);
+		SETSCOPE;
+		m_fpga->writei(addr, (len>>2), bswapd);
+		fflush(stdout);
+
+		// If we're in high speed mode and we want to verify the write,
+		// then we can skip waiting for the write to complete by
+		// issueing a read command immediately.  As soon as the write
+		// completes the read will begin sending commands back.  This
+		// allows us to recover the lost time between the interrupt and
+		// the next command being received.
+		flwait();
+	}
 	// if ((!HIGH_SPEED)||(!verify_write)) { }
 	if (verify_write) {
 		// printf("Attempting to verify page\n");
 		// NOW VERIFY THE PAGE
-		m_fpga->readi(addr, len, buf);
-		for(int i=0; i<len; i++) {
-			if (buf[i] != data[i]) {
-				printf("\nVERIFY FAILS[%d]: %08x\n", i, i+addr);
+		m_fpga->readi(addr, len>>2, buf);
+		for(unsigned i=0; i<(len>>2); i++) {
+			if (buf[i] != bswapd[i]) {
+				printf("\nVERIFY FAILS[%d]: %08x\n", i, (i<<2)+addr);
 				printf("\t(Flash[%d]) %08x != %08x (Goal[%08x])\n", 
-					i, buf[i], data[i], i+addr);
+					(i<<2), buf[i], bswapd[i], (i<<2)+addr);
 				return false;
 			}
 		} // printf("\nVerify success\n");
@@ -188,7 +206,10 @@ void	FLASHDRVR::set_config(void) {
 }
 
 bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
-		const unsigned *data, const bool verify) {
+		const char *data, const bool verify) {
+
+	assert(addr >= EQSPIFLASH);
+	assert(addr+len <= EQSPIFLASH + FLASHLEN);
 
 	if (!verify_config()) {
 		set_config();
@@ -202,73 +223,66 @@ bool	FLASHDRVR::write(const unsigned addr, const unsigned len,
 	// If this buffer is equal to the sector value(s), go on
 	// If not, erase the sector
 
-	// m_fpga->writeio(R_QSPI_CREG, 2);
-	// m_fpga->readio(R_VERSION);	// Read something innocuous
-
-	// Just to make sure the driver knows that these values are ...
-	// m_fpga->readio(R_QSPI_CREG);
-	// m_fpga->readio(R_QSPI_SREG);
-	// Because the status register may invoke protections here, we
-	// void them.
-	// m_fpga->writeio(R_QSPI_SREG, 0);
-	// m_fpga->readio(R_VERSION);	// Read something innocuous
-
-	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZW-1); s+=SECTORSZW) {
-		// printf("IN LOOP, s=%08x\n", s);
+	for(unsigned s=SECTOROF(addr); s<SECTOROF(addr+len+SECTORSZB-1);
+			s+=SECTORSZB) {
 		// Do we need to erase?
-		bool	need_erase = false;
+		bool	need_erase = false, need_program = false;
 		unsigned newv = 0; // (s<addr)?addr:s;
 		{
-			DEVBUS::BUSW	*sbuf = new DEVBUS::BUSW[SECTORSZW];
-			const DEVBUS::BUSW *dp;
+			char *sbuf = new char[SECTORSZB];
+			const char *dp;	// pointer to our "desired" buffer
 			unsigned	base,ln;
+
 			base = (addr>s)?addr:s;
-			ln=((addr+len>s+SECTORSZW)?(s+SECTORSZW):(addr+len))-base;
-			m_fpga->readi(base, ln, sbuf);
+			ln=((addr+len>s+SECTORSZB)?(s+SECTORSZB):(addr+len))-base;
+			m_fpga->readi(base, ln>>2, (uint32_t *)sbuf);
+			byteswapbuf(ln>>2, (uint32_t *)sbuf);
 
 			dp = &data[base-addr];
 			SETSCOPE;
 			for(unsigned i=0; i<ln; i++) {
 				if ((sbuf[i]&dp[i]) != dp[i]) {
-					printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
-						i+base-addr, sbuf[i], dp[i]);
+					if (m_debug) {
+						printf("\nNEED-ERASE @0x%08x ... %08x != %08x (Goal)\n", 
+							i+base-addr, sbuf[i], dp[i]);
+					}
 					need_erase = true;
-					newv = i+base;
+					newv = (i&-4)+base;
 					break;
-				} else if ((sbuf[i] != dp[i])&&(newv == 0)) {
-					// if (newv == 0)
-						// printf("MEM[%08x] = %08x (!= %08x (Goal))\n",
-							// i+base, sbuf[i], dp[i]);
-					newv = i+base;
-				}
+				} else if ((sbuf[i] != dp[i])&&(newv == 0))
+					newv = (i&-4)+base;
 			}
 		}
 
 		if (newv == 0)
 			continue; // This sector already matches
 
-		// Just erase anyway
-		if (!need_erase)
-			printf("NO ERASE NEEDED\n");
-		else {
+		// Erase the sector if necessary
+		if (!need_erase) {
+			if (m_debug) printf("NO ERASE NEEDED\n");
+		} else {
 			printf("ERASING SECTOR: %08x\n", s);
 			if (!erase_sector(s, verify)) {
 				printf("SECTOR ERASE FAILED!\n");
 				return false;
 			} newv = (s<addr) ? addr : s;
 		}
-		for(unsigned p=newv; (p<s+SECTORSZW)&&(p<addr+len); p=PAGEOF(p+PGLENW)) {
+
+		// Now walk through all of our pages in this sector and write
+		// to them.
+		for(unsigned p=newv; (p<s+SECTORSZB)&&(p<addr+len); p=PAGEOF(p+PGLENB)) {
 			unsigned start = p, len = addr+len-start;
 
 			// BUT! if we cross page boundaries, we need to clip
 			// our results to the page boundary
 			if (PAGEOF(start+len-1)!=PAGEOF(start))
-				len = PAGEOF(start+PGLENW)-start;
-			if (!write_page(start, len, &data[p-addr], verify)) {
+				len = PAGEOF(start+PGLENB)-start;
+			if (!page_program(start, len, &data[p-addr], verify)) {
 				printf("WRITE-PAGE FAILED!\n");
 				return false;
 			}
-		}
+		} if ((need_erase)||(need_program))
+			printf("Sector 0x%08x: DONE%15s\n", s, "");
 	}
 
 	m_fpga->writeio(R_QSPI_EREG, ENABLEWP); // Re-enable write protection

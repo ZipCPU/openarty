@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,7 +25,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -217,7 +217,6 @@ void	clear_scope(FPGA *fpga) {
 }
 
 int main(int argc, char **argv) {
-	int	skp=0, port = FPGAPORT;
 	bool	config_hw_mac = true, config_hw_crc = true;
 	FPGA::BUSW	txstat;
 	int	argn;
@@ -235,6 +234,8 @@ int main(int argc, char **argv) {
 		if (fp != NULL) {
 			int nr = fread(urand, sizeof(short), 16, fp);
 			fclose(fp);
+			if (nr<0)
+				printf("Could not generate random numbers from /dev/urandom!\nTest may not be valid.\n");
 		}
 	}
 			

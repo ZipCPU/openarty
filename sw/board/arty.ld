@@ -13,7 +13,7 @@
 *
 ********************************************************************************
 *
-* Copyright (C) 2016, Gisselquist Technology, LLC
+* Copyright (C) 2016-2017, Gisselquist Technology, LLC
 *
 * This program is free software (firmware): you can redistribute it and/or
 * modify it under the terms of  the GNU General Public License as published
@@ -25,6 +25,11 @@
 * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 * for more details.
 *
+* You should have received a copy of the GNU General Public License along
+* with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+* target there if the PDF file isn't present.)  If not, see
+* <http://www.gnu.org/licenses/> for a copy.
+*
 * License:	GPL, v3, as defined and found on www.gnu.org,
 *		http://www.gnu.org/licenses/gpl.html
 *
@@ -35,19 +40,19 @@ ENTRY(_start)
 
 MEMORY
 {
-	blkram (wx) : ORIGIN = 0x0008000, LENGTH = 0x0008000
-	flash  (rx) : ORIGIN = 0x0400000, LENGTH = 0x0400000
-	sdram  (wx) : ORIGIN = 0x4000000, LENGTH = 0x4000000
+	blkram (wx) : ORIGIN = 0x00020000, LENGTH = 0x00020000
+	flash  (rx) : ORIGIN = 0x01000000, LENGTH = 0x01000000 /* 2^24 = 16MB */
+	sdram  (wx) : ORIGIN = 0x10000000, LENGTH = 0x10000000
 }
 
 _flash	= ORIGIN(flash);
 _blkram	= ORIGIN(blkram);
 _sdram	= ORIGIN(sdram);
-_top_of_stack = ORIGIN(blkram) + LENGTH(blkram) - 1;
+_top_of_stack = ORIGIN(blkram) + LENGTH(blkram) - 4;
 
 SECTIONS
 {
-	.rocode 0x4e0000 : {
+	.rocode 0x1380000 : {
 		_boot_address = .;
 		*(.start) *(.boot)
 		} > flash
@@ -59,7 +64,7 @@ SECTIONS
 	_sdram_image_start = . ;
 	.ramcode : {
 		*(.text.startup)
-		*(.text)
+		*(.text*)
 		*(.rodata*) *(.strings)
 		*(.data) *(COMMON)
 		}> sdram AT> flash

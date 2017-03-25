@@ -1,3 +1,41 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename:	netuart.cpp
+//
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
+//
+// Purpose:	
+//
+// Creator:	Dan Gisselquist, Ph.D.
+//		Gisselquist Technology, LLC
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+//
+// This program is free software (firmware): you can redistribute it and/or
+// modify it under the terms of  the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
+// License:	GPL, v3, as defined and found on www.gnu.org,
+//		http://www.gnu.org/licenses/gpl.html
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -134,10 +172,16 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 			fprintf(stderr, "ERR: Could not read from TTY\n");
 			perror("O/S Err:");
 			exit(EXIT_FAILURE);
+		} else if (nr == 0) {
+			fprintf(stderr, "TTY device has closed\n");
+			exit(EXIT_SUCCESS);
 		} for(int i=0; i<nr; i++) {
 			lb.m_iline[lb.m_ilen++] = lb.m_buf[i];
-			if ((lb.m_iline[lb.m_ilen-1]=='\n')||(lb.m_iline[lb.m_ilen-1]=='\r')||(lb.m_ilen>=sizeof(lb.m_iline)-1)) {
-				if (lb.m_ilen >= sizeof(lb.m_iline)-1)
+			if ((lb.m_iline[lb.m_ilen-1]=='\n')
+					||(lb.m_iline[lb.m_ilen-1]=='\r')
+					||((unsigned)lb.m_ilen
+						>= sizeof(lb.m_iline)-1)) {
+				if ((unsigned)lb.m_ilen >= sizeof(lb.m_iline)-1)
 					lb.m_iline[lb.m_ilen] = '\0';
 				else
 					lb.m_iline[lb.m_ilen-1] = '\0';
@@ -180,6 +224,11 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 					perror("O/S Err: ");
 					assert(nw > 0);
 					break;
+				} else if (nw == 0) {
+					// TTY device has closed our connection
+					fprintf(stderr, "TTY device has closed\n");
+					exit(EXIT_SUCCESS);
+					break;
 				}
 				// if (nw != nr-ttlw)
 					// printf("Only wrote %d\n", nw);
@@ -188,8 +237,11 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 		} for(int i=0; i<nr; i++) {
 			lb.m_oline[lb.m_olen++] = lb.m_buf[i];
 			assert(lb.m_buf[i] != '\0');
-			if ((lb.m_oline[lb.m_olen-1]=='\n')||(lb.m_oline[lb.m_olen-1]=='\r')||(lb.m_olen >= sizeof(lb.m_oline)-1)) {
-				if (lb.m_olen >= sizeof(lb.m_oline)-1)
+			if ((lb.m_oline[lb.m_olen-1]=='\n')
+					||(lb.m_oline[lb.m_olen-1]=='\r')
+					||((unsigned)lb.m_olen
+						>= sizeof(lb.m_oline)-1)) {
+				if ((unsigned)lb.m_olen >= sizeof(lb.m_oline)-1)
 					lb.m_oline[lb.m_olen] = '\0';
 				else
 					lb.m_oline[lb.m_olen-1] = '\0';

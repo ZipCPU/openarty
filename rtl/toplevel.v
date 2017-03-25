@@ -74,7 +74,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 	o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn, o_oled_reset_n,
 		o_oled_vccen, o_oled_pmoden,
 	// PMod I/O
-	i_aux_rx, i_aux_rts, o_aux_tx, o_aux_cts
+	i_aux_rx, i_aux_cts_n, o_aux_tx, o_aux_rts_n,
+	// Chip-kit SPI port
+	o_ck_csn, o_ck_sck, o_ck_mosi
 	);
 	input		[0:0]	sys_clk_i;
 	input			i_reset_btn;
@@ -126,8 +128,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 				o_oled_dcn, o_oled_reset_n, o_oled_vccen,
 				o_oled_pmoden;
 	// Aux UART
-	input			i_aux_rx, i_aux_rts;
-	output	wire		o_aux_tx, o_aux_cts;
+	input			i_aux_rx, i_aux_cts_n;
+	output	wire		o_aux_tx, o_aux_rts_n;
+	output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
 
 	wire	eth_tx_clk, eth_rx_clk;
 `ifdef	VERILATOR
@@ -204,9 +207,10 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// UART interface
 	//
 	//
-	wire	[29:0]	bus_uart_setup;
-	// assign	bus_uart_setup = 30'h10000014; // ~4MBaud, 7 bits
-	assign		bus_uart_setup = 30'h10000051; // ~1MBaud, 7 bits
+	// localparam	BUSUART = 30'h50000014; // ~4MBaud, 7 bits, no flwctrl
+	localparam	BUSUART = 31'h50000051;	// ~1MBaud, 7 bits, no flwctrl
+	wire	[30:0]	bus_uart_setup;
+	assign		bus_uart_setup = BUSUART;
 
 	wire	[7:0]	rx_data, tx_data;
 	wire		rx_break, rx_parity_err, rx_frame_err, rx_stb;
@@ -252,22 +256,12 @@ module toplevel(sys_clk_i, i_reset_btn,
 `endif
 
 	wire	w_ck_uart, w_uart_tx;
-	rxuart	rcv(s_clk, s_reset, bus_uart_setup, i_uart_rx,
+	rxuart	#(BUSUART) rcv(s_clk, s_reset, bus_uart_setup, i_uart_rx,
 				rx_stb, rx_data, rx_break,
 				rx_parity_err, rx_frame_err, w_ck_uart);
-	txuart	txv(s_clk, s_reset, bus_uart_setup|30'h8000000, 1'b0,
-				tx_stb, tx_data, o_uart_tx, tx_busy);
+	txuart	#(BUSUART) txv(s_clk, s_reset, bus_uart_setup, 1'b0,
+				tx_stb, tx_data, 1'b1, o_uart_tx, tx_busy);
 
-
-	wire	[3:0]	w_led;
-	reg	[24:0]	dbg_counter;
-	always @(posedge  sys_clk)
-		dbg_counter <= dbg_counter + 25'h01;
-	assign o_led = { w_led[3:2],
-			((!pwr_reset)&(dbg_counter[24]))
-				||((pwr_reset)&&(w_led[1])), 
-			(s_reset & dbg_counter[23])
-				||((!s_reset)&&(w_led[0])) };
 
 
 
@@ -286,12 +280,18 @@ module toplevel(sys_clk_i, i_reset_btn,
 	wire	[3:0]	qspi_dat;
 	wire	[3:0]	i_qspi_dat;
 
+
+	wire	[1:0]	i_gpio;
+	wire	[3:0]	o_gpio;
+	assign	i_gpio = { o_aux_rts_n, i_aux_cts_n };
+
 	//
 	// The SDRAM interface wires
 	//
 	wire		ram_cyc, ram_stb, ram_we;
 	wire	[25:0]	ram_addr;
 	wire	[31:0]	ram_rdata, ram_wdata;
+	wire	[3:0]	ram_sel;
 	wire		ram_ack, ram_stall, ram_err;
 	wire	[31:0]	ram_dbg;
 	//
@@ -299,14 +299,17 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	wire		w_sd_cmd;
 	wire	[3:0]	w_sd_data;
-	busmaster	wbbus(s_clk, s_reset,
+	busmaster
+		#(
+		.NGPI(2), .NGPO(4)
+		) wbbus(s_clk, s_reset,
 		// External USB-UART bus control
 		rx_stb, rx_data, tx_stb, tx_data, tx_busy,
 		// Board lights and switches
-		i_sw, i_btn, w_led,
+		i_sw, i_btn, o_led,
 		o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3,
 		// Board level PMod I/O
-		i_aux_rx, o_aux_tx, o_aux_cts, i_gps_rx, o_gps_tx,
+		i_aux_rx, o_aux_tx, i_aux_cts_n, o_aux_rts_n,i_gps_rx, o_gps_tx,
 		// Quad SPI flash
 		w_qspi_cs_n, w_qspi_sck, qspi_dat, i_qspi_dat, qspi_bmod,
 		// DDR3 SDRAM
@@ -314,7 +317,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		// o_ddr_cs_n, o_ddr_ras_n, o_ddr_cas_n, o_ddr_we_n,
 		// o_ddr_ba, o_ddr_addr, o_ddr_odt, o_ddr_dm,
 		// io_ddr_dqs_p, io_ddr_dqs_n, io_ddr_data,
-		ram_cyc, ram_stb, ram_we, ram_addr, ram_wdata,
+		ram_cyc, ram_stb, ram_we, ram_addr, ram_wdata, ram_sel,
 			ram_ack, ram_stall, ram_rdata, ram_err,
 			ram_dbg,
 		// SD Card
@@ -330,7 +333,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 		o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn,
 		o_oled_reset_n, o_oled_vccen, o_oled_pmoden,
 		// GPS PMod
-		i_gps_pps, i_gps_3df
+		i_gps_pps, i_gps_3df,
+		// Other GPIO wires
+		i_gpio, o_gpio
 		);
 
 	//////
@@ -429,7 +434,6 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	assign	io_eth_mdio = (w_mdwe)?w_mdio : 1'bz;
 
-
 	//
 	//
 	// Now, to set up our memory ...
@@ -440,7 +444,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 		.o_sys_clk(s_clk), .i_rst(pwr_reset), .o_sys_reset(s_reset),
 		.i_wb_cyc(ram_cyc), .i_wb_stb(ram_stb), .i_wb_we(ram_we),
 			.i_wb_addr(ram_addr), .i_wb_data(ram_wdata),
-			.i_wb_sel(4'hf),
+			.i_wb_sel(ram_sel),
 		.o_wb_ack(ram_ack), .o_wb_stall(ram_stall),
 			.o_wb_data(ram_rdata), .o_wb_err(ram_err),
 		.o_ddr_ck_p(ddr3_ck_p),		.o_ddr_ck_n(ddr3_ck_n),

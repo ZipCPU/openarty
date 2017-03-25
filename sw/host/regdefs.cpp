@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	regdefs.h
+// Filename:	regdefs.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -63,6 +63,7 @@ const	REGNAME	raw_bregs[] = {
 	{ R_UART_SETUP,	"AUXSETUP"		},
 	{ R_UART_SETUP,	"AUX"			},
 	{ R_GPS_SETUP,	"GPSSETUP"		},
+	{ R_GPS_FIFO,	"GPSFIFO"		},
 	{ R_GPS_SETUP,	"GPSUART"		},
 	{ R_CLR0,	"CLRLED0"		},
 	{ R_CLR1,	"CLRLED1"		},
@@ -76,6 +77,7 @@ const	REGNAME	raw_bregs[] = {
 	{ R_GPIO,	"GPIO"			},
 	{ R_UARTRX,	"AUXRX"			},
 	{ R_UARTRX,	"RX"			},
+	{ R_UART_FIFO,	"AUXFIFO"		},
 	{ R_UARTTX,	"AUXTX"			},
 	{ R_UARTTX,	"TX"			},
 	//
