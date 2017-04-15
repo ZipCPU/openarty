@@ -68,8 +68,6 @@ void	main(int argc, char **argv) {
 	user_context[15] = (unsigned)idle_task;
 	zip_restore_context(user_context);
 
-	printf("Starting exstartup\r\n");
-
 	for(i=0; i<4; i++)
 		_sys->io_b.i_clrled[i] = red;
 	sys->io_b.i_leds = 0x0ff;
