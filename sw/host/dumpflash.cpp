@@ -47,6 +47,7 @@
 
 #include "port.h"
 #include "regdefs.h"
+#include "byteswap.h"
 
 FPGA	*m_fpga;
 void	closeup(int v) {
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
 
 	if (vector_read) {
 		m_fpga->readi(DUMPMEM, BUFLN>>2, (DEVBUS::BUSW *)&buf[0]);
-		byteswapbuf(BUFLN>>2, buf);
+		byteswapbuf(BUFLN>>2, (DEVBUS::BUSW *)&buf[0]);
 	} else {
 		for(int i=0; i<BUFLN; i+=4) {
 			DEVBUS::BUSW	word;
