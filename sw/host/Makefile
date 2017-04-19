@@ -38,7 +38,7 @@
 ##
 .PHONY: all
 PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping	\
-	zipload zipstate zipdbg divutb
+	zipload zipstate zipdbg divutb dumpflash
 SCOPES := eqspiscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
