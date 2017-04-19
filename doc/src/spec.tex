@@ -5,7 +5,16 @@
 %%
 %% Project:	OpenArty, an entirely open SoC based upon the Arty platform
 %%
-%% Purpose:	
+%% Purpose:	This file describes how to build the specification for the
+%%		OpenArty project.  It's not nearly as interesting as the
+%%	.pdf file it creates, although you are welcome to browse through here
+%%	should you wish.
+%%
+%%	Running "make" in the doc/ project directory (one up from where this
+%%	file sites) should build this into a PDF file.
+%%
+%%	For those who are unable to build the PDF file, a copy of it is kept
+%%	in the distribution.
 %%
 %% Creator:	Dan Gisselquist, Ph.D.
 %%		Gisselquist Technology, LLC
@@ -67,6 +76,7 @@ with this program.  If not, see \texttt{http://www.gnu.org/licenses/} for a copy
 0.0 &  6/20/2016 & Gisselquist & First Draft \\\hline
 0.0 & 10/21/2016 & Gisselquist & More Comments Added\\\hline
 0.0 & 11/18/2016 & Gisselquist & Added a getting started section\\\hline
+0.0 & 04/19/2017 & Gisselquist & Added memory config setup images\\\hline
 \end{revisionhistory}
 % Revision History
 % Table of Contents, named Contents
@@ -224,6 +234,198 @@ I intend to demonstrate this project with a couple programs:
 
 \chapter{Getting Started}\label{ch:getting-started}
 \section{Building the Core}
+This section includes instructions for how to build the .bit file with Vivado.
+Ideally, these instructions would read, ``include all the files in the RTL
+directory, pick the file toplevel.v, and implement it.  Then build the
+bitstream.''  That's how simple the instructions should be.  Sadly, because of
+the Memory Interface Generator (MIG), and the fact that Xilinx has not published
+the details necessary to build a proper DDR3 SDRAM controller using their
+hardware, you will need to build a MIG core for the Arty.  This is sadly not
+trivial.
+
+Let's walk through the process.
+
+The first steps are the obvious ones.  First, create a project.  I personally
+like to create my project so that all of the Xilinx files get placed into a 
+{\tt xilinx/} project subdirectory, such as in Fig.~\ref{fig:proj_dir}.
+\begin{figure}\begin{center}
+\includegraphics[width=2in]{../gfx/proj_dir.eps}
+\caption{Create a project directory}\label{fig:proj_dir}
+\end{center}\end{figure}
+but that's really up to you.  The next step is to select the part.  You can
+find the part on the Arty schematic, yielding the choices shown in Fig.~\ref{fig:pick-a-part}.
+\begin{figure}\begin{center}
+\includegraphics[width=4in]{../gfx/pick-a-part.eps}
+\caption{Select the correct FPGA}\label{fig:pick-a-part}
+\end{center}\end{figure}
+As part of
+creating the project, you will want to add all of the {\tt *.v} files from the
+{\tt rtl/} and {\tt rtl/cpu/} subdirectories to your project.  You'll also want
+to add the constraints file, {\tt arty.xdc} found in the main project directory
+to your project.
+
+That's the easy part.
+
+The harder part is buildig the MIG core, which you will need to build the rest
+of the project.  I'll use a series of screen shots to describe this process.
+We'll start with opening the IP Catalog from the tools menu, as in
+Fig.~\ref{fig:ipcat-menu}.
+\begin{figure}\begin{center}
+\includegraphics[width=2in]{../gfx/ipcat-menu.eps}
+\caption{Open the IP catalog from the Vivado Window Menu}\label{fig:ipcat-menu}
+\end{center}\end{figure}
+That menu item will bring you to a list of ``Cores'' within the ``IP Catalog''.
+From that list of cores, find the ``Memory Interface Generator'' item and double
+click on it, as in Fig.~\ref{fig:openmig}. 
+\begin{figure}\begin{center}
+\includegraphics[width=4.5in]{../gfx/openmig.eps}
+\caption{Open the Memory Interface Generaor from the IP catalog}\label{fig:openmig}
+\end{center}\end{figure}
+If everything is set up properly, you should just be able to click next and
+move to the first MIG configuration screen.  That screen should look something
+like Fig.\ref{fig:mig_create}.
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_01-create.eps}
+\caption{MIG \#1}\label{fig:mig_create}
+\end{center}\end{figure}
+Some of the important parts on this screenare the name of the memory controller,
+{\tt mig\_axis}, which needs to match the {\tt migsdram.v} file.  The other
+noteworthy part on this screen is that we will be using the {\tt AXI interface}.
+%
+
+Further MIG setup screens are shown in Figs.~\ref{fig:mig_create}
+through~\ref{fig:mig_syssigs}.  These figures may be found, in their full
+screen resolution, within the {\tt doc/gfx} directory, should you struggle to
+read them here.  We can walk through them still anyway.
+
+Fig.~\ref{fig:mig_pincompat}
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_02-pincompat.eps}
+\caption{Select Pin Compatible FPGAs}\label{fig:mig_pincompat}
+\end{center}\end{figure}
+shows the dialog for selecting a pin compatible FPGA, should we wish to build
+one MIG interface that will work for many FPGA's.  Our purpose on the Arty is
+just to get an interface up and running, so we don't need any pin compatible
+FPGA settings.
+
+Since the Arty has DDR3 SDRAM on it, we move forward with
+Fig.~\ref{fig:mig_memsel}
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_03-memsel.eps}
+\caption{Memory standard selection: Pick DDR3}\label{fig:mig_memsel}
+\end{center}\end{figure}
+and select DDR3 instead of DDR2 (an earlier memory standard).
+
+The next, and perhaps more complicated step, is to set up the memory controller
+options.  This is shown in Fig.~\ref{fig:mig_mctopts}.
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_04-mctopts.eps}
+\caption{MIG Configuration Options}\label{fig:mig_mctopts}
+\end{center}\end{figure}
+The critical piece in this setup is that we want a 3077~ps clock.  The actual
+constraints are that the clock period be greater than 3077~ps (less than
+325~MHz, an Artix--7 constraint for this part), bus less than 3300~ps (greater
+than 300MHz, a DDR3 constraint).  While the part number listed is not the 
+exact part number for the board, because the speed is running so much slower
+than the memory can accomplish, the difference becomes irrelevant.  From the
+schematic, the part has 16~lanes and it is wired at 1.35V.  As for the ordering,
+we could go either way.  We set it to normal ordering.
+
+One part of this screen does need some discussion: there are eight banks on this
+memory part.  Each bank can be accessed independently.  Eight bank controllers,
+one for each bank, would therefore make sense.  We take Xilinx's suggestion
+here to have fewer controllers, yet this is an option that may be adjusted
+later.
+
+The next configuration screen is the AXI parameter options, shown in
+Fig.~\ref{fig:mig_axiopts}. 
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_05-axiopts.eps}
+\caption{AXI memory options}\label{fig:mig_axiopts}
+\end{center}\end{figure}
+For this, we set the data width to the memory to
+be 128~bits--the natural width of all memory operations.  Narrow burst support
+would offer more logic for no additional benefit, so we leave that off. 
+Finally, since we've measured
+the delay through the controller at nearly 30~clocks, and since the wishbone
+to AXI converter depends upon this interaction ID to re--order things when
+done, we set this to 5~bits.  (30~clocks $< 2^5$)
+
+The memory options configuration menu is also non--trivial.  We choose the
+settings shown in Fig.~\ref{fig:mig_memops}. 
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_06-memops.eps}
+\caption{Memory Controller Options}\label{fig:mig_memops}
+\end{center}\end{figure}
+Specifically, the external clock input to the Arty is 100~MHz.  The frequency
+of this clock rate is tightly tied to the clock rate set in
+Fig.~\ref{fig:mig_mctopts}.  Specifically, not only is the memory clock period
+within Fig.~\ref{fig:mig_mctopts} tightly constrained, but that memory clock
+period needs to be a ratio of the input clock period.  Further, the numerator
+in that ratio cannot be such that the numerator times the input clock frequency
+is greater than 1600~MHz.  Beyond this, we take the next four parameters from
+Digilent's memory generation file.  The last item on this screen, memory order,
+we select so that sequential reads (should) never stall the bus.  This choice
+allows the Xilinx memory controller to precharge and activate the next bank,
+before the actual cycle when it is accessed---saving several stall cycles.
+(Whether or not Xilinx's memory controller does \ldots I don't know.  Mine did.)
+
+Further FPGA options can be seen in Fig.~\ref{fig:mig_fpgaopts}.
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_07-fpgaopts.eps}
+\caption{MIG FPGA Options}\label{fig:mig_fpgaopts}
+\end{center}\end{figure}
+Two particular things to note.  The first is that the OpenArty design feeds
+clocks to the MIG controller from a clock management tile rather than from
+external pins.  As a result, no buffers are required on either the system clock
+pin or the reference clock pin.  The second item is the choice to allow the MIG
+controller to handle its own temperature measurements.  This means that it uses
+the XADC on board for that purpose.  Had we wished to do otherwise, we would
+have needed to provide the output of the XADC temperature reading to the
+controller ourselves.  The current Arty design does not (yet) do this.
+
+Working from Digilent's MIG project file again, the termination impedence in
+Fig.~\ref{fig:mig_extops}
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_09-extops.eps}
+\caption{Termination Impedence}\label{fig:mig_extops}
+\end{center}\end{figure}
+needs to be set to 50~Ohms.
+
+The next challenge is pin assignment.  For this, we start by selecting a fixed
+and known pin assignment in Fig.~\ref{fig:mig_ioops},
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_10-ioops.eps}
+\caption{Select a fixed pin assignment}\label{fig:mig_ioops}
+\end{center}\end{figure}
+since the Arty board has already been built and \ldots it would be a challenge
+to switch pins.  This brings up a next screen where pins can be selected and
+assigned.  As this is a long tedious process, there is a file in the
+distribution named {\tt migmem.xdc} which can be used for this purpose.
+Select the ``READ XDC/UCF'' option, and then select the {\tt migmem.xdc}
+file from the menu that follows as in Fig.~\ref{fig:mig_loaducf}.
+\begin{figure}\begin{center}
+\includegraphics[width=5in]{../gfx/mig_11-loaducf.eps}
+\caption{Load a known XDC file}\label{fig:mig_loaducf}
+\end{center}\end{figure}
+Once the pins have been loaded, you should just be able to click {\em Validate}
+and then move onto the next page of the dialog.
+
+That page offers pin selection for several external I/O pins that the memory
+controller may connect to.  We choose to leave these unconnected, as in 
+Fig.~\ref{fig:mig_syssigs}.
+\begin{figure}\begin{center}
+\includegraphics[width=4in]{../gfx/mig_12-syssigs.eps}
+\caption{MIG \#14}\label{fig:mig_syssigs}
+\end{center}\end{figure}
+
+The last screen is a confirmation screen.  Click next, and accept the Micron
+license agreement, and then a couple more next buttons, and the final Generate
+button will cause the MIG to build a DDR3 SDRAM controller.
+
+At this point, you should now be able to build the OpenArty {\tt .bit} file.
+
+%
 %
 \section{Building the board support files}
 The OpenArty project comes with a series of board support programs that are
@@ -283,7 +485,13 @@ This simulation will use the TCP/IP port given in {\tt bench/cpp/port.h}, which
 should be set identically to the port given in {\tt sw/host/port.h} used by
 {\tt netuart}.
 
-
+One difficulty at this point might be the fact that the Verilator simulation
+file, {\tt fastmaster\_tb.cpp}, may reference unknown variables.  This is a
+result of an upgrade in Verilator beyond the current OpenArty distribution.
+The variable names have changed from names starting with {\tt v\_\_DOT\ldots}
+to names beginning with {\tt busmaster\_\_DOT\ldots}.  Should there be any
+confusion, the {\tt Vbusmaster.h} file in {\tt rtl/obj\_dir} should define
+the correct names within it.
 
 
 \section{Initially installing the core}
@@ -306,7 +514,8 @@ by them, you may comment out the defines for {\tt GPS\_CLOCK},
 {\tt SDCARD\_ACCESS}, and {\tt OLEDRGBACCESS} found in the {\tt rtl/busmaster.v}
 file.  This will recover all but the logic used by the PModUSBUART and PModGPS
 serial ports, while replacing the registers with read--only memory values of
-zero.
+zero.  Be aware, though, that doing this will cause any program using
+the {\tt stdin}, {\tt stdout}, or {\tt stderr} file streams to hang.
 
 The {\tt arty.xdc} file is designed so that these PMods can be connected as
 shown in Fig.~\ref{fig:pmod-pic}.
@@ -352,8 +561,8 @@ While this may be useful for debugging, it's not all that legible to the
 user.   Lines that start with \hbox{``\#''} are lines from the device that are not
 going to any client.  A common line you will see is \hbox{``\# 0''}.  This is
 just the device saying that its command capability is idle.  Lines that start
-with \hbox{``< ''} are commands going to the device, and lines starting with
-\hbox{``> ''} are responses from the core.  So, at this point, run netuart and
+with \hbox{``$<$ ''} are commands going to the device, and lines starting with
+\hbox{``$>$ ''} are responses from the core.  So, at this point, run netuart and
 wait a couple of seconds.  If you do not see a \hbox{``\# 0''} line, then try a
 different serial port, check that your core is properly configured, etc.  Once
 you do see a \hbox{``\# 0''} line, then you are ready for the next step.
@@ -463,8 +672,8 @@ need to double check that you have the pre-requisite packages to build this
 tool chain, so on an Ubuntu~14 machine you would issue:
 \begin{lstlisting}[language=bash]
 % sudo apt-get install flex bison libbison-dev
-% sudo apt-get install libgmp10 libgmp-dev libmpfr-dev libmpc-dev libelf-dev
-% sudo apt-get install libisl-dev
+% sudo apt-get install libgmp10 libgmp-dev libmpfr-dev libmpc-dev
+% sudo apt-get install libelf-dev libisl-dev
 \end{lstlisting}
 Once these are all in place, you can then switch to the master ZipCPU
 directory and type,
@@ -551,7 +760,7 @@ mode on the peripheral, setting that mode should not require turning any bits
 on.  If a peripheral encounters an error condition, a bit may be turned on to
 indicate this fact, otherwise status bits will be left in the off position.
 
-\subsection{Bus Structure}
+\section{Bus Structure}
 The OpenArty project contains four bus masters, three of them within the CPU.
 These masters are the instruction fetch unit, the data read/write unit,
 and the direct memory access peripheral within the ZipCPU, as well as an 
@@ -563,11 +772,11 @@ ZipSystem.  This bus provides access to a number of peripherals within the
 ZipSystem, such as timers, counters, and the direct memory access controller.
 This bus will also be used to configure the memory management unit once
 integrated.  This bus is only visible to the CPU, and located starting at
-address {\tt 0xc0000000}.
+address {\tt 0xff000000}.
 
 The ZipCPU debug port is also available on the bus.  This port, however, is
 only visible to the external debug port.  It can be found at address
-{\tt 0x08000000} for the control register, and {\tt 0x08000001} for the
+{\tt 0x20000000} for the control register, and {\tt 0x20000004} for the
 data register.
 
 Once the MMU has been integrated, it will be placed between the instruction
@@ -602,7 +811,7 @@ Further information about the Wishbone bus structure found within this core
 can be found either on the Wishbone datasheet (Ch.~\ref{ch:wishbone}), or in
 the memory map table in the Registers chapter (Ch.~\ref{ch:registers}).
 
-\subsection{DDR3 SDRAM}
+\section{DDR3 SDRAM}
 
 {\em It is the intention of this project to use a completely open source
 DDR3 SDRAM controller.  While the controller has been written, it has yet to
@@ -614,14 +823,14 @@ access, at one access per clock.}
 {\em The open source SDRAM controller should be able to achieve a delay closer
 to 9~clocks per access--once I figure out how to connect it to the PHY.}
 
-\subsection{Flash}
-\subsection{Block RAM}
+\section{Flash}
+\section{Block RAM}
 
 The block RAM on this board has been arranged into one 32kW section.
 Programs that use block RAM will run fastest using the block RAM, both for
 instructions as well as for memory.  
 
-\subsection{Ethernet}
+\section{Ethernet}
 
 The ether net controller has been split into three parts.  The first part is
 an area of packet memory.  This part is simple: it acts like memory.  The
@@ -695,9 +904,9 @@ error.\footnote{It should be possible to extend this interface so that further
 packets may be read as long as the memory isn't yet full.  This is left as an
 exercise to others.}
 
-\subsection{SD Card}
-\subsection{GPS Tracking}
-\subsection{Configuration port}
+\section{SD Card}
+\section{GPS Tracking}
+\section{Configuration port}
 
 The registers associated with the ICAPE2 port have been made accessible
 to the core via the {\tt wbicapetwo} core.  More information about the meaning
@@ -729,8 +938,8 @@ or golden configuration.  If the golden configuration ever gets corrupted,
 or loaded with a configuration that will not work, then the user will need to
 reload the FPGA from the JTAG port.
 
-\subsection{OLED}
-\subsection{Real Time Clock}
+\section{OLED}
+\section{Real Time Clock}
 
 The Arty board contains a real time clock core together with a companion
 real time date/calendar core.  The clock core itself contains not only current
@@ -744,7 +953,7 @@ Neither of these cores exports its subsecond precision to the rest of the
 design.  This must be done using either the internal GPS tracking wires, or
 by reading the time information from the tracking test bench.
 
-\subsection{LEDs}
+\section{LEDs}
 
 The Arty board contains two sets of LEDs: a plain set of LEDs, and a colored
 set of LEDs.
@@ -762,16 +971,16 @@ used to turn on and off the various color components of the LEDs.  Using this
 method, there are $2^{24}$ different colors each of these LEDs may be set
 to.  
 
-\subsection{Buttons}
-\subsection{Switches}
-\subsection{Startup counter}
+\section{Buttons}
+\section{Switches}
+\section{Startup counter}
 
 A startup counter has been placed into the basic peripheral I/O area.  This 
 counter simply counts the clocks since startup.  Upon rollover, the high
 order bit remains set.  This can be used to sequence the start up of components
 within the design if so desired.
 
-\subsection{GPS UART}
+\section{GPS UART}
 The GPS UART, debug control UART, as well as the auxilliary UART, are all
 based upon the same underlying UART IP core, sometimes known as the WBUART32
 core.  The setup register is defined within the documentation for that core,
@@ -806,14 +1015,14 @@ primary controller only.
 It should also be possible to use the DMA to read from (or write to) either
 UART port.
 
-\subsection{Auxilliary UART}
+\section{Auxilliary UART}
 
 The Auxilliary UART has roughly the same structure as the GPS UART, save that
 it's default configuration is for a 115,200~Baud configuration with 8~data bits,
 no stop bits, and no parity.  Reads, writes, and interrupts are treated in
 the same fashion.
 
-\subsection{GPIO}
+\section{GPIO}
 
 A General Purpose I/O controller has been placed within the design as well.
 This controller can handle 16--generic input wires, and set 16--generic output
@@ -831,7 +1040,7 @@ top level design if necessary.
 This controller will set an interrupt if ever any of the input wires within
 it are changed.  The interrupt may be cleared in the interrupt controller.
 
-\subsection{Linker Script}
+\section{Linker Script}
 
 A linker script has been created to capture the memory structure needed by
 a program.  This script may be found in {\tt sw/board/arty.ld}.  It is a
@@ -864,10 +1073,12 @@ any (bare metal, supervisor) program in order to properly load it into memory.
 \section{Bench Test Software}
 \section{Host Software}
 \begin{itemize}
-\item {\tt readflash}: As I am loathe to remove anything from
-	a device that came factory installed, the
-	{\tt readflash} program reads the original installed
-	configuration from the flash and dumps it to a file.
+\item {\tt dumpflash}: As I am loathe to remove anything from a device that
+	came factory installed, the {\tt dumpflash} program reads the original
+	installed configuration from the flash and dumps it to a file, 
+	{\tt eqspidump.bin}.  Subsequent attempts to call {\tt dumpflash}
+	will fail as long as the {\tt eqspidump.bin} file is there, lest they
+	over write it.
 
 \item {\tt wbregs}: This program offers a capability very similar to the 
 	PEEK and POKE capability Apple user's may remember from before the
@@ -878,34 +1089,33 @@ any (bare metal, supervisor) program in order to properly load it into memory.
 	numbers acceptable to {\tt strtoul()}, the address can also be a named
 	address.  Supported names can be found in {\tt regdefs.cpp}, and their
 	register mapping in {\tt regdefs.h}.
-\item {\tt ziprun}:
 \item {\tt zipload}:
 \end{itemize}
 
-\section{Zip CPU Programs}
-\begin{itemize}
-\item {\tt ntpserver}:
-\item {\tt goldenstart}:
-\end{itemize}
-\section{ZipOS}
-\subsection{System Calls}
-\begin{itemize}
-\item {\tt int wait(unsigned event\_mask, int timeout)}
-\item {\tt int clear(unsigned event\_mask, int timeout)}
-\item {\tt void post(unsigned event\_mask)}
-\item {\tt void yield(void) }
-\item {\tt int read(int fid, void *buf, int len)}
-\item {\tt int write(int fid, void *buf, int len)}
-\item {\tt unsigned time(void) }
-% \item SEMGET
-% \item SEMPUT
-\item {\tt void *malloc(void)}
-\item {\tt void free(void *buf)}
-% \item FORK
-% \item opendir
-% \item EXEC
-% \item OPEN
-\end{itemize}
+% \section{Zip CPU Programs}
+% \begin{itemize}
+% \item {\tt ntpserver}:
+% \item {\tt goldenstart}:
+% \end{itemize}
+% \section{ZipOS}
+% \subsection{System Calls}
+% \begin{itemize}
+% \item {\tt int wait(unsigned event\_mask, int timeout)}
+% \item {\tt int clear(unsigned event\_mask, int timeout)}
+% \item {\tt void post(unsigned event\_mask)}
+% \item {\tt void yield(void) }
+% \item {\tt int read(int fid, void *buf, int len)}
+% \item {\tt int write(int fid, void *buf, int len)}
+% \item {\tt unsigned time(void) }
+% % \item SEMGET
+% % \item SEMPUT
+% \item {\tt void *malloc(void)}
+% \item {\tt void free(void *buf)}
+% % \item FORK
+% % \item opendir
+% % \item EXEC
+% % \item OPEN
+% \end{itemize}
 \subsection{Scheduler}
 
 \chapter{Operation}\label{ch:operation}
@@ -1926,14 +2136,14 @@ active at the same time.
 \begin{clocklist}
 {\tt i\_clk\_100mhz} & Ext & \multicolumn{2}{c|}{100} &
 	100~MHz Crystal Oscillator \\\hline
-{\em Future }{\tt s\_clk} & PLL & 152 & 166 & Internal Logic, Wishbone Clock \\\hline
-{\tt s\_clk} & PLL & 83.33 & 75.76& DDR3 SDRAM Controller Clock \\\hline
-\multicolumn{2}{|c|}{\tt mem\_clk\_200mhz} & 200~MHz & & MIG Reference clock for PHASER generation\\\hline
-{\tt ddr3\_ck\_}$x$ & DDR & 166.67 & 303 & DDR3 Command Clock\\\hline
-{\tt o\_qspi\_sck} & DDR & 95 & & QSPI Flash clock \\\hline
+{\em Future }{\tt s\_clk} & PLL & 165 & 125 & Internal Logic, Wishbone Clock \\\hline
+{\tt s\_clk} & MIG & 82.5 & 75.76& DDR3 SDRAM Controller Clock, $=\frac{13}{4}${\tt i\_clk\_100mhz} \\\hline
+\multicolumn{2}{|c|}{\tt mem\_clk\_200mhz} & 200 & & MIG Reference clock for PHASER generation\\\hline
+{\tt ddr3\_ck\_}$x$ & DDR & 325 & 300 & DDR3 Command Clock, $=4${\tt s\_clk}\\\hline
+{\tt o\_qspi\_sck} & DDR & 95 & & QSPI Flash clock, $=\frac{1}{2}${\tt s\_clk} \\\hline
 {\tt o\_sd\_clk} & Logic & 50 & 0.100 & SD--Card clock \\\hline
-{\tt o\_oled\_sck} & Logic & 166 & & OLED SPI clock \\\hline
-{\tt o\_eth\_mdclk} & Logic & 25 & 2.5 & Ethernet MDIO controller clock\\\hline
+{\tt o\_oled\_sck} & Logic & 6.6 & & OLED SPI clock $=\frac{1}{16}${\tt s\_clk} \\\hline
+{\tt o\_eth\_mdclk} & Logic & 25 & 2.5 & Ethernet MDIO controller clock $=\frac{1}{4}${\tt s\_clk} \\\hline
 \end{clocklist}
 \caption{OpenArty clocks}\label{tbl:clocks}
 \end{center}\end{table}

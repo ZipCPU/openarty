@@ -13,8 +13,8 @@
 ##		gpl-3.0.pdf	Builds the GPL license these files are released
 ##					under.
 ##
-##		spec.pdf	Builds the specification for the SDSPI
-##					controller.
+##		spec.pdf	Builds the specification for the OpenArty SoC
+##					package.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
