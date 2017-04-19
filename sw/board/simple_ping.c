@@ -35,13 +35,13 @@
 //		you will need to fill this value in with the IP address of a
 //		gateway server that is accessable from this network.  Place
 //		that IP address into this variable.
-//		
+//
 //	my_ip_mask
 //		The IP mask is used to determine what is on your subnet, versus
 //		what needs to be sent to your router/gateway.  Set this mask
 //		such that a '1' is placed in every network bit of your IP
 //		address, and '0' in every host bit.  For me, I am using a
-//		network of 192.168.10.x, where x is the computer on the network,
+//		network of 192.168.15.x, where x is the computer on the network,
 //		so I set this to 0xffffff00.
 //
 //
@@ -109,10 +109,10 @@ unsigned	ping_tx_count = 0, ping_rx_count = 0;
 // 2. Later, check if the IP address is not on our subnet, and if not then
 //	look up the MAC address of the router and use that MAC address when
 //	sending (no change to the IP)
-unsigned	ping_ip_addr  = IPADDR(192,168,10,1);
+unsigned	ping_ip_addr  = IPADDR(192,168,15,1);
 unsigned long	ping_mac_addr = 0;
 
-// My network ID.  The 192.168.10 part comes from the fact that this is a
+// My network ID.  The 192.168.15 part comes from the fact that this is a
 // local network.  The .22 (last octet) is due to the fact that this is
 // an unused ID on my network.
 unsigned	my_ip_addr  = DEFAULTIP;
@@ -184,7 +184,7 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 		pkt[7] |= ipcksum(pktlnw-7, &pkt[7]);
 
 		ping_replies_sent++;
-		
+
 		syscall(KTRAPID_SENDPKT,0,(unsigned)pkt, pktln);
 	} else
 		ping_reply_err ++;
@@ -230,7 +230,7 @@ void	user_task(void) {
 			if (((ip[0]>>28)&15)!=4)
 				invalid = 1;
 			else if (ip[1] & 0x0bfff)
-				// Packet is fragmented--toss it out	
+				// Packet is fragmented--toss it out
 				invalid = 1;
 			else if (ip[4] != my_ip_addr)
 				invalid = 1;
@@ -485,7 +485,7 @@ int main(int argc, char **argv) {
 			} else
 				zip->z_pic = EINT(SYSINT_ENETRX);
 			if (picv & SYSINT_ENETTX) {
-				// This will also likewise not clear until a 
+				// This will also likewise not clear until a
 				// packet has been queued up for transmission.
 				// Hence, let's just disable the interrupt.
 				if (picv&(DINT(SYSINT_ENETTX)))
@@ -510,4 +510,3 @@ int main(int argc, char **argv) {
 		}
 	}
 }
-

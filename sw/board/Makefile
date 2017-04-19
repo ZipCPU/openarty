@@ -36,7 +36,7 @@
 ##
 ##
 .PHONY: all
-PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis hello gettysburg # simple_ping
+PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis hello gettysburg simple_ping
 all:	$(PROGRAMS)
 OBJDIR := obj-zip
 NM := zip-nm
@@ -62,7 +62,7 @@ $(OBJDIR)/hello.o: hello.c
 $(OBJDIR)/gettysburg.o: gettysburg.c
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
-	$(CC) $(CFLAGS) -fdump-rtl-all -S $< -o $@
+	$(CC) $(CFLAGS) $(DUMPRTL) -S $< -o $@
 $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 	bash -c "$(RDELF) -a $^ ; $(OBJDUMP) -S -D $^ " | tee $@
 %.txt: %
@@ -111,9 +111,9 @@ gettysburg: $(OBJDIR)/gettysburg.o arty.ld
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
 	$(CC) $(CFLAGS)  $(LFLAGS) $^ -o $@
 
-simple_ping: $(OBJDIR)/simple_ping.o
-simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o arty.ld
-	$(CC) $(CFLAGS) $(LFLAGS) $^ -o simple_ping
+simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/zipcpu.o
+simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o
+	$(CC) -Wl,-Map=simple_ping.map $(CFLAGS) $(LFLAGS) $^ -o simple_ping
 
 cmptst: $(OBJDIR)/cmptst.o
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/cmptst.o -o $@

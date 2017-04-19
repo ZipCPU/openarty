@@ -57,11 +57,11 @@
 
 // Now, for the IP setup defaults
 //
-// These include the default IP of the Arty, 192.168.10.22.  This comes from
+// These include the default IP of the Arty, 192.168.15.22.  This comes from
 // the fact that this is the network number of my local network (a network with
 // no other purpose than to test my Arty), that my local network is not run by
 // DHCP (or if it were, that this address is reserved to be a static IP).
-#define	DEFAULTIP	IPADDR(192,168,10,22)
+#define	DEFAULTIP	IPADDR(192,168,15,22)
 //
 // The next issue is how to deal with packets that are not on the local network.
 // The first step is recognizing them, and that's the purpose of the netmask.
@@ -72,7 +72,7 @@
 // needs to be sent to the router first.  While the router IP address isn't
 // used for that purpose, it is used in the ARP query to find the MAC address
 // of the router.  As a result, we need it and define our default here.
-#define	DEFAULT_ROUTERIP	IPADDR(192,168,10,1)
+#define	DEFAULT_ROUTERIP	IPADDR(192,168,15,1)
 
 
 // All of these constants will need to be copied into a series of global
