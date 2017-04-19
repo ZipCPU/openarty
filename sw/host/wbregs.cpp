@@ -56,6 +56,86 @@ void	closeup(int v) {
 	exit(0);
 }
 
+bool	isvalue(const char *v) {
+	const char *ptr = v;
+
+	while(isspace(*ptr))
+		ptr++;
+
+	if ((*ptr == '+')||(*ptr == '-'))
+		ptr++;
+	if (*ptr == '+')
+		ptr++;
+	if (*ptr == '0') {
+		ptr++;
+		if (tolower(*ptr) == 'x')
+			ptr++;
+	}
+
+	return (isdigit(*ptr));
+}
+
+unsigned getmap_address(const char *map_fname, const char *name) {
+	FILE	*fmp = fopen(map_fname, "r");
+	char	line[512];
+
+	if (NULL == fmp) {
+		fprintf(stderr, "ERR: Could not open MAP file, %s\n", map_fname);
+		exit(EXIT_FAILURE);
+	}
+
+	while(fgets(line, sizeof(line), fmp)) {
+		char	*astr, *nstr, *xstr;
+
+		astr = strtok(line, " \t\n");
+		if (!astr)
+			continue;
+		nstr = strtok(NULL, " \t\n");
+		if (!nstr)
+			continue;
+		xstr = strtok(NULL, " \t\n");
+		if (xstr)
+			continue;
+		if (!isvalue(astr))
+			continue;
+		if (0 == strcasecmp(nstr, name))
+			return strtoul(astr, NULL, 0);
+	}
+	
+	fclose(fmp);
+	return 0;
+}
+
+char	*getmap_name(const char *map_fname, const unsigned val) {
+	FILE	*fmp = fopen(map_fname, "r");
+	char	line[512];
+	if (NULL == fmp) {
+		fprintf(stderr, "ERR: Could not open MAP file, %s\n", map_fname);
+		exit(EXIT_FAILURE);
+	}
+
+	while(fgets(line, sizeof(line), fmp)) {
+		char	*astr, *nstr, *xstr;
+
+		astr = strtok(line, " \t\n");
+		if (!astr)
+			continue;
+		nstr = strtok(NULL, " \t\n");
+		if (!nstr)
+			continue;
+		xstr = strtok(NULL, " \t\n");
+		if (xstr)
+			continue;
+		if (!isvalue(astr))
+			continue;
+		if (strtoul(astr, NULL, 0) == val)
+			return strdup(nstr);
+	}
+	
+	fclose(fmp);
+	return NULL;
+}
+
 void	usage(void) {
 	printf("USAGE: wbregs address [value]\n"
 "\n"
@@ -76,12 +156,20 @@ void	usage(void) {
 int main(int argc, char **argv) {
 	int	skp=0;
 	bool	use_decimal = false;
+	char	*map_file = NULL;
 
 	skp=1;
 	for(int argn=0; argn<argc-skp; argn++) {
 		if (argv[argn+skp][0] == '-') {
 			if (argv[argn+skp][1] == 'd') {
 				use_decimal = true;
+			} else if (argv[argn+skp][1] == 'm') {
+				if (argn+skp+1 >= argc) {
+					fprintf(stderr, "ERR: No Map file given\n");
+					exit(EXIT_SUCCESS);
+				}
+				map_file = argv[argn+skp+1];
+				skp++; argn--;
 			} else {
 				usage();
 				exit(EXIT_SUCCESS);
@@ -102,11 +190,32 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	const char *nm;
-	unsigned address = addrdecode(argv[0]), value;
-	nm = addrname(address);
-	if (nm == NULL)
-		nm = "no name";
+	if ((map_file)&&(access(map_file, R_OK)!=0)) {
+		fprintf(stderr, "ERR: Cannot open/read map file, %s\n", map_file);
+		perror("O/S Err:");
+		exit(EXIT_FAILURE);
+	}
+
+	const char *nm, *named_address = argv[0];
+	unsigned address, value;
+
+	if (isvalue(named_address)) {
+		address = strtoul(named_address, NULL, 0);
+		if (map_file)
+			nm = getmap_name(map_file, address);
+		if (nm == NULL)
+			nm = addrname(address);
+	} else if (map_file) {
+		address = getmap_address(map_file, named_address);
+		nm = getmap_name(map_file, address);
+		if (!nm) {
+			address = addrdecode(named_address);
+			nm = addrname(address);
+		}
+	} else {
+		address = addrdecode(named_address);
+		nm = addrname(address);
+	}
 
 	if (argc < 2) {
 		FPGA::BUSW	v;
