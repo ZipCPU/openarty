@@ -36,12 +36,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
 module	addemac(i_clk, i_ce, i_en, i_cancel, i_hw_mac,
 		i_v, i_nibble, o_v, o_nibble);
-	input			i_clk, i_ce, i_en, i_cancel;
-	input		[47:0]	i_hw_mac;
-	input			i_v;
-	input		[3:0]	i_nibble;
+	input	wire		i_clk, i_ce, i_en, i_cancel;
+	input	wire	[47:0]	i_hw_mac;
+	input	wire		i_v;
+	input	wire	[3:0]	i_nibble;
 	output	reg		o_v;
 	output	reg	[3:0]	o_nibble;
 

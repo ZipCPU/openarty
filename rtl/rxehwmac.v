@@ -40,10 +40,10 @@
 //
 //
 module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err, o_broadcast);
-	input			i_clk, i_ce, i_en, i_cancel;
-	input		[47:0]	i_hwmac;
-	input			i_v;
-	input		[3:0]	i_d;
+	input	wire		i_clk, i_ce, i_en, i_cancel;
+	input	wire	[47:0]	i_hwmac;
+	input	wire		i_v;
+	input	wire	[3:0]	i_d;
 	output	reg		o_v;
 	output	reg	[3:0]	o_d;
 	output	wire		o_err;

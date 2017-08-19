@@ -45,6 +45,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module toplevel(sys_clk_i, i_reset_btn,
 	i_sw,			// Switches
 	i_btn,			// Buttons
@@ -78,26 +80,26 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Chip-kit SPI port
 	o_ck_csn, o_ck_sck, o_ck_mosi
 	);
-	input		[0:0]	sys_clk_i;
-	input			i_reset_btn;
-	input		[3:0]	i_sw;	// Switches
-	input		[3:0]	i_btn;	// Buttons
+	input	wire	[0:0]	sys_clk_i;
+	input	wire		i_reset_btn;
+	input	wire	[3:0]	i_sw;	// Switches
+	input	wire	[3:0]	i_btn;	// Buttons
 	output	wire	[3:0]	o_led;	// LED
 	output	wire	[2:0]	o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3;
 	// UARTs
-	input			i_uart_rx;
+	input	wire		i_uart_rx;
 	output	wire		o_uart_tx;
 	// Quad SPI flash
 	output	wire		o_qspi_sck, o_qspi_cs_n;
-	inout	[3:0]		io_qspi_dat;
+	inout	wire [3:0]	io_qspi_dat;
 	// Ethernet
 	output	wire		o_eth_rstn, o_eth_ref_clk;
-	input			i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv;
-	input	[3:0]		i_eth_rxd;
-	input			i_eth_rxerr;
-	input			i_eth_tx_clk;
+	input	wire		i_eth_rx_clk, i_eth_col, i_eth_crs, i_eth_rx_dv;
+	input	wire [3:0]		i_eth_rxd;
+	input	wire		i_eth_rxerr;
+	input	wire		i_eth_tx_clk;
 	output	wire		o_eth_tx_en;
-	output	[3:0]		o_eth_txd;
+	output	wire [3:0]	o_eth_txd;
 	// Ethernet control (MDIO)
 	output	wire		o_eth_mdclk;
 	inout	wire		io_eth_mdio;
@@ -111,24 +113,24 @@ module toplevel(sys_clk_i, i_reset_btn,
 	output	wire	[13:0]	ddr3_addr;
 	output	wire	[0:0]	ddr3_odt;
 	output	wire	[1:0]	ddr3_dm;
-	inout		[1:0]	ddr3_dqs_p, ddr3_dqs_n;
-	inout		[15:0]	ddr3_dq;
+	inout	wire	[1:0]	ddr3_dqs_p, ddr3_dqs_n;
+	inout	wire	[15:0]	ddr3_dq;
 	//
 	// SD Card
 	output	wire		o_sd_sck;
-	inout			io_sd_cmd;
-	inout		[3:0]	io_sd;
-	input			i_sd_cs;
-	input			i_sd_wp;
+	inout	wire		io_sd_cmd;
+	inout	wire	[3:0]	io_sd;
+	input	wire		i_sd_cs;
+	input	wire		i_sd_wp;
 	// GPS PMod
-	input			i_gps_pps, i_gps_3df, i_gps_rx;
+	input	wire		i_gps_pps, i_gps_3df, i_gps_rx;
 	output	wire		o_gps_tx;
 	// OLEDRGB PMod
 	output	wire		o_oled_sck, o_oled_cs_n, o_oled_mosi,
 				o_oled_dcn, o_oled_reset_n, o_oled_vccen,
 				o_oled_pmoden;
 	// Aux UART
-	input			i_aux_rx, i_aux_cts_n;
+	input	wire		i_aux_rx, i_aux_cts_n;
 	output	wire		o_aux_tx, o_aux_rts_n;
 	output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
 
@@ -143,8 +145,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 `else
 	// Build our master clock
 	wire	s_clk, sys_clk, mem_clk_200mhz,
-		clk1_unused, clk2_unused, enet_clk, clk4_unnused,
-		clk5_unused, clk_feedback, clk_locked, mem_clk_200mhz_nobuf;
+		clk1_unused, clk2_unused, enet_clk, clk4_unused,
+		clk5_unused, clk_feedback, clk_locked, mem_clk_200mhz_nobuf,
+		mem_clk_nobuf, clk_feedback_bufd;
 	PLLE2_BASE	#(
 		.BANDWIDTH("OPTIMIZED"),	// OPTIMIZED, HIGH, LOW
 		.CLKFBOUT_PHASE(0.0),	// Phase offset in degrees of CLKFB, (-360-360)
@@ -299,10 +302,7 @@ module toplevel(sys_clk_i, i_reset_btn,
 	//
 	wire		w_sd_cmd;
 	wire	[3:0]	w_sd_data;
-	busmaster
-		#(
-		.NGPI(2), .NGPO(4)
-		) wbbus(s_clk, s_reset,
+	busmaster #( .NGPI(2), .NGPO(4)) wbbus(s_clk, s_reset,
 		// External USB-UART bus control
 		rx_stb, rx_data, tx_stb, tx_data, tx_busy,
 		// Board lights and switches

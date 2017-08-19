@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015, Gisselquist Technology, LLC
+// Copyright (C) 2015,2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -27,6 +27,11 @@
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
 //
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
@@ -46,10 +51,10 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
 			i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
 		o_stb, o_codword);
-	input			i_clk, i_rst;
+	input	wire		i_clk, i_rst;
 	// The command inputs
-	input			i_stb;
-	input		[35:0]	i_codword;
+	input	wire		i_stb;
+	input	wire	[35:0]	i_codword;
 	output	wire		o_busy;
 	// Wishbone outputs
 	output	reg		o_wb_cyc;
@@ -57,12 +62,11 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 	output	reg		o_wb_we;
 	output	reg	[31:0]	o_wb_addr, o_wb_data;
 	// Wishbone inputs
-	input			i_wb_ack, i_wb_stall, i_wb_err;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire	[31:0]	i_wb_data;
 	// And our codeword outputs
 	output	reg		o_stb;
 	output	reg	[35:0]	o_codword;
-	// output	wire		o_dbg;
 
 
 	wire	w_accept, w_eow, w_newwr, w_new_err;
@@ -333,7 +337,7 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 		zero_acks <= (~o_wb_stb)&&(r_acks_needed == 10'h00);
 
 	always @(posedge i_clk)
-		if (~o_wb_stb) // (~o_wb_cyc)&&(i_codword[35:34] == 2'b11))
+		if (!o_wb_stb) // (!o_wb_cyc)&&(i_codword[35:34] == 2'b11))
 			r_len <= i_codword[9:0];
 		else if ((o_wb_stb)&&(~i_wb_stall)&&(|r_len))
 			r_len <= r_len - 10'h01;
@@ -347,16 +351,5 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 			&&((~r_len[1])
 				||((~r_len[0])&&(~i_wb_stall)));
 	end
-
-	/*
-	reg	[5:0]	count;
-	always @(posedge i_clk)
-		if (~o_wb_cyc)
-			count <= 0;
-		else
-			count <= count+1;
-	assign o_dbg = (count > 6'd10);
-	*/
-	// assign	o_dbg = (wb_state == `WB_ACK);
 
 endmodule

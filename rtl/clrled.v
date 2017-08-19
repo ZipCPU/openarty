@@ -77,9 +77,9 @@
 //
 //
 module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
-	input			i_clk, i_stb;
-	input		[31:0]	i_data;
-	input		[8:0]	i_counter;
+	input	wire		i_clk, i_stb;
+	input	wire	[31:0]	i_data;
+	input	wire	[8:0]	i_counter;
 	output	wire	[31:0]	o_data;
 	output	reg	[2:0]	o_led;
 

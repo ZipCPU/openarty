@@ -101,6 +101,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
+//
 // `define	QSPI_READ_ONLY
 module	eqspiflash(i_clk_82mhz, i_rst,
 		// Incoming wishbone connection(s)
@@ -120,11 +123,11 @@ module	eqspiflash(i_clk_82mhz, i_rst,
 		// Debug the interface
 		o_dbg);
 
-	input			i_clk_82mhz, i_rst;
+	input	wire		i_clk_82mhz, i_rst;
 	// Wishbone bus inputs
-	input			i_wb_cyc, i_wb_data_stb, i_wb_ctrl_stb, i_wb_we;
-	input		[21:0]	i_wb_addr;	// 24 bits of addr space
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_data_stb, i_wb_ctrl_stb, i_wb_we;
+	input	wire	[21:0]	i_wb_addr;	// 24 bits of addr space
+	input	wire	[31:0]	i_wb_data;
 	// Wishbone bus outputs
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
@@ -426,11 +429,11 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 			o_ctreq, o_idreq, o_other,
 		i_ack, i_xip, i_quad, i_idloaded, i_wip, i_spi_stopped);
 	//
-	input			i_clk, i_rst;
+	input	wire		i_clk, i_rst;
 	// Wishbone bus inputs
-	input			i_cyc, i_data_stb, i_ctrl_stb, i_we;
-	input		[21:0]	i_addr;
-	input		[31:0]	i_data;
+	input	wire		i_cyc, i_data_stb, i_ctrl_stb, i_we;
+	input	wire	[21:0]	i_addr;
+	input	wire	[31:0]	i_data;
 	// Wishbone bus outputs
 	output	reg		o_wb_ack;
 	output	reg		o_wb_stall;
@@ -444,8 +447,8 @@ module	qspibus(i_clk, i_rst, i_cyc, i_data_stb, i_ctrl_stb,
 				o_pipewr, o_endwr,
 				o_ctreq, o_idreq;
 	output	wire		o_other;
-	input			i_ack, i_xip, i_quad, i_idloaded;
-	input			i_wip, i_spi_stopped;
+	input	wire		i_ack, i_xip, i_quad, i_idloaded;
+	input	wire		i_wip, i_spi_stopped;
 
 
 	//
@@ -706,9 +709,9 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 				o_spi_spd, o_spi_dir, o_spi_recycle,
 			i_spi_data, i_spi_valid, i_spi_busy, i_spi_stopped,
 			o_data_ack, o_data, i_quad, i_xip, o_leave_xip);
-	input			i_clk;
-	input			i_readreq, i_piperd, i_other_req;
-	input		[21:0]	i_addr;
+	input	wire		i_clk;
+	input	wire		i_readreq, i_piperd, i_other_req;
+	input	wire	[21:0]	i_addr;
 	output	reg		o_bus_ack, o_qspi_req;
 	input	wire		i_grant;
 	output	reg		o_spi_wr;
@@ -716,11 +719,11 @@ module	readqspi(i_clk, i_readreq, i_piperd, i_other_req, i_addr, o_bus_ack,
 	output	reg	[31:0]	o_spi_word;
 	output	reg	[1:0]	o_spi_len;
 	output	reg		o_spi_spd, o_spi_dir, o_spi_recycle;
-	input		[31:0]	i_spi_data;
-	input			i_spi_valid, i_spi_busy, i_spi_stopped;
+	input	wire	[31:0]	i_spi_data;
+	input	wire		i_spi_valid, i_spi_busy, i_spi_stopped;
 	output	reg		o_data_ack;
 	output	reg	[31:0]	o_data;
-	input			i_quad, i_xip;
+	input	wire		i_quad, i_xip;
 	output	wire		o_leave_xip;
 
 	reg	accepted;
@@ -903,22 +906,22 @@ module	writeqspi(i_clk, i_wreq, i_ereq, i_pipewr, i_endpipe, i_addr, i_data,
 				o_spi_spd, o_spi_dir, i_spi_data, i_spi_valid,
 					i_spi_busy, i_spi_stopped,
 				o_data_ack, i_quad, o_wip);
-	input		i_clk;
+	input	wire	i_clk;
 	//
-	input		i_wreq, i_ereq, i_pipewr, i_endpipe;
-	input		[21:0]	i_addr;
-	input		[31:0]	i_data;
+	input	wire	i_wreq, i_ereq, i_pipewr, i_endpipe;
+	input	wire	[21:0]	i_addr;
+	input	wire	[31:0]	i_data;
 	output	reg		o_bus_ack, o_qspi_req;
-	input			i_qspi_grant;
+	input	wire		i_qspi_grant;
 	output	reg		o_spi_wr, o_spi_hold;
 	output	reg	[31:0]	o_spi_word;
 	output	reg	[1:0]	o_spi_len;
 	output	reg		o_spi_spd, o_spi_dir;
-	input		[31:0]	i_spi_data;
-	input			i_spi_valid;
-	input			i_spi_busy, i_spi_stopped;
+	input	wire	[31:0]	i_spi_data;
+	input	wire		i_spi_valid;
+	input	wire		i_spi_busy, i_spi_stopped;
 	output	reg		o_data_ack;
-	input			i_quad;
+	input	wire		i_quad;
 	output	reg		o_wip;
 
 `ifdef	QSPI_READ_ONLY
@@ -1147,16 +1150,16 @@ module	ctrlspi(i_clk, i_req, i_wr, i_addr, i_data, i_sector_address,
 					i_spi_stopped,
 				o_bus_ack, o_data_ack, o_data,
 				i_leave_xip, o_xip, o_quad);
-	input		i_clk;
+	input	wire	i_clk;
 	// From the WB bus controller
-	input			i_req;
-	input			i_wr;
-	input		[3:0]	i_addr;
-	input		[31:0]	i_data;
-	input		[21:0]	i_sector_address;
+	input	wire		i_req;
+	input	wire		i_wr;
+	input	wire	[3:0]	i_addr;
+	input	wire	[31:0]	i_data;
+	input	wire	[21:0]	i_sector_address;
 	// To/from the arbiter
 	output	reg		o_spi_req;
-	input			i_grant;
+	input	wire		i_grant;
 	// To/from the low-level SPI driver
 	output	reg		o_spi_wr;
 	output	wire		o_spi_hold;
@@ -1164,9 +1167,9 @@ module	ctrlspi(i_clk, i_req, i_wr, i_addr, i_data, i_sector_address,
 	output	reg	[1:0]	o_spi_len;
 	output	wire		o_spi_spd;
 	output	reg		o_spi_dir;
-	input		[31:0]	i_spi_data;
-	input			i_spi_valid;
-	input			i_spi_busy, i_spi_stopped;
+	input	wire	[31:0]	i_spi_data;
+	input	wire		i_spi_valid;
+	input	wire		i_spi_busy, i_spi_stopped;
 	// Return data to the bus controller, and the wishbone bus
 	output	reg		o_bus_ack, o_data_ack;
 	output	reg	[31:0]	o_data;
@@ -1406,19 +1409,19 @@ module	idotpqspi(i_clk, i_req, i_wr, i_pipewr, i_addr, i_data, o_bus_ack,
 		o_spi_spd, o_spi_dir, i_spi_data, i_spi_valid,
 		i_spi_busy, i_spi_stopped, o_data_ack, o_data, o_loaded,
 		o_wip);
-	input			i_clk;
-	input			i_req, i_wr, i_pipewr;
-	input		[4:0]	i_addr;
-	input		[31:0]	i_data;
+	input	wire		i_clk;
+	input	wire		i_req, i_wr, i_pipewr;
+	input	wire	[4:0]	i_addr;
+	input	wire	[31:0]	i_data;
 	output	reg		o_bus_ack, o_qspi_req;
-	input			i_qspi_grant;
+	input	wire		i_qspi_grant;
 	output	reg		o_spi_wr, o_spi_hold;
 	output	reg	[31:0]	o_spi_word;
 	output	reg	[1:0]	o_spi_len;
 	output	wire		o_spi_spd;
 	output	reg		o_spi_dir;
-	input		[31:0]	i_spi_data;
-	input			i_spi_valid, i_spi_busy, i_spi_stopped;
+	input	wire	[31:0]	i_spi_data;
+	input	wire		i_spi_valid, i_spi_busy, i_spi_stopped;
 	output	reg		o_data_ack;
 	output	reg	[31:0]	o_data;
 	output	wire		o_loaded;

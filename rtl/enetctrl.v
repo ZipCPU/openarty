@@ -39,6 +39,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 `define	ECTRL_RESET	3'h0
 `define	ECTRL_IDLE	3'h1
 `define	ECTRL_ADDRESS	3'h2
@@ -51,14 +53,14 @@ module	enetctrl(i_clk, i_rst,
 		o_debug);
 	parameter	CLKBITS=3, // = 3 for 200MHz source clock, 2 for 100 MHz
 			PHYADDR = 5'h01;
-	input	i_clk, i_rst;
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[4:0]	i_wb_addr;
-	input		[15:0]	i_wb_data;
+	input	wire	i_clk, i_rst;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[4:0]	i_wb_addr;
+	input	wire	[15:0]	i_wb_data;
 	output	reg		o_wb_ack, o_wb_stall;
 	output	wire	[31:0]	o_wb_data;
 	//
-	input			i_mdio;
+	input	wire		i_mdio;
 	output	wire		o_mdclk;
 	output	reg		o_mdio, o_mdwe;
 	//

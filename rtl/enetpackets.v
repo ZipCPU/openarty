@@ -133,6 +133,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 // `define	RX_SYNCHRONOUS_WITH_WB_CLK
 `ifdef	RX_SYNCHRONOUS_WITH_WB_CLK
 `define	RXCLK	i_wb_clk
@@ -160,12 +162,12 @@ module	enetpackets(i_wb_clk, i_reset,
 	parameter	MEMORY_ADDRESS_WIDTH = 12; // Log_2 octet width:11..14
 	localparam	MAW =((MEMORY_ADDRESS_WIDTH>14)? 14: // width of words
 			((MEMORY_ADDRESS_WIDTH<11)? 11:MEMORY_ADDRESS_WIDTH))-2;
-	input			i_wb_clk, i_reset;
+	input	wire		i_wb_clk, i_reset;
 	//
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input	[(MAW+1):0]	i_wb_addr; // 1-bit for ctrl/data, 1 for tx/rx
-	input	[31:0]		i_wb_data;
-	input	[3:0]		i_wb_sel;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[(MAW+1):0]	i_wb_addr; // 1b fr ctrl/data,1 fr tx/rx
+	input	wire	[31:0]		i_wb_data;
+	input	wire	[3:0]		i_wb_sel;
 	//
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
@@ -173,11 +175,11 @@ module	enetpackets(i_wb_clk, i_reset,
 	//
 	output	reg		o_net_reset_n;
 	//
-	input			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
-	input		[3:0]	i_net_rxd;
-	input			i_net_rxerr;
+	input	wire		i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
+	input	wire	[3:0]	i_net_rxd;
+	input	wire		i_net_rxerr;
 	//
-	input			i_net_tx_clk;
+	input	wire		i_net_tx_clk;
 	output	wire		o_net_tx_en;
 	output	wire	[3:0]	o_net_txd;
 	//

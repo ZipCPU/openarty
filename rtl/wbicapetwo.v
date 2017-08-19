@@ -98,11 +98,11 @@ module	wbicapetwo(i_clk,
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
 			o_wb_ack, o_wb_stall, o_wb_data, o_dbg);
 	parameter	LGDIV = 3; /// Log of the clock divide
-	input			i_clk;
+	input	wire		i_clk;
 	// Wishbone inputs
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[4:0]	i_wb_addr;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[4:0]	i_wb_addr;
+	input	wire	[31:0]	i_wb_data;
 	// Wishbone outputs
 	output	reg		o_wb_ack, o_wb_stall;
 	output	reg	[31:0]	o_wb_data;

@@ -39,10 +39,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	xoddr(i_clk, i_v, o_pin);
-	input		i_clk;
-	input	[1:0]	i_v;
-	output		o_pin;
+	input	wire		i_clk;
+	input	wire	[1:0]	i_v;
+	output	wire		o_pin;
 
 	wire	w_internal;
 	reg	last;

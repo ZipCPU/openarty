@@ -196,22 +196,22 @@ module	zipsystem(i_clk, i_rst,
 			IMPLEMENT_LOCK=1;
 	localparam	// Derived parameters
 			AW=ADDRESS_WIDTH;
-	input	i_clk, i_rst;
+	input	wire	i_clk, i_rst;
 	// Wishbone master
 	output	wire		o_wb_cyc, o_wb_stb, o_wb_we;
 	output	wire	[(AW-1):0]	o_wb_addr;
 	output	wire	[31:0]	o_wb_data;
 	output	wire	[3:0]	o_wb_sel;
-	input			i_wb_ack, i_wb_stall;
-	input		[31:0]	i_wb_data;
-	input			i_wb_err;
+	input	wire		i_wb_ack, i_wb_stall;
+	input	wire	[31:0]	i_wb_data;
+	input	wire		i_wb_err;
 	// Incoming interrupts
-	input		[(EXTERNAL_INTERRUPTS-1):0]	i_ext_int;
+	input	wire	[(EXTERNAL_INTERRUPTS-1):0]	i_ext_int;
 	// Outgoing interrupt
 	output	wire		o_ext_int;
 	// Wishbone slave
-	input			i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr;
-	input		[31:0]	i_dbg_data;
+	input	wire		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr;
+	input	wire	[31:0]	i_dbg_data;
 	output	wire		o_dbg_ack;
 	output	wire		o_dbg_stall;
 	output	wire	[31:0]	o_dbg_data;
@@ -249,11 +249,19 @@ module	zipsystem(i_clk, i_rst,
 `endif
 	else
 `ifdef	INCLUDE_ACCOUNTING_COUNTERS
+	if (EXTERNAL_INTERRUPTS >= 15)
+		assign	alt_int_vector = { i_ext_int[14:8],
+					mtc_int, moc_int, mpc_int, mic_int,
+					utc_int, uoc_int, upc_int, uic_int };
+	else
 		assign	alt_int_vector = { {(7-(EXTERNAL_INTERRUPTS-9)){1'b0}},
 					i_ext_int[(EXTERNAL_INTERRUPTS-1):9],
 					mtc_int, moc_int, mpc_int, mic_int,
 					utc_int, uoc_int, upc_int, uic_int };
 `else
+	if (EXTERNAL_INTERRUPTS >= 24)
+		assign	alt_int_vector = { i_ext_int[(EXTERNAL_INTERRUPTS-1):9] };
+	else
 		assign	alt_int_vector = { {(15-(EXTERNAL_INTERRUPTS-9)){1'b0}},
 					i_ext_int[(EXTERNAL_INTERRUPTS-1):9] };
 `endif

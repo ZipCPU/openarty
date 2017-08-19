@@ -1,6 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 // Filename: 	wbusixchar.v
 //
 // Project:	FPGA library
@@ -23,7 +22,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -35,6 +34,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -44,13 +48,13 @@
 //
 //
 module	wbusixchar(i_clk, i_stb, i_bits, o_stb, o_char, o_busy, i_busy);
-	input			i_clk;
-	input			i_stb;
-	input		[6:0]	i_bits;
+	input	wire		i_clk;
+	input	wire		i_stb;
+	input	wire	[6:0]	i_bits;
 	output	reg		o_stb;
 	output	reg	[7:0]	o_char;
 	output	wire		o_busy;
-	input			i_busy;
+	input	wire		i_busy;
 
 	initial	o_char = 8'h00;
 	always @(posedge i_clk)

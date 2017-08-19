@@ -40,11 +40,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	xioddr(i_clk, i_oe, i_v, o_v, io_pin);
-	input	i_clk, i_oe;
-	input	[1:0]	i_v;
-	output	[1:0]	o_v;
-	inout		io_pin;
+	input	wire		i_clk, i_oe;
+	input	wire	[1:0]	i_v;
+	output	wire	[1:0]	o_v;
+	inout	wire		io_pin;
 
 	wire	w_internal;
 	reg	last;

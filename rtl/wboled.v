@@ -140,15 +140,17 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	wboled(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 			o_ack, o_stall, o_data,
 		o_sck, o_cs_n, o_mosi, o_dbit,
 		o_pwr, o_int);
 	parameter	CBITS=4, // 2^4*13ns -> 208ns/clock > 150ns min
 			EXTRA_BUS_CLOCK = 0;
-	input			i_clk, i_cyc, i_stb, i_we;
-	input		[1:0]	i_addr;
-	input		[31:0]	i_data;
+	input	wire		i_clk, i_cyc, i_stb, i_we;
+	input	wire	[1:0]	i_addr;
+	input	wire	[31:0]	i_data;
 	output	reg		o_ack;
 	output	wire		o_stall;
 	output	reg	[31:0]	o_data;

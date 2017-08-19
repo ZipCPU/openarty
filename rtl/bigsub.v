@@ -42,10 +42,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	bigsub(i_clk, i_sync, i_a, i_b, o_r, o_sync);
 	parameter	NCLOCKS = 1;
-	input			i_clk, i_sync;
-	input		[63:0]	i_a, i_b;
+	input	wire	i_clk, i_sync;
+	input	wire	[63:0]	i_a, i_b;
 	output	wire	[63:0]	o_r;
 	output	wire	o_sync;
 

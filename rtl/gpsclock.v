@@ -100,6 +100,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 // `define	DEBUG
 //
 module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
@@ -112,14 +114,14 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 			ONE_SECOND = 0,
 			NPW=RW-DW, // Width of non-parameter data
 			HRW=RW/2; // Half of RW
-	input		i_clk, i_rst;
-	input		i_pps;	// From the GPS device
+	input	wire	i_clk, i_rst;
+	input	wire	i_pps;	// From the GPS device
 	output	reg	o_pps;	// To our local circuitry
 	output	reg	o_led;	// A blinky light showing how well we're doing
 	// Wishbone Configuration interface
-	input				i_wb_cyc_stb, i_wb_we;
-	input		[1:0]		i_wb_addr;
-	input		[(DW-1):0]	i_wb_data;
+	input	wire			i_wb_cyc_stb, i_wb_we;
+	input	wire	[1:0]		i_wb_addr;
+	input	wire	[(DW-1):0]	i_wb_data;
 	output	reg			o_wb_ack;
 	output	wire			o_wb_stall;
 	output	reg	[(DW-1):0]	o_wb_data;

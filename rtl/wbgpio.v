@@ -1,14 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	wbgpio.v
+// Filename:	wbgpio.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	A General Purpose Input/Output controller.  This controller 
-//		allows a user to read the current state of the 16-GPIO input
-//	pins, or to set the state of the 16-GPIO output pins. Specific numbers
-//	of pins are configurable from 1-16.
+// Purpose:	This extremely simple GPIO controller, although minimally 
+//		featured, is designed to control up to sixteen general purpose
+//	input and sixteen general purpose output lines of a module from a
+//	single address on a 32-bit wishbone bus.
 //
+//	Input GPIO values are contained in the top 16-bits.  Any change in
+//	input values will generate an interrupt.
+//
+//	Output GPIO values are contained in the bottom 16-bits.  To change an
+//	output GPIO value, writes to this port must also set a bit in the
+//	upper sixteen bits.  Hence, to set GPIO output zero, one would write
+//	a 0x010001 to the port, whereas a 0x010000 would clear the bit.  This
+//	interface makes it possible to change only the bit of interest, without
+//	needing to capture and maintain the prior bit values--something that
+//	might be difficult from a interrupt context within a CPU.
+//	
 //	Unlike other controllers, this controller offers no capability to
 //	change input/output direction, or to implement pull-up or pull-down
 //	resistors.  It simply changes and adjusts the values going out the
@@ -47,21 +58,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module wbgpio(i_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data, o_wb_data,
 		i_gpio, o_gpio, o_int);
-	parameter	NIN=16, NOUT=16, DEFAULT=16'h00;
-	input			i_clk;
+	parameter		NIN=16, NOUT=16;
+	parameter [(NOUT-1):0]	DEFAULT=16'h00;
+	input	wire		i_clk;
 	//
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[31:0]	i_wb_data;
 	output	wire	[31:0]	o_wb_data;
 	//
-	input		[(NIN-1):0]	i_gpio;
+	input	wire	[(NIN-1):0]	i_gpio;
 	output	reg	[(NOUT-1):0]	o_gpio;
 	//
 	output	reg		o_int;
 
 	// 9LUT's, 16 FF's
+	initial	o_gpio = DEFAULT;
 	always @(posedge i_clk)
 		if ((i_wb_stb)&&(i_wb_we))
 			o_gpio <= ((o_gpio)&(~i_wb_data[(NOUT+16-1):16]))

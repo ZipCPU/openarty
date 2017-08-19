@@ -52,6 +52,11 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
+//
+`default_nettype	none
+//
+//
 `define	OLED_IDLE	3'h0
 `define	OLED_START	3'h1
 `define	OLED_BITS	3'h2
@@ -71,15 +76,15 @@ module	lloled(i_clk,
 		// OLED interface
 		o_sck, o_cs_n, o_mosi, o_dbit);
 	parameter	CTRBITS = 8;
-	input			i_clk;
+	input	wire		i_clk;
 	// Chip interface
 	//	Can send info
 	//		i_wr = 1,
 	//			i_word = { 1'b0, 32'info to send },
 	//			i_len = # of bytes in word-1
-	input			i_wr, i_dbit;
-	input		[31:0]	i_word;
-	input		[1:0]	i_len;	// 0=>8bits, 1=>16 bits, 2=>24 bits, 3=>32 bits
+	input	wire		i_wr, i_dbit;
+	input	wire	[31:0]	i_word;
+	input	wire	[1:0]	i_len;	// 0=>8bits, 1=>16 bits, 2=>24 bits, 3=>32 bits
 	output	reg		o_busy;
 	// Interface with the OLED lines
 	output	reg		o_sck, o_cs_n, o_mosi, o_dbit;

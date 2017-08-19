@@ -36,10 +36,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module rxeipchk(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_err);
-	input			i_clk, i_ce, i_en, i_cancel;
-	input			i_v;	// Valid
-	input		[3:0]	i_d;	// Data nibble
+	input	wire		i_clk, i_ce, i_en, i_cancel;
+	input	wire		i_v;	// Valid
+	input	wire	[3:0]	i_d;	// Data nibble
 	output	reg		o_err;
 
 	reg		r_v;

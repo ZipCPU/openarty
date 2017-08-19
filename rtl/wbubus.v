@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -28,6 +28,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -35,24 +40,27 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
 //
 module	wbubus(i_clk, i_rx_stb, i_rx_data, 
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
 		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
 		i_interrupt,
 		o_tx_stb, o_tx_data, i_tx_busy);
-	parameter	LGWATCHDOG=19;
-	input			i_clk;
-	input			i_rx_stb;
-	input		[7:0]	i_rx_data;
+	parameter	LGWATCHDOG=19,
+			LGINPUT_FIFO=6,
+			LGOUTPUT_FIFO=10;
+	input	wire		i_clk;
+	input	wire		i_rx_stb;
+	input	wire	[7:0]	i_rx_data;
 	output	wire		o_wb_cyc, o_wb_stb, o_wb_we;
 	output	wire	[31:0]	o_wb_addr, o_wb_data;
-	input			i_wb_ack, i_wb_stall, i_wb_err;
-	input		[31:0]	i_wb_data;
-	input			i_interrupt;
+	input	wire		i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire	[31:0]	i_wb_data;
+	input	wire		i_interrupt;
 	output	wire		o_tx_stb;
 	output	wire	[7:0]	o_tx_data;
-	input			i_tx_busy;
+	input	wire		i_tx_busy;
 	// output	wire		o_dbg;
 
 
@@ -65,21 +73,24 @@ module	wbubus(i_clk, i_rx_stb, i_rx_data,
 
 	wire	w_bus_busy, fifo_in_stb, exec_stb, w_bus_reset;
 	wire	[35:0]	fifo_in_word, exec_word;
-// `define	NO_INPUT_FIFO
-`ifdef	NO_INPUT_FIFO
+
+	generate
+	if (LGINPUT_FIFO < 2)
+	begin
+
 	assign	fifo_in_stb = in_stb;
 	assign	fifo_in_word = in_word;
 	assign	w_bus_reset = 1'b0;
-`else
-	wire		ififo_empty_n, ififo_err;
-	assign	fifo_in_stb = (~w_bus_busy)&&(ififo_empty_n);
-	assign	w_bus_reset = r_wdt_reset;
-	wbufifo	#(36,6) padififo(i_clk, w_bus_reset,
+
+	end else begin
+
+		wire		ififo_empty_n, ififo_err;
+		assign	fifo_in_stb = (~w_bus_busy)&&(ififo_empty_n);
+		assign	w_bus_reset = r_wdt_reset;
+		wbufifo	#(36,LGINPUT_FIFO) padififo(i_clk, w_bus_reset,
 				in_stb, in_word, fifo_in_stb, fifo_in_word,
 				ififo_empty_n, ififo_err);
-`endif
-
-	// assign	o_dbg = (i_wb_ack)&&(i_wb_cyc);
+	end endgenerate
 
 	// Take requests in, Run the bus, send results out
 	// This only works if no requests come in while requests
@@ -89,29 +100,9 @@ module	wbubus(i_clk, i_rx_stb, i_rx_data,
 		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
 		exec_stb, exec_word);
 
-	/*
-	wire	[31:0]	cyc_debug;
-	assign	cyc_debug = { 1'b0, o_wb_cyc, o_wb_stb, o_wb_we, i_wb_ack, i_wb_stall,
-				(i_wb_err||r_wdt_reset), o_wb_addr[14:0],
-				o_wb_data[4:0], i_wb_data[4:0] };
-	assign	o_dbg = cyc_debug;
-	*/
-	/*
-	wire	[31:0]	fif_debug;
-	assign	fif_debug = { 
-			(exec_stb)&&(exec_word[35:30] == 6'h05),// 1
-			fifo_in_stb, fifo_in_word[35:30],	// 7
-			exec_stb, exec_word[35:30],		// 7
-			o_wb_cyc, o_wb_stb, o_wb_we,
-				i_wb_ack, i_wb_stall,		// 5
-			w_bus_busy, ififo_empty_n, w_bus_reset,	// 3
-			i_rx_stb, o_wb_addr[7:0] };		// 9
-	assign	o_dbg = fif_debug;
-	*/
-			
 	wire		ofifo_err;
 	// wire	[30:0]	out_dbg;
-	wbuoutput	wroutput(i_clk, w_bus_reset,
+	wbuoutput #(LGOUTPUT_FIFO) wroutput(i_clk, w_bus_reset,
 			exec_stb, exec_word,
 			o_wb_cyc, i_interrupt, exec_stb,
 			o_tx_stb, o_tx_data, i_tx_busy, ofifo_err);

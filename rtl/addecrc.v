@@ -36,11 +36,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module addecrc(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
 	localparam	INVERT = 1; // Proper operation requires INVERT=1
-	input			i_clk, i_ce, i_en, i_cancel;
-	input			i_v;
-	input		[3:0]	i_d;
+	input	wire		i_clk, i_ce, i_en, i_cancel;
+	input	wire		i_v;
+	input	wire	[3:0]	i_d;
 	output	reg		o_v;
 	output	reg	[3:0]	o_d;
 

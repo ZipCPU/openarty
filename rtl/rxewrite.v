@@ -47,13 +47,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	rxewrite(i_clk, i_ce, i_cancel, i_v, i_d, o_v, o_addr, o_data, o_len);
 	parameter	AW = 12;
 	localparam	DW = 32;
-	input				i_clk, i_ce;
-	input				i_cancel;
-	input				i_v;
-	input		[3:0]		i_d;
+	input	wire			i_clk, i_ce;
+	input	wire			i_cancel;
+	input	wire			i_v;
+	input	wire	[3:0]		i_d;
 	output	reg			o_v;
 	output	reg	[(AW-1):0]	o_addr;
 	output	reg	[(DW-1):0]	o_data;

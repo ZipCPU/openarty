@@ -15,7 +15,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -27,6 +27,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -37,16 +42,17 @@
 module	wbuoutput(i_clk, i_rst, i_stb, i_codword,
 		i_wb_cyc, i_int, i_bus_busy,
 		o_stb, o_char, i_tx_busy, o_fifo_err);
-	input			i_clk, i_rst;
-	input			i_stb;
-	input		[35:0]	i_codword;
+	parameter	LGOUTPUT_FIFO = 10;
+	input	wire		i_clk, i_rst;
+	input	wire		i_stb;
+	input	wire	[35:0]	i_codword;
 	// Not Idle indicators
-	input			i_wb_cyc, i_int, i_bus_busy;
+	input	wire		i_wb_cyc, i_int, i_bus_busy;
 	// Outputs to our UART transmitter
 	output	wire		o_stb;
 	output	wire	[7:0]	o_char;
 	// Miscellaneous I/O: UART transmitter busy, and fifo error
-	input			i_tx_busy;
+	input	wire		i_tx_busy;
 	output	wire		o_fifo_err;
 
 	wire		fifo_rd, dw_busy, fifo_empty_n, fifo_err;
@@ -57,17 +63,23 @@ module	wbuoutput(i_clk, i_rst, i_stb, i_codword,
 	wire	[35:0]	cw_codword, cp_word;
 	wire	[6:0]	dw_bits, ln_bits;
 
-// `define	SKIP_FIFO
-`ifdef	SKIP_FIFO
-	assign	fifo_rd = i_stb;
-	assign	fifo_codword = i_codword;
-	assign	fifo_err = 1'b0;
-`else
-	assign	fifo_rd = (fifo_empty_n)&&(~cw_busy);
-	wbufifo #(36,10) busoutfifo(i_clk, i_rst, i_stb, i_codword, 
+	generate
+	if (LGOUTPUT_FIFO < 2)
+	begin
+
+		assign	fifo_rd = i_stb;
+		assign	fifo_codword = i_codword;
+		assign	fifo_err = 1'b0;
+
+	end else begin
+
+		assign	fifo_rd = (fifo_empty_n)&&(~cw_busy);
+		wbufifo #(36,LGOUTPUT_FIFO)
+			busoutfifo(i_clk, i_rst, i_stb, i_codword,
 				fifo_rd, fifo_codword, fifo_empty_n,
 				fifo_err);
-`endif
+
+	end endgenerate
 
 	assign	o_fifo_err = fifo_err;
 

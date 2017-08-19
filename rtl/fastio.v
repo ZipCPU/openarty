@@ -57,10 +57,10 @@ module	fastio(i_clk,
 			GPSUART_SETUP = 30'd20833, // 9600 baud from 200MHz clk
 			EXTRACLOCK = 1, // Do we need an extra clock to process?
 			NGPI=0, NGPO=0; // Number of GPIO in and out wires
-	input			i_clk;
+	input	wire		i_clk;
 	// Board level I/O
-	input		[3:0]	i_sw;
-	input		[3:0]	i_btn;
+	input	wire	[3:0]	i_sw;
+	input	wire	[3:0]	i_btn;
 	output	wire	[3:0]	o_led;
 	output	wire	[2:0]	o_clr_led0;
 	output	wire	[2:0]	o_clr_led1;
@@ -69,23 +69,23 @@ module	fastio(i_clk,
 	// Board level PMod I/O
 	//
 	// GPIO
-	input		[(NGPI-1):0]	i_gpio;
+	input	wire	[(NGPI-1):0]	i_gpio;
 	output wire	[(NGPO-1):0]	o_gpio;
 	//
 	// Wishbone inputs
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[4:0]	i_wb_addr;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[4:0]	i_wb_addr;
+	input	wire	[31:0]	i_wb_data;
 	// Wishbone outputs
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
 	output	reg	[31:0]	o_wb_data;
 	// A strobe at midnight, to keep the calendar on "time"
-	input			i_rtc_ppd;
+	input	wire		i_rtc_ppd;
 	// Address of the last bus error
-	input		[31:0]	i_buserr;
+	input	wire	[31:0]	i_buserr;
 	// The current time, as produced by the GPS tracking processor
-	input		[31:0]	i_gps_sub, i_gps_step;
+	input	wire	[31:0]	i_gps_sub, i_gps_step;
 	//
 	// Interrupts -- both the output bus interrupt, as well as those
 	//	internally generated interrupts which may be used elsewhere
@@ -242,7 +242,7 @@ module	fastio(i_clk,
 `ifdef	GET_DATE
 	wire	date_ack, date_stall;
 	rtcdate	thedate(i_clk, i_rtc_ppd,
-		i_wb_cyc, w_wb_stb, (w_wb_addr==5'h7), w_wb_data,
+		i_wb_stb, (w_wb_addr==5'h7), w_wb_data,
 			date_ack, date_stall, date_data);
 `else
 	assign	date_data = 32'h20170000;

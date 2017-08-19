@@ -26,7 +26,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -37,6 +37,11 @@
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
 //
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
@@ -49,11 +54,11 @@
 // better here.
 module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	parameter	DW=32, CW=36, TBITS=10;
-	input				i_clk, i_stb;
-	input		[(CW-1):0]	i_codword;
+	input	wire			i_clk, i_stb;
+	input	wire	[(CW-1):0]	i_codword;
 	output	wire			o_stb;
 	output	wire	[(CW-1):0]	o_cword;
-	input				i_busy;
+	input	wire			i_busy;
 
 	//
 	//
@@ -205,14 +210,13 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	reg			dmatch, // Match, on clock 'd'
 				vaddr;	// Was the address valid then?
 	reg	[(DW-1):0]	cword;
-	reg	[(TBITS-1):0]	caddr, daddr, maddr;
+	reg	[(TBITS-1):0]	caddr, maddr;
 	always @(posedge i_clk)
 	begin
 		cword <= compression_tbl[rd_addr];
 		caddr <= rd_addr;
 
 		dmatch <= (cword == { r_word[32:31], r_word[29:0] });
-		daddr  <= caddr;
 		maddr  <= tbl_addr - caddr;
 
 		vaddr <= ( {1'b0, caddr} < {tbl_filled, tbl_addr} )
@@ -250,10 +254,8 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 		end
 
 	// Did we find something?
-	wire	[(TBITS-1):0]	adr_diff;
 	wire	[9:0]		adr_dbld;
 	wire	[2:0]		adr_hlfd;
-	assign	adr_diff = matchaddr;
 	assign	adr_hlfd = matchaddr[2:0]- 3'd2;
 	assign	adr_dbld = matchaddr- 10'd10;
 	reg	[(CW-1):0]	r_cword; // Record our result

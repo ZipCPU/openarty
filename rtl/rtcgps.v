@@ -57,17 +57,17 @@ module	rtcgps(i_clk,
 		o_rtc_pps);
 	parameter	DEFAULT_SPEED = 32'd2814750; //2af31e = 2^48 / 100e6 MHz
 	//
-	input			i_clk;
+	input	wire		i_clk;
 	//
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[1:0]	i_wb_addr;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[1:0]	i_wb_addr;
+	input	wire	[31:0]	i_wb_data;
 	// input		i_btn;
 	output	reg	[31:0]	o_data;
 	output	wire		o_interrupt, o_ppd;
 	// GPS interface
-	input			i_gps_valid, i_gps_pps;
-	input		[31:0]	i_gps_ckspeed;
+	input	wire		i_gps_valid, i_gps_pps;
+	input	wire	[31:0]	i_gps_ckspeed;
 	// Personal PPS
 	output	wire		o_rtc_pps;
 
