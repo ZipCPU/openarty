@@ -543,7 +543,7 @@ public:
 			execsim(m_core->cpu_op_sim_immv);
 		}
 
-#define	DEBUGGING_OUTPUT
+// #define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
