@@ -38,6 +38,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 `define	NO_ZIP_WBU_DELAY
 `define	ZIPCPU
 //
@@ -152,27 +154,27 @@ module	busmaster(i_clk, i_rst,
 		);
 	parameter	ZA=28, ZIPINTS=14, RESET_ADDRESS=32'h01380000,
 			NGPI = 4, NGPO = 1;
-	input			i_clk, i_rst;
+	input	wire		i_clk, i_rst;
 	// The bus commander, via an external uart port
-	input			i_rx_stb;
-	input		[7:0]	i_rx_data;
+	input	wire		i_rx_stb;
+	input	wire	[7:0]	i_rx_data;
 	output	wire		o_tx_stb;
 	output	wire	[7:0]	o_tx_data;
-	input			i_tx_busy;
+	input	wire		i_tx_busy;
 	// I/O to/from board level devices
-	input		[3:0]	i_sw;	// 16 switch bus
-	input		[3:0]	i_btn;	// 5 Buttons
+	input	wire	[3:0]	i_sw;	// 16 switch bus
+	input	wire	[3:0]	i_btn;	// 5 Buttons
 	output	wire	[3:0]	o_led;	// 16 wide LED's
 	output	wire	[2:0]	o_clr_led0, o_clr_led1, o_clr_led2, o_clr_led3;
 	// PMod UARTs
-	input			i_aux_rx, i_aux_cts_n;
+	input	wire		i_aux_rx, i_aux_cts_n;
 	output	wire		o_aux_tx, o_aux_rts_n;
-	input			i_gps_rx;
+	input	wire		i_gps_rx;
 	output	wire		o_gps_tx;
 	// Quad-SPI flash control
 	output	wire		o_qspi_cs_n, o_qspi_sck;
 	output	wire	[3:0]	o_qspi_dat;
-	input		[3:0]	i_qspi_dat;
+	input	wire	[3:0]	i_qspi_dat;
 	output	wire	[1:0]	o_qspi_mod;
 	//
 	// DDR3 RAM controller
@@ -197,37 +199,37 @@ module	busmaster(i_clk, i_rst,
 	output	wire	[25:0]	o_ram_addr;
 	output	wire	[31:0]	o_ram_wdata;
 	output	wire	[3:0]	o_ram_sel;
-	input			i_ram_ack, i_ram_stall;
-	input		[31:0]	i_ram_rdata;
-	input			i_ram_err;
-	input		[31:0]	i_ram_dbg;
+	input	wire		i_ram_ack, i_ram_stall;
+	input	wire	[31:0]	i_ram_rdata;
+	input	wire		i_ram_err;
+	input	wire	[31:0]	i_ram_dbg;
 	// The SD Card
 	output	wire		o_sd_sck;
 	output	wire		o_sd_cmd;
 	output	wire	[3:0]	o_sd_data;
-	input			i_sd_cmd;
-	input		[3:0]	i_sd_data;
-	input			i_sd_detect;
+	input	wire		i_sd_cmd;
+	input	wire	[3:0]	i_sd_data;
+	input	wire		i_sd_detect;
 	// Ethernet control
 	output	wire		o_net_reset_n;
-	input			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
-	input		[3:0]	i_net_rxd;
-	input			i_net_rxerr;
-	input			i_net_tx_clk;
+	input	wire		i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
+	input	wire	[3:0]	i_net_rxd;
+	input	wire		i_net_rxerr;
+	input	wire		i_net_tx_clk;
 	output	wire		o_net_tx_en;
 	output	wire	[3:0]	o_net_txd;
 	// Ethernet control (MDIO)
 	output	wire		o_mdclk, o_mdio, o_mdwe;
-	input			i_mdio;
+	input	wire		i_mdio;
 	// OLEDRGB interface
 	output	wire		o_oled_sck, o_oled_cs_n, o_oled_mosi,
 				o_oled_dcn, o_oled_reset_n, o_oled_vccen,
 				o_oled_pmoden;
 	// GPS PMod (GPS UART above)
-	input			i_gps_pps;
-	input			i_gps_3df;
+	input	wire		i_gps_pps;
+	input	wire		i_gps_3df;
 	// Other GPIO wires
-	input	[(NGPI-1):0]	i_gpio;
+	input	wire	[(NGPI-1):0]	i_gpio;
 	output	wire	[(NGPO-1):0]	o_gpio;
 
 	//
