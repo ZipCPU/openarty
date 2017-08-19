@@ -62,7 +62,7 @@ JTAGBUS := wbufifo.v wbubus.v wbucompactlines.v				\
 	wbuidleint.v wbuinput.v wbuoutput.v wbureadcw.v wbusixchar.v	\
 	wbutohex.v
 PERIPHERALS:= enetctrl.v enetpackets.v fastio.v rtcdate.v rtcgps.v	\
-	rxuart.v txuart.v eqspiflash.v lleqspi.v flash_config.v		\
+	rxuart.v txuart.v eqspiflash.v lleqspi.v flashconfig.v		\
 	wbicapetwo.v sdspi.v gpsclock_tb.v gpsclock.v wboled.v lloled.v	\
 	wbscopc.v wbscope.v memdev.v addepreamble.v addemac.v addecrc.v	\
 	addepad.v rxecrc.v rxepreambl.v rxehwmac.v rxewrite.v		\
