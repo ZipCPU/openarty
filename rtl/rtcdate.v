@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtcdate.v
-//		
+//
 // Project:	A Wishbone Controlled Real--time Clock Core
 //
 // Purpose:
@@ -28,7 +28,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -50,17 +50,17 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
-module rtcdate(i_clk, i_ppd, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
+module rtcdate(i_clk, i_ppd, i_wb_cyc_stb, i_wb_we, i_wb_data,
 		o_wb_ack, o_wb_stall, o_wb_data);
-	input	i_clk;
+	input	wire	i_clk;
 	// A one part per day signal, i.e. basically a clock enable line that
 	// controls when the beginning of the day happens.  This line should
 	// be high on the very last second of any day in order for the rtcdate
 	// module to always have the right date.
-	input	i_ppd;
+	input	wire	i_ppd;
 	// Wishbone inputs
-	input	i_wb_cyc, i_wb_stb, i_wb_we;
-	input	[31:0]	i_wb_data;
+	input	wire		i_wb_cyc_stb, i_wb_we;
+	input	wire	[31:0]	i_wb_data;
 	// Wishbone outputs
 	output	reg	o_wb_ack;
 	output	wire	o_wb_stall;
@@ -134,7 +134,7 @@ module rtcdate(i_clk, i_ppd, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
 		else if (~o_wb_ack)
 			r_day <= fixd_day;
 
-		if ((i_wb_stb)&&(i_wb_we)&&(~i_wb_data[7]))
+		if ((i_wb_cyc_stb)&&(i_wb_we)&&(~i_wb_data[7]))
 			r_day <= i_wb_data[5:0];
 	end
 
@@ -165,7 +165,7 @@ module rtcdate(i_clk, i_ppd, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
 		else if (~o_wb_ack)
 			r_mon <= fixd_mon;
 
-		if ((i_wb_stb)&&(i_wb_we)&&(~i_wb_data[15]))
+		if ((i_wb_cyc_stb)&&(i_wb_we)&&(!i_wb_data[15]))
 			r_mon <= i_wb_data[12:8];
 	end
 
@@ -200,12 +200,12 @@ module rtcdate(i_clk, i_ppd, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
 		if ((i_ppd)&&(last_day_of_year))
 			r_year <= next_year;
 
-		if ((i_wb_stb)&&(i_wb_we)&&(~i_wb_data[31]))
+		if ((i_wb_cyc_stb)&&(i_wb_we)&&(!i_wb_data[31]))
 			r_year <= i_wb_data[29:16];
 	end
 
 	always @(posedge i_clk)
-		o_wb_ack <= (i_wb_stb);
+		o_wb_ack <= (i_wb_cyc_stb);
 	assign	o_wb_stall = 1'b0;
 	assign	o_wb_data = { 2'h0, r_year, 3'h0, r_mon, 2'h0, r_day };
 endmodule
