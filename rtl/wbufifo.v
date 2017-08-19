@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015, Gisselquist Technology, LLC
+// Copyright (C) 2015,2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -25,6 +25,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -34,10 +39,10 @@
 //
 module wbufifo(i_clk, i_rst, i_wr, i_data, i_rd, o_data, o_empty_n, o_err);
 	parameter	BW=66, LGFLEN=10;
-	input			i_clk, i_rst;
-	input			i_wr;
-	input	[(BW-1):0]	i_data;
-	input			i_rd;
+	input	wire		i_clk, i_rst;
+	input	wire		i_wr;
+	input	wire [(BW-1):0]	i_data;
+	input	wire		i_rd;
 	output	reg [(BW-1):0]	o_data;
 	output	reg		o_empty_n;
 	output	wire		o_err;
@@ -46,6 +51,9 @@ module wbufifo(i_clk, i_rst, i_wr, i_data, i_rd, o_data, o_empty_n, o_err);
 
 	reg	[(BW-1):0]	fifo[0:(FLEN-1)];
 	reg	[(LGFLEN-1):0]	r_first, r_last;
+
+	wire	[(LGFLEN-1):0]	nxt_first;
+	assign	nxt_first = r_first+{{(LGFLEN-1){1'b0}},1'b1};
 
 	reg	will_overflow;
 	initial	will_overflow = 1'b0;
@@ -56,7 +64,7 @@ module wbufifo(i_clk, i_rst, i_wr, i_data, i_rd, o_data, o_empty_n, o_err);
 			will_overflow <= (will_overflow)&&(i_wr);
 		else if (i_wr)
 			will_overflow <= (r_first+2 == r_last);
-		else if (r_first+1 == r_last)
+		else if (nxt_first == r_last)
 			will_overflow <= 1'b1;
 
 	// Write
@@ -67,7 +75,7 @@ module wbufifo(i_clk, i_rst, i_wr, i_data, i_rd, o_data, o_empty_n, o_err);
 		else if (i_wr)
 		begin // Cowardly refuse to overflow
 			if ((i_rd)||(~will_overflow)) // (r_first+1 != r_last)
-				r_first <= r_first+{{(LGFLEN-1){1'b0}},1'b1};
+				r_first <= nxt_first;
 			// else o_ovfl <= 1'b1;
 		end
 	always @(posedge i_clk)
@@ -116,8 +124,6 @@ module wbufifo(i_clk, i_rst, i_wr, i_data, i_rd, o_data, o_empty_n, o_err);
 		o_data <= fifo[(i_rd)?(r_last+{{(LGFLEN-1){1'b0}},1'b1})
 					:(r_last)];
 
-	wire	[(LGFLEN-1):0]	nxt_first;
-	assign	nxt_first = r_first+{{(LGFLEN-1){1'b0}},1'b1};
 	assign	o_err = ((i_wr)&&(will_overflow)&&(~i_rd))
 				||((i_rd)&&(will_underflow)&&(~i_wr));
 
