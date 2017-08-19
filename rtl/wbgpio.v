@@ -34,7 +34,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -63,7 +63,7 @@
 module wbgpio(i_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data, o_wb_data,
 		i_gpio, o_gpio, o_int);
 	parameter		NIN=16, NOUT=16;
-	parameter [(NOUT-1):0]	DEFAULT=16'h00;
+	parameter [(NOUT-1):0]	DEFAULT=0;
 	input	wire		i_clk;
 	//
 	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
@@ -92,6 +92,21 @@ module wbgpio(i_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data, o_wb_data,
 		o_int  <= (x_gpio != r_gpio);
 	end
 
-	assign	o_wb_data = { {(16-NIN){1'b0}}, r_gpio,
-					{(16-NOUT){1'b0}}, o_gpio };
+	wire	[15:0]	hi_bits, low_bits;
+	assign	hi_bits[ (NIN -1):0] = r_gpio;
+	assign	low_bits[(NOUT-1):0] = o_gpio;
+	generate
+	if (NIN < 16)
+		assign hi_bits[ 15: NIN] = 0;
+	if (NOUT < 16)
+		assign low_bits[15:NOUT] = 0;
+	endgenerate
+
+	assign	o_wb_data = { hi_bits, low_bits };
+
+	// Make Verilator happy
+	// verilator lint_off UNUSED
+	wire	[2:0]	unused;
+	assign	unused = { i_wb_cyc, i_wb_data[31], i_wb_data[15] };
+	// verilator lint_on  UNUSED
 endmodule
