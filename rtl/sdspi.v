@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2016, Gisselquist Technology, LLC
+// Copyright (C) 2016-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -34,6 +34,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
+//
+`default_nettype	none
 //
 `define	SDSPI_CMD_ADDRESS	2'h0
 `define	SDSPI_DAT_ADDRESS	2'h1
@@ -74,21 +76,21 @@ module	sdspi(i_clk,
 		// And some wires for debugging it all
 		o_debug);
 	parameter	LGFIFOLN = 7;
-	input	i_clk;
+	input	wire		i_clk;
 	//
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[1:0]	i_wb_addr;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
+	input	wire	[1:0]	i_wb_addr;
+	input	wire	[31:0]	i_wb_data;
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
 	output	reg	[31:0]	o_wb_data;
 	//
 	output	wire		o_cs_n, o_sck, o_mosi;
-	input			i_miso;
+	input	wire		i_miso;
 	// The interrupt
 	output	reg		o_int;
 	// .. and whether or not we can use the SPI port
-	input			i_bus_grant;
+	input	wire		i_bus_grant;
 	//
 	output	wire	[31:0]	o_debug;
 
@@ -102,29 +104,29 @@ module	sdspi(i_clk,
 	wire	[31:0]	wb_data;
 `ifdef	WB_CLOCK
 	wire	wb_stb, write_stb, cmd_stb; // read_stb
-	assign	wb_stb    = ((i_wb_stb)&&(~o_wb_stall));
+	assign	wb_stb    = ((i_wb_stb)&&(!o_wb_stall));
 	assign	write_stb = ((wb_stb)&&( i_wb_we));
-	// assign	read_stb  = ((wb_stb)&&(~i_wb_we));
-	assign	cmd_stb  = (~r_cmd_busy)&&(write_stb)
+	// assign	read_stb  = ((wb_stb)&&(!i_wb_we));
+	assign	cmd_stb  = (!r_cmd_busy)&&(write_stb)
 				&&(i_wb_addr==`SDSPI_CMD_ADDRESS);
 	assign	wb_addr = i_wb_addr;
 	assign	wb_data = i_wb_data;
 	assign	new_cmd = cmd_stb;
-	assign	new_data = (i_wb_stb)&&(~o_wb_stall)&&(i_wb_we)
+	assign	new_data = (i_wb_stb)&&(!o_wb_stall)&&(i_wb_we)
 				&&(i_wb_addr == `SDSPI_DAT_ADDRESS);
 `else
 	reg	r_wb_stb, r_write_stb, r_cmd_stb, r_new_data;
 	reg	[1:0]	r_wb_addr;
 	reg	[31:0]	r_wb_data;
 	always @(posedge i_clk)
-		r_wb_stb <= ((i_wb_stb)&&(~o_wb_stall));
+		r_wb_stb <= ((i_wb_stb)&&(!o_wb_stall));
 	always @(posedge i_clk)
-		r_write_stb <= ((i_wb_stb)&&(~o_wb_stall)&&(i_wb_we));
+		r_write_stb <= ((i_wb_stb)&&(!o_wb_stall)&&(i_wb_we));
 	always @(posedge i_clk)
-		r_cmd_stb <= (~r_cmd_busy)&&(i_wb_stb)&&(~o_wb_stall)&&(i_wb_we)
+		r_cmd_stb <= (!r_cmd_busy)&&(i_wb_stb)&&(!o_wb_stall)&&(i_wb_we)
 					&&(i_wb_addr == `SDSPI_CMD_ADDRESS);
 	always @(posedge i_clk)
-		r_new_data <= (i_wb_stb)&&(~o_wb_stall)&&(i_wb_we)
+		r_new_data <= (i_wb_stb)&&(!o_wb_stall)&&(i_wb_we)
 				&&(i_wb_addr == `SDSPI_DAT_ADDRESS);
 	always @(posedge i_clk)
 		r_wb_addr <= i_wb_addr;
@@ -167,7 +169,10 @@ module	sdspi(i_clk,
 				r_fifo_id,
 				ll_fifo_wr, ll_fifo_rd,
 				r_have_data_response_token, 
-				r_have_start_token;
+				r_have_start_token,
+				r_err_token;
+	reg	[3:0]	r_read_err_token;
+	reg	[1:0]	r_data_response_token;
 	reg	[7:0]	fifo_byte;
 	reg	[7:0]	r_last_r_one;
 	//
@@ -191,8 +196,6 @@ module	sdspi(i_clk,
 			fifo_b_mem_2[0:((1<<LGFIFOLN)-1)],
 			fifo_b_mem_3[0:((1<<LGFIFOLN)-1)];
 	reg	[(LGFIFOLN-1):0]	fifo_wb_addr;
-	reg	[(LGFIFOLN+1):0]	rd_fifo_sd_addr;
-	reg	[(LGFIFOLN+1):0]	wr_fifo_sd_addr;
 	//
 	reg	[(LGFIFOLN+1):0]	ll_fifo_addr;
 	//
@@ -235,7 +238,7 @@ module	sdspi(i_clk,
 	initial	r_cmd_err   = 1'b0;
 	always @(posedge i_clk)
 	begin
-		if (~ll_cmd_stb)
+		if (!ll_cmd_stb)
 		begin
 			r_have_resp <= 1'b0;
 			ll_fifo_wr <= 1'b0;
@@ -318,9 +321,9 @@ module	sdspi(i_clk,
 			// are expecting.
 			if (pre_rsp_state)
 			begin
-				if (r_rsp_state == `SDSPI_RSP_NONE)
-				begin // Waiting on R1
-					if (~ll_out_dat[7])
+				case(r_rsp_state)
+				`SDSPI_RSP_NONE: begin // Waiting on R1
+					if (!ll_out_dat[7])
 					begin
 						r_last_r_one <= ll_out_dat;
 						if (r_cmd_resp == `SDSPI_EXPECT_R1)
@@ -328,65 +331,72 @@ module	sdspi(i_clk,
 							r_have_resp <= 1'b1;
 							ll_cmd_stb <= (r_use_fifo);
 							r_data_reg <= 32'hffffffff;
-							ll_fifo_wr<=(r_use_fifo)&&(~r_fifo_wr);
+							ll_fifo_wr<=(r_use_fifo)&&(!r_fifo_wr);
 						end else if (r_cmd_resp == `SDSPI_EXPECT_R1B)
 						begin // Go wait on R1b
 							r_data_reg <= 32'hffffffff;
 						end // else wait on 32-bit rsp
-					end
-				end else if (r_rsp_state == `SDSPI_RSP_BSYWAIT)
-				begin // Waiting on R1b, have R1
+					end end
+				`SDSPI_RSP_BSYWAIT: begin
+					// Waiting on R1b, have R1
 					if (nonzero_out)
 						r_have_resp <= 1'b1;
 					ll_cmd_stb <= (r_use_fifo);
-				end else if (r_rsp_state == `SDSPI_RSP_GETWORD)
-				begin // Have R1, waiting on all of R2/R3/R7
-					r_data_reg <= { r_data_reg[23:0], ll_out_dat };
+					end 
+				`SDSPI_RSP_GETWORD: begin
+					// Have R1, waiting on all of R2/R3/R7
+					r_data_reg <= { r_data_reg[23:0],
+								ll_out_dat };
 					r_data_fil <= r_data_fil+2'b01;
 					if (r_data_fil == 2'b11)
 					begin
 						ll_cmd_stb <= (r_use_fifo);
 						// r_rsp_state <= 3'h3;
-					end
-				end else if (r_rsp_state == `SDSPI_RSP_WAIT_WHILE_BUSY)
-				begin // Wait while device is busy writing
+					end end 
+				`SDSPI_RSP_WAIT_WHILE_BUSY: begin
+					// Wait while device is busy writing
 					// if (nonzero_out)
 					// begin
 						// r_data_reg[31:8] <= 24'h00;
 						// r_data_reg[7:0] <= ll_out_dat;
 						// // r_rsp_state <= 3'h6;
 					// end
-					;
-				end else if (r_rsp_state == `SDSPI_RSP_RDCOMPLETE)
-				begin // Block write command has completed
+					end
+				`SDSPI_RSP_RDCOMPLETE: begin
+					// Block write command has completed
 					ll_cmd_stb <= 1'b0;
-				end else if (r_rsp_state == `SDSPI_RSP_WRITING)
-				begin // We are reading from the device into
+					end
+				`SDSPI_RSP_WRITING: begin
+					// We are reading from the device into
 					// our FIFO
 					if ((ll_fifo_wr_complete)
 						// Or ... we receive an error
-						||((~r_have_start_token)
-						&&(~ll_out_dat[4])
-						&&(ll_out_dat[0])))
+						||(r_read_err_token[0]))
 					begin
 						ll_fifo_wr <= 1'b0;
 						ll_cmd_stb <= 1'b0;
-					end
-				end
+					end end
+				// `SDSPI_RSP_GETTOKEN:
+				default: begin end
+				endcase
 			end
+
+			if ((r_use_fifo)&&(ll_out_stb))
+				r_data_reg <= { 26'h3ffffff, r_data_response_token, r_read_err_token };
 
 			if (r_watchdog_err)
 				ll_cmd_stb <= 1'b0;
-			r_cmd_err<= (r_cmd_err)|(fifo_crc_err)|(r_watchdog_err);
+			r_cmd_err<= (r_cmd_err)|(fifo_crc_err)|(r_watchdog_err)
+					|(r_err_token);
 		end else if (r_cmd_busy)
 		begin
-			r_cmd_busy <= (ll_cmd_stb)||(~ll_idle);
+			r_cmd_busy <= (ll_cmd_stb)||(!ll_idle);
 		end else if (new_cmd)
 		begin // Command write
 			// Clear the error on any write, whether a commanding
 			// one or not.  -- provided the user requests clearing
 			// it (by setting the bit high)
-			r_cmd_err  <= (r_cmd_err)&&(~wb_data[15]);
+			r_cmd_err  <= (r_cmd_err)&&(!wb_data[15]);
 			// In a similar fashion, we can switch fifos even if
 			// not in the middle of a command
 			r_fifo_id  <= wb_data[12];
@@ -424,20 +434,19 @@ module	sdspi(i_clk,
 			r_data_reg <= wb_data;
 	end
 
-
 	always @(posedge i_clk)
 		pre_cmd_state <= (ll_cmd_stb)&&(ll_idle);
 
 	reg	ready_for_response_token;
 	always @(posedge i_clk)
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			ready_for_response_token <= 1'b0;
 		else if (ll_fifo_rd)
 			ready_for_response_token <= 1'b1;
 	always @(posedge i_clk)
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			r_have_data_response_token <= 1'b0;
-		else if ((ll_out_stb)&&(ready_for_response_token)&&(~ll_out_dat[4]))
+		else if ((ll_out_stb)&&(ready_for_response_token)&&(!ll_out_dat[4]))
 			r_have_data_response_token <= 1'b1;
 
 	reg	[2:0]	second_rsp_state;
@@ -461,11 +470,11 @@ module	sdspi(i_clk,
 	// Each bit depends upon 8 bits of input
 	initial	r_rsp_state = 3'h0;
 	always @(posedge i_clk)
-		if (~r_cmd_sent)
+		if (!r_cmd_sent)
 			r_rsp_state <= 3'h0;
 		else if (pre_rsp_state)
 		begin
-			if ((r_rsp_state == `SDSPI_RSP_NONE)&&(~ll_out_dat[7]))
+			if ((r_rsp_state == `SDSPI_RSP_NONE)&&(!ll_out_dat[7]))
 			begin
 				r_rsp_state <= second_rsp_state;
 			end else if (r_rsp_state == `SDSPI_RSP_BSYWAIT)
@@ -506,7 +515,7 @@ module	sdspi(i_clk,
 		// with the card.  These include the speed of the interface,
 		// and the size of the block length to expect as part of a FIFO
 		// command.
-		if ((new_cmd)&&(wb_data[7:6]==2'b11)&&(~r_data_reg[7])
+		if ((new_cmd)&&(wb_data[7:6]==2'b11)&&(!r_data_reg[7])
 			&&(r_data_reg[15:12]==4'h00))
 		begin
 			if (|r_data_reg[6:0])
@@ -522,7 +531,7 @@ module	sdspi(i_clk,
 		case(wb_addr)
 		`SDSPI_CMD_ADDRESS:
 			o_wb_data <= { need_reset, 11'h00,
-					3'h0, fifo_crc_err,
+					2'h0, r_err_token, fifo_crc_err,
 					r_cmd_err, r_cmd_busy, 1'b0, r_fifo_id,
 					r_use_fifo, r_fifo_wr, r_cmd_resp,
 					r_last_r_one };
@@ -541,7 +550,7 @@ module	sdspi(i_clk,
 	always @(posedge i_clk)
 		q_busy <= r_cmd_busy;
 	always @(posedge i_clk)
-		o_int <= (~r_cmd_busy)&&(q_busy);
+		o_int <= (!r_cmd_busy)&&(q_busy);
 
 	assign	o_wb_stall = 1'b0;
 
@@ -586,23 +595,50 @@ module	sdspi(i_clk,
 	initial	pre_fifo_addr_inc_rd = 1'b0;
 	initial	pre_fifo_addr_inc_wr = 1'b0;
 	always @(posedge i_clk)
-		pre_fifo_addr_inc_wr <= ((ll_fifo_wr)&&(ll_out_stb)&&(r_have_start_token));
+		pre_fifo_addr_inc_wr <= ((ll_fifo_wr)&&(ll_out_stb)
+						&&(r_have_start_token));
 	always @(posedge i_clk)
-		pre_fifo_addr_inc_rd <= ((ll_fifo_rd)&&(ll_cmd_stb)&&(ll_idle));//&&(ll_fifo_pkt_state[2:0]!=3'b000));
+		pre_fifo_addr_inc_rd <= ((ll_fifo_rd)&&(ll_cmd_stb)&&(ll_idle));
 	always @(posedge i_clk)
 	begin
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			ll_fifo_addr <= {(LGFIFOLN+2){1'b0}};
 		else if ((pre_fifo_addr_inc_wr)||(pre_fifo_addr_inc_rd))
 			ll_fifo_addr <= ll_fifo_addr + 1;
 	end
 
-	// Look for that start token
+	//
+	// Look for that start token.  This will be present when reading from 
+	// the device into the FIFO.
+	// 
 	always @(posedge i_clk)
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			r_have_start_token <= 1'b0;
 		else if ((ll_fifo_wr)&&(ll_out_stb)&&(ll_out_dat==8'hfe))
 			r_have_start_token <= 1'b1;
+	always @(posedge i_clk)
+		if (!r_cmd_busy)
+			r_read_err_token <= 4'h0;
+		else if ((ll_fifo_wr)&&(ll_out_stb)&&(!r_have_start_token)
+				&&(ll_out_dat[7:4]==4'h0))
+			r_read_err_token <= ll_out_dat[3:0];
+	always @(posedge i_clk) // Look for a response to our writing
+		if (!r_cmd_busy)
+			r_data_response_token <= 2'b00;
+		else if ((ready_for_response_token)
+				&&(!ll_out_dat[4])&&(ll_out_dat[0]))
+			r_data_response_token <= ll_out_dat[3:2];
+	initial	r_err_token = 1'b0;
+	always @(posedge i_clk)
+		if (ll_fifo_rd)
+			r_err_token <= (r_err_token)|(r_read_err_token[0]);
+		else if (ll_fifo_wr)
+			r_err_token <= (r_err_token)|
+				((|r_data_response_token)&&(r_data_response_token[1]));
+		else if (cmd_stb)
+			// Clear the error on any write with the bit high
+			r_err_token  <= (r_err_token)&&(!i_wb_data[16])
+						&&(!i_wb_data[15]);
 
 	reg	last_fifo_byte;
 	initial last_fifo_byte = 1'b0;
@@ -624,11 +660,16 @@ module	sdspi(i_clk,
 		clear_fifo_crc;
 	always @(posedge i_clk)
 	begin
-		pre_fifo_a_wr <= (ll_fifo_wr)&&(ll_out_stb)&&(~r_fifo_id)&&(ll_fifo_wr_state == 2'b00);
-		pre_fifo_b_wr <= (ll_fifo_wr)&&(ll_out_stb)&&( r_fifo_id)&&(ll_fifo_wr_state == 2'b00);
-		fifo_wr_crc_stb <= (ll_fifo_wr)&&(ll_out_stb)&&(ll_fifo_wr_state == 2'b00)&&(r_have_start_token);
-		pre_fifo_crc_a<= (ll_fifo_wr)&&(ll_out_stb)&&(ll_fifo_wr_state == 2'b01);
-		pre_fifo_crc_b<= (ll_fifo_wr)&&(ll_out_stb)&&(ll_fifo_wr_state == 2'b10);
+		pre_fifo_a_wr <= (ll_fifo_wr)&&(ll_out_stb)
+				&&(!r_fifo_id)&&(ll_fifo_wr_state == 2'b00);
+		pre_fifo_b_wr <= (ll_fifo_wr)&&(ll_out_stb)
+				&&( r_fifo_id)&&(ll_fifo_wr_state == 2'b00);
+		fifo_wr_crc_stb <= (ll_fifo_wr)&&(ll_out_stb)
+			&&(ll_fifo_wr_state == 2'b00)&&(r_have_start_token);
+		pre_fifo_crc_a<= (ll_fifo_wr)&&(ll_out_stb)
+				&&(ll_fifo_wr_state == 2'b01);
+		pre_fifo_crc_b<= (ll_fifo_wr)&&(ll_out_stb)
+				&&(ll_fifo_wr_state == 2'b10);
 		clear_fifo_crc <= (new_cmd)&&(wb_data[15]);
 	end
 
@@ -698,10 +739,10 @@ module	sdspi(i_clk,
 		if ((fifo_b_wr)&&(fifo_b_wr_mask[3]))
 			fifo_b_mem_3[fifo_b_wr_addr] <= fifo_b_wr_data[31:24];
 
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			ll_fifo_wr_complete <= 1'b0;
 
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			ll_fifo_wr_state <= 2'b00;
 		else if ((pre_fifo_a_wr)||(pre_fifo_b_wr))
 			ll_fifo_wr_state <= (last_fifo_byte)? 2'b01:2'b00;
@@ -744,7 +785,7 @@ module	sdspi(i_clk,
 	reg	[(LGFIFOLN-1):0]	r_blklimit;
 	wire	[(LGFIFOLN+1):0]	w_blklimit;
 	always @(posedge i_clk)
-		r_blklimit[(LGFIFOLN-1):0] = (1<<r_lgblklen)-1;
+		r_blklimit[(LGFIFOLN-1):0] <= (1<<r_lgblklen)-1;
 	assign	w_blklimit = { r_blklimit, 2'b11 };
 
 	// Package the FIFO reads up into a packet
@@ -812,7 +853,7 @@ module	sdspi(i_clk,
 
 	always @(posedge i_clk)
 	begin
-		if (~ll_fifo_wr)
+		if (!ll_fifo_wr)
 			fifo_wr_crc_reg <= 16'h00;
 		else if (fifo_wr_crc_stb)
 		begin
@@ -831,7 +872,7 @@ module	sdspi(i_clk,
 
 	always @(posedge i_clk)
 	begin
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 		begin
 			fifo_rd_crc_reg <= 16'h00;
 			fifo_rd_crc_count <= 4'h0;
@@ -856,12 +897,12 @@ module	sdspi(i_clk,
 	initial	r_cmd_crc_ff = 1'b0;
 	always @(posedge i_clk)
 	begin
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 		begin
 			r_cmd_crc <= 8'h00;
 			r_cmd_crc_cnt <= 4'hf;
 			r_cmd_crc_ff <= 1'b0;
-		end else if (~r_cmd_crc_cnt[3])
+		end else if (!r_cmd_crc_cnt[3])
 		begin
 			r_cmd_crc_cnt <= r_cmd_crc_cnt - 4'h1;
 			if (r_cmd_crc[7])
@@ -887,12 +928,12 @@ module	sdspi(i_clk,
 	initial	r_watchdog = 26'h3ffffff;
 	initial	r_watchdog_err = 1'b0;
 	always @(posedge i_clk)
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			r_watchdog_err <= 1'b0;
 		else if (r_watchdog == 0)
 			r_watchdog_err <= 1'b1;
 	always @(posedge i_clk)
-		if (~r_cmd_busy)
+		if (!r_cmd_busy)
 			r_watchdog <= 26'h3fffff;
 		else if (|r_watchdog)
 			r_watchdog <= r_watchdog - 26'h1;
@@ -904,6 +945,12 @@ module	sdspi(i_clk,
 			r_rsp_state, r_cmd_busy,	// 4'h
 			ll_cmd_dat,		// 8'b
 			ll_out_dat };		// 8'b
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = i_wb_cyc;
+	// verilator lint_on  UNUSED
 endmodule
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1005,22 +1052,22 @@ module	llsdspi(i_clk, i_speed, i_cs, i_stb, i_byte,
 		o_stb, o_byte, o_idle, i_bus_grant);
 	parameter	SPDBITS = 7;
 	//
-	input			i_clk;
+	input	wire		i_clk;
 	// Parameters/setup
-	input		[(SPDBITS-1):0]	i_speed;
+	input	wire	[(SPDBITS-1):0]	i_speed;
 	// The incoming interface
-	input			i_cs;
-	input			i_stb;
-	input		[7:0]	i_byte;
+	input	wire		i_cs;
+	input	wire		i_stb;
+	input	wire	[7:0]	i_byte;
 	// The actual SPI interface
 	output	reg		o_cs_n, o_sclk, o_mosi;
-	input			i_miso;
+	input	wire		i_miso;
 	// The outgoing interface
 	output	reg		o_stb;
 	output	reg	[7:0]	o_byte;
 	output	wire		o_idle;
 	// And whether or not we actually own the interface (yet)
-	input			i_bus_grant;
+	input	wire		i_bus_grant;
 
 	reg			r_z_counter;
 	reg	[(SPDBITS-1):0]	r_clk_counter;
@@ -1034,11 +1081,11 @@ module	llsdspi(i_clk, i_speed, i_cs, i_stb, i_byte,
 	initial	r_clk_counter = 7'h0;
 	always @(posedge i_clk)
 	begin
-		if ((~i_cs)||(~i_bus_grant))
+		if ((!i_cs)||(!i_bus_grant))
 			r_clk_counter <= 0;
 		else if (byte_accepted)
 			r_clk_counter <= i_speed;
-		else if (~r_z_counter)
+		else if (!r_z_counter)
 			r_clk_counter <= (r_clk_counter - {{(SPDBITS-1){1'b0}},1'b1});
 		else if ((r_state != `LLSDSPI_IDLE)&&(r_state != `LLSDSPI_HOTIDLE))
 			r_clk_counter <= (i_speed);
@@ -1049,11 +1096,11 @@ module	llsdspi(i_clk, i_speed, i_cs, i_stb, i_byte,
 	initial	r_z_counter = 1'b1;
 	always @(posedge i_clk)
 	begin
-		if ((~i_cs)||(~i_bus_grant))
+		if ((!i_cs)||(!i_bus_grant))
 			r_z_counter <= 1'b1;
 		else if (byte_accepted)
 			r_z_counter <= 1'b0;
-		else if (~r_z_counter)
+		else if (!r_z_counter)
 			r_z_counter <= (r_clk_counter == 1);
 		else if ((r_state != `LLSDSPI_IDLE)&&(r_state != `LLSDSPI_HOTIDLE))
 			r_z_counter <= 1'b0;
@@ -1063,13 +1110,13 @@ module	llsdspi(i_clk, i_speed, i_cs, i_stb, i_byte,
 	always @(posedge i_clk)
 	begin
 		o_stb <= 1'b0;
-		o_cs_n <= ~i_cs;
-		if (~i_cs)
+		o_cs_n <= !i_cs;
+		if (!i_cs)
 		begin
 			r_state <= `LLSDSPI_IDLE;
 			r_idle <= 1'b0;
 			o_sclk <= 1'b1;
-		end else if (~r_z_counter)
+		end else if (!r_z_counter)
 		begin
 			r_idle <= 1'b0;
 			if (byte_accepted)
