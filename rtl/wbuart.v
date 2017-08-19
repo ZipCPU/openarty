@@ -38,6 +38,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 `define	UART_SETUP	2'b00
 `define	UART_FIFO	2'b01
 `define	UART_RXREG	2'b10
@@ -60,16 +62,17 @@ module	wbuart(i_clk, i_rst,
 	localparam [3:0]	LCLLGFLEN = (LGFLEN > 4'ha)? 4'ha
 					: ((LGFLEN < 4'h2) ? 4'h2 : LGFLEN);
 	//
-	input	i_clk, i_rst;
+	input	wire		i_clk, i_rst;
 	// Wishbone inputs
-	input			i_wb_cyc, i_wb_stb, i_wb_we;
-	input		[1:0]	i_wb_addr;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_cyc;	// We ignore CYC for efficiency
+	input	wire		i_wb_stb, i_wb_we;
+	input	wire	[1:0]	i_wb_addr;
+	input	wire	[31:0]	i_wb_data;	// and only use 30 lines here
 	output	reg		o_wb_ack;
 	output	wire		o_wb_stall;
 	output	reg	[31:0]	o_wb_data;
 	//
-	input			i_uart_rx;
+	input	wire		i_uart_rx;
 	output	wire		o_uart_tx;
 	// RTS is used for hardware flow control.  According to Wikipedia, it
 	// should probably be renamed RTR for "ready to receive".  It tell us
@@ -78,7 +81,7 @@ module	wbuart(i_clk, i_rst,
 	//
 	// If you don't wish to use hardware flow control, just set i_cts_n to
 	// 1'b0 and let the optimizer simply remove this logic.
-	input			i_cts_n;
+	input	wire		i_cts_n;
 	// CTS is the "Clear-to-send" signal.  We set it anytime our FIFO
 	// isn't full.  Feel free to ignore this output if you do not wish to
 	// use flow control.
@@ -93,7 +96,8 @@ module	wbuart(i_clk, i_rst,
 	// baud rate are all captured within this uart_setup register.
 	//
 	reg	[30:0]	uart_setup;
-	initial	uart_setup = INITIAL_SETUP;
+	initial	uart_setup = INITIAL_SETUP
+		| ((HARDWARE_FLOW_CONTROL_PRESENT==1'b0)? 31'h40000000 : 0);
 	always @(posedge i_clk)
 		// Under wishbone rules, a write takes place any time i_wb_stb
 		// is high.  If that's the case, and if the write was to the
@@ -178,11 +182,14 @@ module	wbuart(i_clk, i_rst,
 	// Why N-1?  Because at N-1 we are totally full, but already so full
 	// that if the transmit end starts sending we won't have a location to
 	// receive it.  (Transmit might've started on the next character by the
-	// time we set this--need to set it to one character before necessary
+	// time we set this--thus we need to set it to one, one character before
+	// necessary).
+	wire	[(LCLLGFLEN-1):0]	check_cutoff;
+	assign	check_cutoff = -3;
 	always @(posedge i_clk)
-		o_rts_n = ((HARDWARE_FLOW_CONTROL_PRESENT)
+		o_rts_n <= ((HARDWARE_FLOW_CONTROL_PRESENT)
 			&&(!uart_setup[30])
-			&&(rxf_status[(LCLLGFLEN+1):4]=={(LCLLGFLEN-2){1'b1}}));
+			&&(rxf_status[(LCLLGFLEN+1):2] > check_cutoff));
 
 	// If the bus requests that we read from the receive FIFO, we need to
 	// tell this to the receive FIFO.  Note that because we are using a 
@@ -340,7 +347,7 @@ module	wbuart(i_clk, i_rst,
 			tx_uart_reset <= 1'b0;
 
 `ifdef	USE_LITE_UART
-	txuart	#(INITIAL_SETUP[23:0]) tx(i_clk, (tx_empty_n), tx_data,
+	txuartlite #(INITIAL_SETUP[23:0]) tx(i_clk, (tx_empty_n), tx_data,
 			o_uart_tx, tx_busy);
 `else
 	wire	cts_n;
@@ -415,5 +422,11 @@ module	wbuart(i_clk, i_rst,
 	// perhaps, but doesn't stall the pipeline.)  Hence, we can just
 	// set this value to zero.
 	assign	o_wb_stall = 1'b0;
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[33:0] unused;
+	assign	unused = { i_rst, i_wb_cyc, i_wb_data };
+	// verilator lint_on UNUSED
 
 endmodule
