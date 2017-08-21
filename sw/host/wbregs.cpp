@@ -6,7 +6,7 @@
 //
 // Purpose:	To give a user access, via a command line program, to read
 //		and write wishbone registers one at a time.  Thus this program
-//		implements readio() and writeio() but nothing more.
+//	implements readio() and writeio() but nothing more.
 //
 //
 // Creator:	Dan Gisselquist, Ph.D.
@@ -137,13 +137,16 @@ char	*getmap_name(const char *map_fname, const unsigned val) {
 }
 
 void	usage(void) {
-	printf("USAGE: wbregs address [value]\n"
+	printf("USAGE: wbregs [-d] address [value]\n"
 "\n"
 "\tWBREGS stands for Wishbone registers.  It is designed to allow a\n"
 "\tuser to peek and poke at registers within a given FPGA design, so\n"
 "\tlong as those registers have addresses on the wishbone bus.  The\n"
 "\taddress may reference peripherals or memory, depending upon how the\n"
 "\tbus is configured.\n"
+"\n"
+"\t-d\tIf given, specifies the value returned should be in decimal,\n"
+"\t\trather than hexadecimal.\n"
 "\n"
 "\tAddress is either a 32-bit value with the syntax of strtoul, or a\n"
 "\tregister name.  Register names can be found in regdefs.cpp\n"
