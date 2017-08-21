@@ -41,6 +41,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 		i_op, i_addr, i_data, i_oreg,
 			o_busy, o_pipe_stalled, o_valid, o_err, o_wreg, o_result,
@@ -48,15 +50,17 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 			o_wb_stb_gbl, o_wb_stb_lcl,
 			o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
 		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
-	parameter	ADDRESS_WIDTH=30, IMPLEMENT_LOCK=0;
+	parameter	ADDRESS_WIDTH=30;
+	parameter [0:0]	IMPLEMENT_LOCK=1'b0,
+			WITH_LOCAL_BUS=1'b1;
 	localparam	AW=ADDRESS_WIDTH;
-	input			i_clk, i_rst;
-	input			i_pipe_stb, i_lock;
+	input	wire		i_clk, i_rst;
+	input	wire		i_pipe_stb, i_lock;
 	// CPU interface
-	input	[2:0]		i_op;
-	input		[31:0]	i_addr;
-	input		[31:0]	i_data;
-	input		[4:0]	i_oreg;
+	input	wire	[2:0]	i_op;
+	input	wire	[31:0]	i_addr;
+	input	wire	[31:0]	i_data;
+	input	wire	[4:0]	i_oreg;
 	// CPU outputs
 	output	wire		o_busy;
 	output	wire		o_pipe_stalled;
@@ -73,8 +77,8 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 	output	reg	[31:0]	o_wb_data;
 	output	reg	[3:0]	o_wb_sel;
 	// Wishbone inputs
-	input			i_wb_ack, i_wb_stall, i_wb_err;
-	input		[31:0]	i_wb_data;
+	input	wire		i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire	[31:0]	i_wb_data;
 
 	reg	cyc;
 	reg			r_wb_cyc_gbl, r_wb_cyc_lcl;
@@ -100,8 +104,8 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 	assign	nxt_rdaddr = rdaddr + 1'b1;
 
 	wire	gbl_stb, lcl_stb;
-	assign	lcl_stb = (i_addr[31:24]==8'hff);
-	assign	gbl_stb = (~lcl_stb);
+	assign	lcl_stb = (i_addr[31:24]==8'hff)&&(WITH_LOCAL_BUS);
+	assign	gbl_stb = (!lcl_stb)||(!WITH_LOCAL_BUS);
 			//= ((i_addr[31:8]!=24'hc00000)||(i_addr[7:5]!=3'h0));
 
 	initial	cyc = 0;
@@ -190,13 +194,13 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 		o_wreg <= w_wreg[8:4];
 	always @(posedge i_clk)
 		casez(w_wreg[3:0])
-		4'b1100: o_result = { 24'h00, i_wb_data[31:24] };
-		4'b1101: o_result = { 24'h00, i_wb_data[23:16] };
-		4'b1110: o_result = { 24'h00, i_wb_data[15: 8] };
-		4'b1111: o_result = { 24'h00, i_wb_data[ 7: 0] };
-		4'b100?: o_result = { 16'h00, i_wb_data[31:16] };
-		4'b101?: o_result = { 16'h00, i_wb_data[15: 0] };
-		default: o_result = i_wb_data[31:0];
+		4'b1100: o_result <= { 24'h00, i_wb_data[31:24] };
+		4'b1101: o_result <= { 24'h00, i_wb_data[23:16] };
+		4'b1110: o_result <= { 24'h00, i_wb_data[15: 8] };
+		4'b1111: o_result <= { 24'h00, i_wb_data[ 7: 0] };
+		4'b100?: o_result <= { 16'h00, i_wb_data[31:16] };
+		4'b101?: o_result <= { 16'h00, i_wb_data[15: 0] };
+		default: o_result <= i_wb_data[31:0];
 		endcase
 
 	assign	o_pipe_stalled = (cyc)
@@ -222,5 +226,11 @@ module	pipemem(i_clk, i_rst, i_pipe_stb, i_lock,
 		assign	o_wb_cyc_gbl = (r_wb_cyc_gbl);
 		assign	o_wb_cyc_lcl = (r_wb_cyc_lcl);
 	end endgenerate
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = i_lock;
+	// verilator lint_on  UNUSED
 
 endmodule

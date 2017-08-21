@@ -71,7 +71,7 @@ module	wbuidleint(i_clk, i_stb, i_codword, i_cyc, i_busy, i_int,
 	reg	[35:0]	idle_counter;
 	initial	idle_counter = 36'h0000;
 	always @(posedge i_clk)
-		if ((i_stb)||(o_stb))
+		if ((i_stb)||(o_stb)||(i_busy))
 			idle_counter <= 36'h000;
 		else if (~idle_counter[35])
 			idle_counter <= idle_counter + 36'd43;

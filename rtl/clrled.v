@@ -91,7 +91,6 @@ module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
 	// always @(posedge i_clk) counter <= counter + 1'b1;
 	//
 
-	wire	[31:0]	w_clr_led;
 	reg	[8:0]	r_clr_led_r, r_clr_led_g, r_clr_led_b;
 
 	initial	r_clr_led_r = 9'h003; // Color LED on the far right
@@ -126,5 +125,11 @@ module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
 		o_led <= {	(rev_counter[8:0] < r_clr_led_r),
 				(rev_counter[8:0] < r_clr_led_g),
 				(rev_counter[8:0] < r_clr_led_b) };
+
+	// Make Verilator happy
+	// verilator lint_off UNUSED
+	wire	[4:0]	unused;
+	assign	unused = { i_data[31:27] };
+	// verilator lint_on  UNUSED
 
 endmodule

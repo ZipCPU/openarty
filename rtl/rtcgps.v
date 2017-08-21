@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtcgps.v
-//		
+//
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Implement a real time clock, including alarm, count--down
@@ -17,7 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -228,10 +228,10 @@ module	rtcgps(i_clk,
 		next_timer[23:20] <= (timer[23:20]-4'h1);
 	end
 
-	reg	new_timer, new_timer_set, new_timer_last, tm_pending_start;
+	reg	new_timer, new_timer_set, new_timer_last;
 	reg	[23:0]	new_timer_val;
 
-	reg	tm_pps, tm_ppm, tm_int;
+	reg	tm_pps, tm_int;
 	wire	tm_stopped, tm_running, tm_alarm;
 	assign	tm_stopped = ~timer[24];
 	assign	tm_running =  timer[24];
@@ -242,7 +242,6 @@ module	rtcgps(i_clk,
 	initial	timer    = 26'h00;
 	initial	tm_int   = 1'b0;
 	initial	tm_pps   = 1'b0;
-	initial	tm_pending_start = 1'b0;
 	always @(posedge i_clk)
 	begin
 		if (ck_carry)
@@ -269,7 +268,6 @@ module	rtcgps(i_clk,
 			timer[24] <= 1'b0;
 
 		new_timer <= 1'b0;
-		tm_pending_start <= 1'b0;
 		if ((tm_wr)&&(tm_running)) // Writes while running
 			// Only allow the timer to stop, nothing more
 			timer[24] <= r_data[24];
@@ -279,7 +277,6 @@ module	rtcgps(i_clk,
 			// of clocks, to get it right
 			new_timer <= 1'b1;
 			new_timer_val <= r_data[23:0];
-			tm_pending_start <= r_data[24];
 
 			// Still ... any write clears the alarm
 			timer[25] <= 1'b0;
@@ -292,12 +289,10 @@ module	rtcgps(i_clk,
 			new_timer_val <= tm_start;
 			tm_sub <= 8'h00;
 			new_timer_set <= 1'b1;
-			tm_pending_start <= 1'b1;
 		end else if (new_timer_set)
 		begin
 			tm_start <= new_timer_val;
 			tm_sub <= 8'h00;
-			tm_pending_start <= 1'b1;
 			timer[24] <= 1'b1;
 		end
 	end
@@ -465,4 +460,9 @@ module	rtcgps(i_clk,
 		2'b11: o_data <= { 6'h00, al_tripped, al_enabled, 2'b00, alarm_time };
 		endcase
 
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[6:0] unused;
+	assign	unused = { i_wb_cyc, i_wb_data[31:26] };
+	// verilator lint_on  UNUSED
 endmodule

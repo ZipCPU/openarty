@@ -90,6 +90,11 @@ module	wbubus(i_clk, i_rx_stb, i_rx_data,
 		wbufifo	#(36,LGINPUT_FIFO) padififo(i_clk, w_bus_reset,
 				in_stb, in_word, fifo_in_stb, fifo_in_word,
 				ififo_empty_n, ififo_err);
+
+		// verilator lint_off UNUSED
+		wire	gen_unused;
+		assign	gen_unused = ififo_err;
+		// verilator lint_on  UNUSED
 	end endgenerate
 
 	// Take requests in, Run the bus, send results out
@@ -106,6 +111,10 @@ module	wbubus(i_clk, i_rx_stb, i_rx_data,
 			exec_stb, exec_word,
 			o_wb_cyc, i_interrupt, exec_stb,
 			o_tx_stb, o_tx_data, i_tx_busy, ofifo_err);
+	// verilator lint_off UNUSED
+	wire	ofifo_unused;
+	assign	ofifo_unused = ofifo_err;
+	// verilator lint_on  UNUSED
 
 	// Add in a watchdog timer to the bus
 	reg	[(LGWATCHDOG-1):0]	r_wdt_timer;

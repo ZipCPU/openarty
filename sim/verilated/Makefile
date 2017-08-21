@@ -35,14 +35,21 @@
 ################################################################################
 ##
 ##
+all:
 CXX	:= g++
 OBJDIR  := obj-pc
 RTLD	:= ../../rtl
+ifneq ($(VERILATOR_ROOT),)
+VERILATOR:=$(VERILATOR_ROOT)/bin/verilator
+else
 VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
+endif
+export	$(VERILATOR)
 VROOT   := $(VERILATOR_ROOT)
+VDEFS   := $(shell ./vversion.sh)
 GFXFLAGS:= `pkg-config gtkmm-3.0 --cflags`
 GFXLIBS := `pkg-config gtkmm-3.0 --cflags --libs`
-FLAGS	:= -Wall -Og -g
+FLAGS	:= -Wall -Og -g $(VDEFS)
 VINCD   := $(VROOT)/include
 INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
 SOURCES := fastmaster_tb.cpp eqspiflashsim.cpp eqspiflash_tb.cpp	\
@@ -57,15 +64,15 @@ SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp zipelf.cpp		\
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
 PROGRAMS := busmaster_tb eqspiflash_tb enetctrl_tb
-all:	$(OBJDIR)/ $(PROGRAMS)
+all:	$(PROGRAMS)
 
-$(OBJDIR)/:
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
-
+%.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
+	$(mk-objdir)
 	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
 $(OBJDIR)/%.o: $(VINCD)/%.cpp
+	$(mk-objdir)
 	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
 .PHONY: oledsim.o
@@ -81,8 +88,8 @@ $(OBJDIR)/oledsim.o: oledsim.cpp
 $(OBJDIR)/busmaster_tb.o: fastmaster_tb.cpp
 	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
 
-$(OBJDIR)/fastmaster_tb.o: fastmaster_tb.cpp
-	$(CXX) -DFASTCLK $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
+# $(OBJDIR)/fastmaster_tb.o: fastmaster_tb.cpp
+#	$(CXX) -DFASTCLK $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
 
 
 
@@ -101,9 +108,14 @@ busmaster_tb: $(OBJDIR)/busmaster_tb.o $(SIMOBJS)
 busmaster_tb: $(VOBJS) $(VOBJDR)/Vbusmaster__ALL.a
 	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(GFXLIBS) -lelf -o $@
 
-define build-depends
+define	mk-objdir
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
+endef
+
+define	build-depends
 	@echo "Building dependency file(s)"
-	@$(CXX) $(GFXFLAGS) $(INCS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	$(mk-objdir)
+	@$(CXX) $(VDEFS) $(GFXFLAGS) $(INCS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt	\
 		| sed -e 's/fastmaster_tb.o/busmaster_tb.o/g' 		\
 		> $(OBJDIR)/depends.txt
@@ -122,10 +134,10 @@ clean:
 	# rm -f ./fastmaster_tb
 
 .PHONY: depends
-depends:
+depends: tags
 	$(build-depends)
 
-$(OBJDIR)/depends.txt: $(OBJDIR)/ $(SOURCES) $(HEADERS)
+$(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
 	$(build-depends)
 
 -include $(OBJDIR)/depends.txt

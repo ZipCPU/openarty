@@ -15,7 +15,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -28,7 +28,7 @@
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //
@@ -45,6 +45,21 @@
 #include "enetctrlsim.h"
 
 const int	BOMBCOUNT = 2048;
+
+#ifdef	NEW_VERILATOR
+#define	VVAR(A)	enetctrl__DOT__ ## A
+#else
+#define	VVAR(A)	v__DOT_ ## A
+#endif
+
+#define	reg_pos		VVAR(_reg_pos)
+#define	zclk		VVAR(_zclk)
+#define	zreg_pos	VVAR(_zreg_pos)
+#define	ctrl_state	VVAR(_ctrl_state)
+#define	write_reg	VVAR(_write_reg)
+#define	read_reg	VVAR(_read_reg)
+#define	read_pending	VVAR(_read_pending)
+#define	write_pending	VVAR(_write_pending)
 
 class	ENETCTRL_TB {
 	unsigned long	m_tickcount;
@@ -85,6 +100,7 @@ public:
 			((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
+#define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s %s%s %s@0x%02x[%04x/%04x] -- %d[%d->(%d)->%d]",
 			m_tickcount,
@@ -99,16 +115,16 @@ public:
 			(m_core->o_mdwe), (m_core->i_mdio));
 
 		printf(" [%02x,%d%d%d,%x] ",
-			m_core->v__DOT__reg_pos,
+			m_core->reg_pos,
 			0, // m_core->v__DOT__rclk,
-			m_core->v__DOT__zclk,
-			m_core->v__DOT__zreg_pos,
-			m_core->v__DOT__ctrl_state);
-		printf(" 0x%04x/0x%04x ", m_core->v__DOT__write_reg,
-				m_core->v__DOT__read_reg);
+			m_core->zclk,
+			m_core->zreg_pos,
+			m_core->ctrl_state);
+		printf(" 0x%04x/0x%04x ", m_core->write_reg,
+				m_core->read_reg);
 		printf(" %s%s ", 
-			(m_core->v__DOT__read_pending)?"R":" ",
-			(m_core->v__DOT__write_pending)?"W":" ");
+			(m_core->read_pending)?"R":" ",
+			(m_core->write_pending)?"W":" ");
 
 		printf(" %s:%08x,%2d,%08x ",
 			(m_sim->m_synched)?"S":" ",

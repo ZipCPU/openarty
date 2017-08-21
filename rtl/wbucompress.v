@@ -195,13 +195,13 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 			// when (~a_stb).  Hence this must be a two clock
 			// update
 			rd_addr <= tbl_addr + {(TBITS){1'b1}};
-			nxt_rd_addr = tbl_addr + { {(TBITS-1){1'b1}}, 1'b0 };
+			nxt_rd_addr <= tbl_addr + { {(TBITS-1){1'b1}}, 1'b0 };
 			tbl_match <= 1'b0;
 		end else if ((~tbl_match)&&(~match)
 				&&((~nxt_rd_addr[TBITS-1])||(tbl_filled)))
 		begin
 			rd_addr <= nxt_rd_addr;
-			nxt_rd_addr = nxt_rd_addr - { {(TBITS-1){1'b0}}, 1'b1 };
+			nxt_rd_addr <= nxt_rd_addr - { {(TBITS-1){1'b0}}, 1'b1 };
 			tbl_match <= nxt_match;
 		end
 	end
@@ -281,5 +281,11 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	// Can we do this without a clock delay?
 	assign	o_stb = a_stb;
 	assign	o_cword = (r_stb)?(r_cword):(a_addrword);
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = adr_dbld[9];
+	// verilator lint_on  UNUSED
 endmodule
 

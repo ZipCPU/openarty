@@ -25,7 +25,7 @@
 ## for more details.
 ##
 ## You should have received a copy of the GNU General Public License along
-## with this program.  (It's in the $(ROOT)/doc directory, run make with no
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
 ##
@@ -60,8 +60,10 @@ SUBMAKE := $(MAKE) --no-print-directory
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
+	$(mk-objdir)
 	$(CXX) $(CFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.c
+	$(mk-objdir)
 	$(CXX) $(CFLAGS) -c $< -o $@
 
 .PHONY: gps
@@ -75,9 +77,9 @@ $(OBJDIR)/hsnetuart.o: netuart.cpp
 clean:
 	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out
 
-$(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h $(OBJDIR)/
-$(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h $(OBJDIR)/
-$(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h $(OBJDIR)/
+$(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h
+$(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h
+$(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h
 
 netuart: $(OBJDIR)/netuart.o
 	$(CXX) $(CFLAGS) $^ -o $@
@@ -138,9 +140,13 @@ DBGOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(DBGSRCS)))
 zipdbg: $(OBJDIR)/zipdbg.o $(BUSOBJS) $(DBGOBJS)
 	$(CXX) -g $^ -lcurses -o $@
 
+define	mk-objdir
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
+endef
+
 define	build-depends
 	@echo "Building dependency file(s)"
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+	$(mk-objdir)
 	$(CXX) $(CPPFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
@@ -156,8 +162,5 @@ depends: tags
 
 $(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
 	$(build-depends)
-
-$(OBJDIR)/:
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 
 -include $(OBJDIR)/depends.txt

@@ -438,7 +438,7 @@ module	busmaster(i_clk, i_rst,
 	wire	io_sel, scop_sel, rtc_sel, oled_sel, uart_sel, gpsu_sel,
 			sdcard_sel, gps_sel, netp_sel, mio_sel, cfg_sel,
 			ram_sel, flash_sel, flctl_sel, mem_sel, netb_sel,
-			none_sel, many_sel;
+			none_sel;
 
 	wire	idle_n;
 `ifdef	ZERO_ON_IDLE
@@ -468,6 +468,7 @@ module	busmaster(i_clk, i_rst,
 	assign	flctl_sel = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b10_0);
 	assign	cfg_sel   = (idle_n)&&(~|skipaddr)&&(wb_addr[7:5]==3'b10_1);
 
+	/*
 	wire	skiperr;
 	assign	skiperr = (idle_n)&&((|wb_addr[(ZA-1):27])
 				||(~skipaddr[4])&&(|wb_addr[25:23])
@@ -475,6 +476,7 @@ module	busmaster(i_clk, i_rst,
 				||(skipaddr[4:2]==3'b000)&&(|wb_addr[14:12])
 				||(skipaddr[4:1]==4'b0000)&&(|wb_addr[10:9])
 				||(skipaddr[4:0]==5'b00001));
+	*/
 
 
 	//
@@ -561,9 +563,8 @@ module	busmaster(i_clk, i_rst,
 	//
 	wire	io_stall, scop_stall, oled_stall,
 			rtc_stall, sdcard_stall, uart_stall, gpsu_stall,
-			net_stall, gps_stall, mio_stall, cfg_stall, netb_stall,
-			mem_stall, flash_stall, ram_stall,
-			many_stall;
+			net_stall, gps_stall, mio_stall, cfg_stall,
+			mem_stall, flash_stall, ram_stall;
 	assign	wb_stall = (wb_cyc)&&(
 			((io_sel)&&(io_stall))		// Never stalls
 			||((scop_sel)&&(scop_stall))	// Never stalls
@@ -1334,4 +1335,10 @@ module	busmaster(i_clk, i_rst,
 		else // if (scop_d_ack)
 			scop_data <= scop_d_data;
 
+	// verilator lint_off UNUSED
+	wire	[180:0]	unused;
+	assign	unused = { none_sel, gps_rts_n_ignored, sd_dbg, gps_locked, gps_dbg_tick, gps_led, w_ignore_cmd_accepted, i_sd_cmd, i_sd_data[3:1], i_sd_detect, i_gps_pps, i_gps_3df, gpio_int, sw_int, btn_int,
+		wbu_addr[31:28], 
+		mdio_debug, flash_debug, i_ram_dbg, sd_dbg };
+	// verilator lint_on  UNUSED
 endmodule

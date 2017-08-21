@@ -42,15 +42,22 @@ all:	test cpudefs.h design.h
 YYMMDD=`date +%Y%m%d`
 CXX   := g++
 FBDIR := .
-VDIRFB:= $(FBDIR)/obj_dir
+VOBJ := obj_dir
+CPUDR := cpu
 
 .PHONY: test
-test: $(VDIRFB)/Veqspiflash__ALL.a
-test: $(VDIRFB)/Venetctrl__ALL.a
-# test: $(VDIRFB)/Vfastmaster__ALL.a
-test: $(VDIRFB)/Vbusmaster__ALL.a
+test: $(VOBJ)/Veqspiflash__ALL.a
+test: $(VOBJ)/Venetctrl__ALL.a
+# test: $(VOBJ)/Vfastmaster__ALL.a
+test: $(VOBJ)/Vbusmaster__ALL.a
+SUBMAKE := $(MAKE) --no-print-directory --directory=$(VOBJ) -f
+ifeq ($(VERILATOR_ROOT),)
+VERILATOR := verilator
+else
+VERILATOR := $(VERILATOR_ROOT)/bin/verilator
+endif
+VFLAGS := -Wall -MMD --trace -cc -y $(CPUDR)
 
-CPUDR := cpu
 CPUSOURCESnD := zipcpu.v cpuops.v pfcache.v pipemem.v		\
 			pfcache.v idecode.v wbpriarbiter.v zipbones.v	\
 	zipsystem.v zipcounter.v zipjiffies.v ziptimer.v		\
@@ -73,26 +80,18 @@ SOURCES := fastmaster.v builddate.v					\
 SLOWSRC := busmaster.v builddate.v					\
 	$(CPUSOURCES) $(JTAGBUS) $(PERIPHERALS) $(BIGMATH)
 
-$(VDIRFB)/Vfastmaster__ALL.a: $(VDIRFB)/Vfastmaster.h $(VDIRFB)/Vfastmaster.cpp
-$(VDIRFB)/Vfastmaster__ALL.a: $(VDIRFB)/Vfastmaster.mk
-$(VDIRFB)/Vfastmaster.h $(VDIRFB)/Vfastmaster.cpp $(VDIRFB)/Vfastmaster.mk: $(SOURCES)
+$(VOBJ)/Vbusmaster__ALL.a: $(VOBJ)/Vbusmaster.h $(VOBJ)/Vbusmaster.cpp
+$(VOBJ)/Vbusmaster__ALL.a: $(VOBJ)/Vbusmaster.mk
+$(VOBJ)/Vbusmaster.h $(VOBJ)/Vbusmaster.cpp $(VOBJ)/Vbusmaster.mk: $(SLOWSRC)
 
-$(VDIRFB)/Vbusmaster__ALL.a: $(VDIRFB)/Vbusmaster.h $(VDIRFB)/Vbusmaster.cpp
-$(VDIRFB)/Vbusmaster__ALL.a: $(VDIRFB)/Vbusmaster.mk
-$(VDIRFB)/Vbusmaster.h $(VDIRFB)/Vbusmaster.cpp $(VDIRFB)/Vbusmaster.mk: $(SLOWSRC)
+$(VOBJ)/Venetctrl.h $(VOBJ)/Venetctrl.cpp $(VOBJ)/Venetctrl.mk: enetctrl.v
+$(VOBJ)/Veqspiflash.h $(VOBJ)/Veqspiflash.cpp $(VOBJ)/Veqspiflash.mk: eqspiflash.v lleqspi.v
+$(VOBJ)/V%.cpp $(VOBJ)/V%.h $(VOBJ)/V%.mk: $(FBDIR)/%.v
+	$(VERILATOR) $(VFLAGS) $*.v
 
-$(VDIRFB)/Venetctrl.h $(VDIRFB)/Venetctrl.cpp $(VDIRFB)/Venetctrl.mk: enetctrl.v
-$(VDIRFB)/Veqspiflash.h $(VDIRFB)/Veqspiflash.cpp $(VDIRFB)/Veqspiflash.mk: eqspiflash.v lleqspi.v
-$(VDIRFB)/V%.cpp $(VDIRFB)/V%.h $(VDIRFB)/V%.mk: $(FBDIR)/%.v
-	verilator -trace -cc -y $(CPUDR) $*.v 
-
-$(VDIRFB)/V%.cpp: $(VDIRFB)/V%.h
-$(VDIRFB)/V%.mk:  $(VDIRFB)/V%.h
-$(VDIRFB)/V%.h: $(FBDIR)/%.v
-#	verilator -trace -cc $(AUTOVDIRS) $*.v
-
-# $(VDIRFB)/Vmain.h: main.v $(VFLIST)
-#	verilator -trace -cc $(AUTOVDIRS) main.v
+$(VOBJ)/V%.cpp: $(VOBJ)/V%.h
+$(VOBJ)/V%.mk:  $(VOBJ)/V%.h
+$(VOBJ)/V%.h: $(FBDIR)/%.v
 
 cpudefs.h: cpu/cpudefs.v
 	@echo "Building cpudefs.h"
@@ -116,8 +115,8 @@ design.h: busmaster.v
 	@echo >> $@
 	@echo "#endif // DESIGN_H" >> $@
 
-$(VDIRFB)/V%__ALL.a: $(VDIRFB)/V%.mk
-	cd $(VDIRFB); make -f V$*.mk
+$(VOBJ)/V%__ALL.a: $(VOBJ)/V%.mk
+	$(SUBMAKE) V$*.mk
 
 .PHONY:
 archive:
@@ -125,8 +124,16 @@ archive:
 
 .PHONY: clean
 clean:
-	rm -rf $(VDIRFB)/*.mk
-	rm -rf $(VDIRFB)/*.cpp
-	rm -rf $(VDIRFB)/*.h
-	rm -rf $(VDIRFB)/
+	rm -rf $(VOBJ)/*.mk
+	rm -rf $(VOBJ)/*.cpp
+	rm -rf $(VOBJ)/*.h
+	rm -rf $(VOBJ)/
 
+#
+# Note Verilator's dependency created information, and include it here if we
+# can
+DEPS := $(wildcard $(VOBJ)/*.d)
+
+ifneq ($(DEPS),)
+include $(DEPS)
+endif

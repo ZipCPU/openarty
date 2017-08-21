@@ -91,7 +91,7 @@ module	lleqspi(i_clk,
 	assign	i_miso = i_dat[1];
 
 	// These are used in creating a delayed input.
-	reg		rd_input, rd_spd, rd_valid;
+	reg		rd_input, rd_valid;
 
 	reg		r_spd, r_dir;
 	reg	[3:0]	r_recycle;
@@ -110,7 +110,6 @@ module	lleqspi(i_clk,
 	always @(posedge i_clk)
 	begin
 		rd_input <= 1'b0;
-		rd_spd   <= r_spd;
 		rd_valid <= 1'b0;
 		
 		if ((state == `EQSPI_IDLE)&&(o_sck))
@@ -318,7 +317,6 @@ module	lleqspi(i_clk,
 `else
 	assign	rd_input_N = rd_input;
 	assign	rd_valid_N = rd_valid;
-	assign	r_spd_N    = rd_spd;
 `endif
 
 

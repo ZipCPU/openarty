@@ -71,6 +71,14 @@
 #include "byteswap.h"
 #include "port.h"
 
+#ifdef	NEW_VERILATOR
+#define	VVAR(A)	busmaster__DOT_ ## A
+#else
+#define	VVAR(A)	v__DOT_ ## A
+#endif
+
+
+
 const int	LGMEMSIZE = 28;
 //
 // Define where our memory is at, so we can load into it properly
@@ -94,150 +102,163 @@ const int	LGMEMSIZE = 28;
 //
 //
 //
-#define	blkram_mem	v__DOT__blkram__DOT__mem
-#define	uart_setup	v__DOT__console__DOT__uart_setup
+#define	blkram_mem	VVAR(_blkram__DOT__mem)
+#define	uart_setup	VVAR(_console__DOT__uart_setup)
 //
 //
-#define	wbu_cyc		v__DOT__wbu_cyc
-#define	wbu_stb		v__DOT__wbu_stb
-#define	dwb_cyc		v__DOT__dwb_cyc
-#define	dwb_stb		v__DOT__dwb_stb
-#define	dwb_idata	v__DOT__dwb_idata
-#define	dwb_ack		v__DOT__dwb_ack
-#define	dwb_stall	v__DOT__dwb_stall
-#define	wb_cyc		v__DOT__wb_cyc
-#define	wb_stb		v__DOT__wb_stb
-#define	wb_we		v__DOT__wb_we
-#define	wb_addr		v__DOT__wb_addr
-#define	wb_data		v__DOT__wb_data
-#define	wb_sel		v__DOT__wb_sel
-#define	wb_err		v__DOT__wb_err
-#define	cpu_ext_stb	v__DOT__swic__DOT__ext_stb
-#define	wz_bus_owner	v__DOT__wbu_zip_arbiter__DOT__r_a_owner
+#define	wbu_cyc		VVAR(_wbu_cyc)
+#define	wbu_stb		VVAR(_wbu_stb)
+#define	dwb_cyc		VVAR(_dwb_cyc)
+#define	dwb_stb		VVAR(_dwb_stb)
+#define	dwb_idata	VVAR(_dwb_idata)
+#define	dwb_ack		VVAR(_dwb_ack)
+#define	dwb_stall	VVAR(_dwb_stall)
+#define	wb_cyc		VVAR(_wb_cyc)
+#define	wb_stb		VVAR(_wb_stb)
+#define	wb_we		VVAR(_wb_we)
+#define	wb_addr		VVAR(_wb_addr)
+#define	wb_data		VVAR(_wb_data)
+#define	wb_sel		VVAR(_wb_sel)
+#define	wb_err		VVAR(_wb_err)
+#define	cpu_ext_stb	VVAR(_swic__DOT__ext_stb)
+#define	wz_bus_owner	VVAR(_wbu_zip_arbiter__DOT__r_a_owner)
 //
 //
 //
-#define	dma_cfg_incs	v__DOT__swic__DOT__dma_controller__DOT_cfg_incs
-#define	dma_cfg_incd	v__DOT__swic__DOT__dma_controller__DOT_cfg_incd
-#define	dma_ondev_trigger	v__DOT__swic__DOT__dma_controller__DOT_cfg_on_dev_trigger
-#define	dma_ondev	v__DOT__swic__DOT__dma_controller__DOT_cfg_dev_trigger
-#define	dma_state	v__DOT__swic__DOT__dma_controller__DOT__dma_state
+#define	dma_cfg_incs	VVAR(_swic__DOT__dma_controller__DOT_cfg_incs)
+#define	dma_cfg_incd	VVAR(_swic__DOT__dma_controller__DOT_cfg_incd)
+#define	dma_ondev_trigger	VVAR(_swic__DOT__dma_controller__DOT_cfg_on_dev_trigger)
+#define	dma_ondev	VVAR(_swic__DOT__dma_controller__DOT_cfg_dev_trigger)
+#define	dma_state	VVAR(_swic__DOT__dma_controller__DOT__dma_state)
 //
 //
-#define	cpu_cmd_halt	v__DOT__swic__DOT__cmd_halt
-#define	cpu_cmd_addr	v__DOT__swic__DOT__cmd_addr
-#define	cpu_break	v__DOT__swic__DOT__cpu_break
+#define	cpu_cmd_halt	VVAR(_swic__DOT__cmd_halt)
+#define	cpu_cmd_addr	VVAR(_swic__DOT__cmd_addr)
+#define	cpu_break	VVAR(_swic__DOT__cpu_break)
 //
-#define	cpu_adf_ce_u	v__DOT__swic__DOT__thecpu__DOT__adf_ce_unconditional
-#define	cpu_ipc		v__DOT__swic__DOT__thecpu__DOT__ipc
-#define	cpu_upc		v__DOT__swic__DOT__thecpu__DOT__r_upc
-#define	cpu_iflags	v__DOT__swic__DOT__thecpu__DOT__w_iflags
-#define	cpu_uflags	v__DOT__swic__DOT__thecpu__DOT__w_uflags
-#define	cpu_dbgv	v__DOT__swic__DOT__thecpu__DOT__dbgv
-#define	cpu_bus_lock	v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_bus_lock
-#define	cpu_bus_prelock	v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_stall
-#define	cpu_lock_primed	v__DOT__swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_primed
-#define	cpu_master_ce	v__DOT__swic__DOT__thecpu__DOT__master_ce
-#define	cpu_dbg_cyc	v__DOT__swic__DOT__dbg_cyc
-#define	cpu_dbg_stb	v__DOT__swic__DOT__dbg_stb
-#define	cpu_dbg_ack	v__DOT__swic__DOT__dbg_ack
-#define	cpu_dbg_addr	v__DOT__swic__DOT__dbg_addr
-#define	cpu_dbg_we	v__DOT__swic__DOT__dbg_we
-#define	cpu_dbg_ack	v__DOT__swic__DOT__dbg_ack
-#define	cpu_dbg_stall	v__DOT__swic__DOT__dbg_stall
+#define	cpu_adf_ce_u	VVAR(_swic__DOT__thecpu__DOT__adf_ce_unconditional)
+#define	cpu_ipc		VVAR(_swic__DOT__thecpu__DOT__ipc)
+#define	cpu_upc		VVAR(_swic__DOT__thecpu__DOT__r_upc)
+#define	cpu_iflags	VVAR(_swic__DOT__thecpu__DOT__w_iflags)
+#define	cpu_uflags	VVAR(_swic__DOT__thecpu__DOT__w_uflags)
+#define	cpu_dbgv	VVAR(_swic__DOT__thecpu__DOT__dbgv)
+#define	cpu_bus_lock	VVAR(_swic__DOT__thecpu__DOT__genblk9__DOT__r_bus_lock)
+#define	cpu_bus_prelock	VVAR(_swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_stall)
+#define	cpu_lock_primed	VVAR(_swic__DOT__thecpu__DOT__genblk9__DOT__r_prelock_primed)
+#define	cpu_master_ce	VVAR(_swic__DOT__thecpu__DOT__master_ce)
+#define	cpu_dbg_cyc	VVAR(_swic__DOT__dbg_cyc)
+#define	cpu_dbg_stb	VVAR(_swic__DOT__dbg_stb)
+#define	cpu_dbg_ack	VVAR(_swic__DOT__dbg_ack)
+#define	cpu_dbg_addr	VVAR(_swic__DOT__dbg_addr)
+#define	cpu_dbg_we	VVAR(_swic__DOT__dbg_we)
+#define	cpu_dbg_ack	VVAR(_swic__DOT__dbg_ack)
+#define	cpu_dbg_stall	VVAR(_swic__DOT__dbg_stall)
 //
 //
 // Prefetch variables
-#define	cpu_pf_cyc	v__DOT__swic__DOT__thecpu__DOT__pf_cyc
-#define	cpu_pf_isrc	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__isrc
-#define	cpu_pf_lastpc	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__lastpc
-#define	cpu_pf_last_cache	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__r_last_cache
-#define	cpu_pf_pc_cache	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__r_pc_cache
-#define	cpu_pf_v_from_last	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__r_v_from_last
-#define	cpu_pf_v_from_pc	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__r_v_from_pc
-#define	cpu_pf_rvsrc	v__DOT__swic__DOT__thecpu__DOT__pf__DOT__rvsrc
-#define	cpu_pf_illegal	v__DOT__swic__DOT__thecpu__DOT__pf_illegal
-#define	cpu_pf_instruction	v__DOT__swic__DOT__thecpu__DOT__pf_instruction
-#define	cpu_pf_instruction_pc	v__DOT__swic__DOT__thecpu__DOT__pf_instruction_pc
-#define	cpu_pf_pc	v__DOT__swic__DOT__thecpu__DOT__pf_pc
-#define	cpu_pf_valid	v__DOT__swic__DOT__thecpu__DOT__pf_valid
+#define	cpu_pf_cyc	VVAR(_swic__DOT__thecpu__DOT__pf_cyc)
+#define	cpu_pf_isrc	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__isrc)
+#define	cpu_pf_lastpc	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__lastpc)
+#define	cpu_pf_last_cache	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__r_last_cache)
+#define	cpu_pf_pc_cache	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__r_pc_cache)
+#define	cpu_pf_v_from_last	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__r_v_from_last)
+#define	cpu_pf_v_from_pc	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__r_v_from_pc)
+#define	cpu_pf_rvsrc	VVAR(_swic__DOT__thecpu__DOT__pf__DOT__rvsrc)
+#define	cpu_pf_illegal	VVAR(_swic__DOT__thecpu__DOT__pf_illegal)
+#define	cpu_pf_instruction	VVAR(_swic__DOT__thecpu__DOT__pf_instruction)
+#define	cpu_pf_instruction_pc	VVAR(_swic__DOT__thecpu__DOT__pf_instruction_pc)
+#define	cpu_pf_pc	VVAR(_swic__DOT__thecpu__DOT__pf_pc)
+#define	cpu_pf_valid	VVAR(_swic__DOT__thecpu__DOT__pf_valid)
 //
 //
 // Decode variables
-#define	cpu_dcdA_stall	v__DOT__swic__DOT__thecpu__DOT__dcdA_stall
-#define	cpu_dcdB_stall	v__DOT__swic__DOT__thecpu__DOT__dcdB_stall
-#define	cpu_dcdF_stall	v__DOT__swic__DOT__thecpu__DOT__dcdF_stall
-#define	cpu_dcd_ce	v__DOT__swic__DOT__thecpu__DOT__dcd_ce
-#define	cpu_dcd_valid	v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__r_valid
-#define	cpu_dcd_illegal	v__DOT__swic__DOT__thecpu__DOT__dcd_illegal
-#define	cpu_dcd_opn	v__DOT__swic__DOT__thecpu__DOT__dcd_opn
-#define	cpu_dcd_pc	v__DOT__swic__DOT__thecpu__DOT__dcd_pc
-#define	cpu_dcd_lock	v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__r_lock
-#define	cpu_branch_pc	v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_branch_pc
-#define	cpu_early_branch	v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_early_branch
-#define	cpu_dcd_ljmp	v__DOT__swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_ljmp
+#define	cpu_dcdA_stall	VVAR(_swic__DOT__thecpu__DOT__dcdA_stall)
+#define	cpu_dcdB_stall	VVAR(_swic__DOT__thecpu__DOT__dcdB_stall)
+#define	cpu_dcdF_stall	VVAR(_swic__DOT__thecpu__DOT__dcdF_stall)
+#define	cpu_dcd_ce	VVAR(_swic__DOT__thecpu__DOT__dcd_ce)
+#define	cpu_dcd_valid	VVAR(_swic__DOT__thecpu__DOT__instruction_decoder__DOT__r_valid)
+#define	cpu_dcd_illegal	VVAR(_swic__DOT__thecpu__DOT__dcd_illegal)
+#define	cpu_dcd_opn	VVAR(_swic__DOT__thecpu__DOT__dcd_opn)
+#define	cpu_dcd_pc	VVAR(_swic__DOT__thecpu__DOT__dcd_pc)
+#define	cpu_dcd_lock	VVAR(_swic__DOT__thecpu__DOT__instruction_decoder__DOT__r_lock)
+#define	cpu_branch_pc	VVAR(_swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_branch_pc)
+#define	cpu_early_branch	VVAR(_swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_early_branch)
+#define	cpu_dcd_ljmp	VVAR(_swic__DOT__thecpu__DOT__instruction_decoder__DOT__genblk3__DOT__r_ljmp)
 //
 //
 // Read-Ops variables
-#define	cpu_op_ce	v__DOT__swic__DOT__thecpu__DOT__op_ce
-#define	cpu_op_valid	v__DOT__swic__DOT__thecpu__DOT__op_valid
-#define	cpu_op_stall	v__DOT__swic__DOT__thecpu__DOT__op_stall
-#define	cpu_op_break	v__DOT__swic__DOT__thecpu__DOT__r_op_break
-#define	cpu_op_gie	v__DOT__swic__DOT__thecpu__DOT__r_op_gie
-#define	cpu_op_opn	v__DOT__swic__DOT__thecpu__DOT__r_op_opn
-#define	cpu_op_pipe	v__DOT__swic__DOT__thecpu__DOT__r_op_pipe
-#define	cpu_op_R	v__DOT__swic__DOT__thecpu__DOT__r_op_R
-#define	cpu_op_Av	v__DOT__swic__DOT__thecpu__DOT__op_Av
-#define	cpu_op_Bv	v__DOT__swic__DOT__thecpu__DOT__op_Bv
-#define	cpu_op_illegal	v__DOT__swic__DOT__thecpu__DOT__op_illegal
-#define	cpu_op_lock	v__DOT__swic__DOT__thecpu__DOT__genblk3__DOT__r_op_lock
-#define	cpu_op_pc	v__DOT__swic__DOT__thecpu__DOT__op_pc
-#define	cpu_op_sim	v__DOT__swic__DOT__thecpu__DOT__op_sim
-#define	cpu_op_sim_immv	v__DOT__swic__DOT__thecpu__DOT__op_sim_immv
-#define	cpu_op_valid_alu	v__DOT__swic__DOT__thecpu__DOT__op_valid_alu
-#define	cpu_op_valid_mem	v__DOT__swic__DOT__thecpu__DOT__op_valid_mem
-#define	cpu_op_valid_div	v__DOT__swic__DOT__thecpu__DOT__op_valid_div
+#define	cpu_op_ce	VVAR(_swic__DOT__thecpu__DOT__op_ce)
+#define	cpu_op_valid	VVAR(_swic__DOT__thecpu__DOT__op_valid)
+#define	cpu_op_stall	VVAR(_swic__DOT__thecpu__DOT__op_stall)
+#define	cpu_op_break	VVAR(_swic__DOT__thecpu__DOT__r_op_break)
+#define	cpu_op_gie	VVAR(_swic__DOT__thecpu__DOT__r_op_gie)
+#define	cpu_op_opn	VVAR(_swic__DOT__thecpu__DOT__r_op_opn)
+#define	cpu_op_pipe	VVAR(_swic__DOT__thecpu__DOT__r_op_pipe)
+#define	cpu_op_R	VVAR(_swic__DOT__thecpu__DOT__r_op_R)
+#define	cpu_op_Av	VVAR(_swic__DOT__thecpu__DOT__op_Av)
+#define	cpu_op_Bv	VVAR(_swic__DOT__thecpu__DOT__op_Bv)
+#define	cpu_op_illegal	VVAR(_swic__DOT__thecpu__DOT__op_illegal)
+#define	cpu_op_lock	VVAR(_swic__DOT__thecpu__DOT__genblk3__DOT__r_op_lock)
+#define	cpu_op_pc	VVAR(_swic__DOT__thecpu__DOT__op_pc)
+#define	cpu_op_sim	VVAR(_swic__DOT__thecpu__DOT__op_sim)
+#define	cpu_op_sim_immv	VVAR(_swic__DOT__thecpu__DOT__op_sim_immv)
+#define	cpu_op_valid_alu	VVAR(_swic__DOT__thecpu__DOT__op_valid_alu)
+#define	cpu_op_valid_mem	VVAR(_swic__DOT__thecpu__DOT__op_valid_mem)
+#define	cpu_op_valid_div	VVAR(_swic__DOT__thecpu__DOT__op_valid_div)
 //
 //
 // ALU variables
-#define	cpu_alu_ce	v__DOT__swic__DOT__thecpu__DOT__alu_ce
-#define	cpu_alu_gie	v__DOT__swic__DOT__thecpu__DOT__r_alu_gie
-#define	cpu_alu_pc	v__DOT__swic__DOT__thecpu__DOT__r_alu_pc
-#define	cpu_break_pending	v__DOT__swic__DOT__thecpu__DOT__r_break_pending
-#define	cpu_alu_illegal	v__DOT__swic__DOT__thecpu__DOT__r_alu_illegal
-#define	cpu_alu_flags	v__DOT__swic__DOT__thecpu__DOT__alu_flags
-#define	cpu_alu_stall	v__DOT__swic__DOT__thecpu__DOT__alu_stall
-#define	cpu_alu_valid	v__DOT__swic__DOT__thecpu__DOT__alu_valid
-#define	cpu_alu_busy	v__DOT__swic__DOT__thecpu__DOT__doalu__DOT__r_busy
+#define	cpu_alu_ce	VVAR(_swic__DOT__thecpu__DOT__alu_ce)
+#define	cpu_alu_gie	VVAR(_swic__DOT__thecpu__DOT__r_alu_gie)
+#define	cpu_alu_pc	VVAR(_swic__DOT__thecpu__DOT__r_alu_pc)
+#define	cpu_break_pending	VVAR(_swic__DOT__thecpu__DOT__r_break_pending)
+#define	cpu_alu_illegal	VVAR(_swic__DOT__thecpu__DOT__r_alu_illegal)
+#define	cpu_alu_flags	VVAR(_swic__DOT__thecpu__DOT__alu_flags)
+#define	cpu_alu_stall	VVAR(_swic__DOT__thecpu__DOT__alu_stall)
+#define	cpu_alu_valid	VVAR(_swic__DOT__thecpu__DOT__alu_valid)
+#define	cpu_alu_busy	VVAR(_swic__DOT__thecpu__DOT__doalu__DOT__r_busy)
 //
 //
 // DIVide variables
-#define	cpu_div_busy	v__DOT__swic__DOT__thecpu__DOT__div_busy
-#define	cpu_div_error	v__DOT__swic__DOT__thecpu__DOT__div_error
+#define	cpu_div_busy	VVAR(_swic__DOT__thecpu__DOT__div_busy)
+#define	cpu_div_error	VVAR(_swic__DOT__thecpu__DOT__div_error)
 //
 //
 // MEM variables
-#define	cpu_mem_ce	v__DOT__swic__DOT__thecpu__DOT__mem_ce
-#define	cpu_mem_rdaddr	v__DOT__swic__DOT__thecpu__DOT__domem__DOT__rdaddr
-#define	cpu_mem_cyc_gbl	v__DOT__swic__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_gbl
-#define	cpu_mem_cyc_lcl	v__DOT__swic__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_lcl
-#define	cpu_mem_wraddr	v__DOT__swic__DOT__thecpu__DOT__domem__DOT__wraddr
+#define	cpu_mem_ce	VVAR(_swic__DOT__thecpu__DOT__mem_ce)
+#define	cpu_mem_rdaddr	VVAR(_swic__DOT__thecpu__DOT__domem__DOT__rdaddr)
+#define	cpu_mem_cyc_gbl	VVAR(_swic__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_gbl)
+#define	cpu_mem_cyc_lcl	VVAR(_swic__DOT__thecpu__DOT__domem__DOT__r_wb_cyc_lcl)
+#define	cpu_mem_wraddr	VVAR(_swic__DOT__thecpu__DOT__domem__DOT__wraddr)
 //
 //
 // Write-back (commit) variables
-#define	cpu_ubus_err	v__DOT__swic__DOT__thecpu__DOT__ubus_err_flag
-#define	cpu_regset	v__DOT__swic__DOT__thecpu__DOT__regset
-#define	cpu_gie		v__DOT__swic__DOT__thecpu__DOT__r_gie
-#define	cpu_halted	v__DOT__swic__DOT__thecpu__DOT__r_halted
-#define	cpu_bus_err	v__DOT__swic__DOT__thecpu__DOT__bus_err
-#define	cpu_ibus_err	v__DOT__swic__DOT__thecpu__DOT__ibus_err_flag
-#define	cpu_clear_icache	v__DOT__swic__DOT__thecpu__DOT__r_clear_icache
-#define	cpu_new_pc	v__DOT__swic__DOT__thecpu__DOT__new_pc
-#define	cpu_wr_flags_ce	v__DOT__swic__DOT__thecpu__DOT__wr_flags_ce
-#define	cpu_wr_gpreg_vl	v__DOT__swic__DOT__thecpu__DOT__wr_gpreg_vl
-#define	cpu_wr_spreg_vl	v__DOT__swic__DOT__thecpu__DOT__wr_spreg_vl
-#define	cpu_wr_reg_id 	v__DOT__swic__DOT__thecpu__DOT__wr_reg_id
-#define	cpu_wr_reg_ce 	v__DOT__swic__DOT__thecpu__DOT__wr_reg_ce
+#define	cpu_ubus_err	VVAR(_swic__DOT__thecpu__DOT__ubus_err_flag)
+#define	cpu_regset	VVAR(_swic__DOT__thecpu__DOT__regset)
+#define	cpu_gie		VVAR(_swic__DOT__thecpu__DOT__r_gie)
+#define	cpu_halted	VVAR(_swic__DOT__thecpu__DOT__r_halted)
+#define	cpu_bus_err	VVAR(_swic__DOT__thecpu__DOT__bus_err)
+#define	cpu_ibus_err	VVAR(_swic__DOT__thecpu__DOT__ibus_err_flag)
+#define	cpu_clear_icache	VVAR(_swic__DOT__thecpu__DOT__r_clear_icache)
+#define	cpu_new_pc	VVAR(_swic__DOT__thecpu__DOT__new_pc)
+#define	cpu_wr_flags_ce	VVAR(_swic__DOT__thecpu__DOT__wr_flags_ce)
+#define	cpu_wr_gpreg_vl	VVAR(_swic__DOT__thecpu__DOT__wr_gpreg_vl)
+#define	cpu_wr_spreg_vl	VVAR(_swic__DOT__thecpu__DOT__wr_spreg_vl)
+#define	cpu_wr_reg_id 	VVAR(_swic__DOT__thecpu__DOT__wr_reg_id)
+#define	cpu_wr_reg_ce 	VVAR(_swic__DOT__thecpu__DOT__wr_reg_ce)
+//
+// Oled variables
+#define	oled_dev_wr	VVAR(_rgbctrl__DOT__dev_wr)
+#define	oled_busy	VVAR(_rgbctrl__DOT__r_busy)
+#define	oled_dev_busy	VVAR(_rgbctrl__DOT__dev_busy)
+//
+// Interrupt vectors
+#define	main_int_vector	VVAR(_swic__DOT__main_int_vector)
+#define	alt_int_vector	VVAR(_swic__DOT__alt_int_vector)
+//
+//
+#define	wbubus_ack	VVAR(___Vcellinp__genbus____pinNumber9)
+#define	wbubus_stall	VVAR(___Vcellinp__genbus____pinNumber10)
 
 // No particular "parameters" need definition or redefinition here.
 class	TESTBENCH : public PIPECMDR<BASECLASS> {
@@ -543,7 +564,7 @@ public:
 			execsim(m_core->cpu_op_sim_immv);
 		}
 
-// #define	DEBUGGING_OUTPUT
+#define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		bool	writeout = false;
 
@@ -590,9 +611,6 @@ public:
 		m_gps_newstep=m_core->gps_new_step;
 		*/
 
-#define	oled_dev_wr	v__DOT__rgbctrl__DOT__dev_wr
-#define	oled_busy	v__DOT__rgbctrl__DOT__r_busy
-#define	oled_dev_busy	v__DOT__rgbctrl__DOT__dev_busy
 		if (m_core->o_oled_cs_n == 0)
 			writeout = true;
 		if (m_core->o_oled_sck  == 0)
@@ -698,9 +716,9 @@ public:
 				m_core->wb_addr<<2,
 				m_core->wb_sel,
 				(m_core->dwb_ack)?'A':
-					(m_core->v__DOT____Vcellinp__genbus____pinNumber9)?'a':' ',
+					(m_core->wbubus_ack)?'a':' ',
 				(m_core->dwb_stall)?'S':
-					(m_core->v__DOT____Vcellinp__genbus____pinNumber10)?'s':' ',
+					(m_core->wbubus_stall)?'s':' ',
 				(m_core->wb_err)?'E':'.');
 
 			// CPU Pipeline debugging
@@ -1178,8 +1196,6 @@ public:
 			*/
 
 			printf(" INT:0x%08x/0x%08x",
-#define	main_int_vector	v__DOT__swic__DOT__main_int_vector
-#define	alt_int_vector	v__DOT__swic__DOT__alt_int_vector
 				m_core->main_int_vector,
 				m_core->alt_int_vector);
 

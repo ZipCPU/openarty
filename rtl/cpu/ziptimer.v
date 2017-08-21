@@ -69,6 +69,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	ziptimer(i_clk, i_rst, i_ce,
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
 			o_wb_ack, o_wb_stall, o_wb_data,
@@ -160,5 +162,11 @@ module	ziptimer(i_clk, i_rst, i_ce,
 	else
 		assign	o_wb_data = { auto_reload, r_value };
 	endgenerate
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[32:0]	unused;
+	assign	unused = { i_wb_cyc, i_wb_data };
+	// verilator lint_on  UNUSED
 
 endmodule

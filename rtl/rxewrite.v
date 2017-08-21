@@ -92,5 +92,10 @@ module	rxewrite(i_clk, i_ce, i_cancel, i_v, i_d, o_v, o_addr, o_data, o_len);
 
 	assign	o_len  = r_len[(AW+2):1];
 
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = r_len[0];
+	// verilator lint_on  UNUSED
 endmodule
 

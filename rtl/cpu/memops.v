@@ -43,6 +43,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	memops(i_clk, i_rst, i_stb, i_lock,
 		i_op, i_addr, i_data, i_oreg,
 			o_busy, o_valid, o_err, o_wreg, o_result,
@@ -50,7 +52,9 @@ module	memops(i_clk, i_rst, i_stb, i_lock,
 			o_wb_stb_gbl, o_wb_stb_lcl,
 			o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
 		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
-	parameter	ADDRESS_WIDTH=30, IMPLEMENT_LOCK=0, WITH_LOCAL_BUS=0;
+	parameter	ADDRESS_WIDTH=30;
+	parameter [0:0]	IMPLEMENT_LOCK=1'b0,
+			WITH_LOCAL_BUS=1'b0;
 	localparam	AW=ADDRESS_WIDTH;
 	input	wire		i_clk, i_rst;
 	input	wire		i_stb, i_lock;
@@ -209,4 +213,13 @@ module	memops(i_clk, i_rst, i_stb, i_lock,
 		assign	o_wb_cyc_gbl = (r_wb_cyc_gbl);
 		assign	o_wb_cyc_lcl = (r_wb_cyc_lcl);
 	end endgenerate
+
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = i_lock;
+	// verilator lint_on  UNUSED
+
+
 endmodule

@@ -67,7 +67,7 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 	reg	[47:0]	r_hwmac;
 	reg		r_cancel, r_err, r_hwmatch, r_broadcast;
 	reg	[19:0]	r_buf;
-	reg	[29:0]	r_p;
+	reg	[27:0]	r_p;
 
 	always @(posedge i_clk)
 	if (i_ce)
@@ -94,7 +94,7 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 		r_buf <= { r_buf[14:0], i_v, i_d };
 		if (((!i_v)&&(!o_v))||(i_cancel))
 		begin
-			r_p <= 30'h3fff_ffff;
+			r_p <= 28'hfff_ffff;
 			r_hwmac <= mac_remapped;
 			r_hwmatch   <= 1'b1;
 			r_broadcast <= 1'b1;
@@ -105,7 +105,7 @@ module	rxehwmac(i_clk, i_ce, i_en, i_cancel, i_hwmac, i_v, i_d, o_v, o_d, o_err,
 			o_v <= 1'b0;
 			o_d <= i_d;
 		end else begin
-			r_p <= { r_p[28:0], 1'b0 };
+			r_p <= { r_p[26:0], 1'b0 };
 			if (i_en)
 			begin
 				// Skip the first 6 bytes, and everything

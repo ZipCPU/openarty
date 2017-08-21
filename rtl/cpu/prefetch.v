@@ -48,6 +48,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 // Flash requires a minimum of 4 clocks per byte to read, so that would be
 // 4*(4bytes/32bit word) = 16 clocks per word read---and that's in pipeline
 // mode which this prefetch does not support.  In non--pipelined mode, the
@@ -59,9 +61,9 @@ module	prefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 			i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
 	parameter		ADDRESS_WIDTH=32;
 	localparam		AW=ADDRESS_WIDTH;
-	input				i_clk, i_rst, i_new_pc, i_clear_cache,
+	input	wire			i_clk, i_rst, i_new_pc, i_clear_cache,
 					i_stalled_n;
-	input		[(AW-1):0]	i_pc;
+	input	wire	[(AW-1):0]	i_pc;
 	output	reg	[31:0]		o_i;
 	output	wire	[(AW-1):0]	o_pc;
 	output	reg			o_valid;
@@ -71,8 +73,8 @@ module	prefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	output	reg	[(AW-1):0]	o_wb_addr;
 	output	wire	[31:0]		o_wb_data;
 	// And return inputs
-	input				i_wb_ack, i_wb_stall, i_wb_err;
-	input		[31:0]		i_wb_data;
+	input	wire			i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire	[31:0]		i_wb_data;
 	output	reg			o_illegal;
 
 	assign	o_wb_we = 1'b0;
@@ -89,13 +91,13 @@ module	prefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 		begin
 			o_wb_cyc <= 1'b0;
 			o_wb_stb <= 1'b0;
-		end else if ((!o_wb_cyc)&&((i_stalled_n)||(!o_valid)))
+		end else if ((!o_wb_cyc)&&((i_stalled_n)||(!o_valid)||(i_new_pc)))
 		begin // Initiate a bus cycle
 			o_wb_cyc <= 1'b1;
 			o_wb_stb <= 1'b1;
 		end else if (o_wb_cyc) // Independent of ce
 		begin
-			if (~i_wb_stall)
+			if (!i_wb_stall)
 				o_wb_stb <= 1'b0;
 		end
 
@@ -105,7 +107,7 @@ module	prefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 		if (!o_wb_cyc)
 			invalid <= 1'b0;
 		else if ((i_new_pc)||(i_clear_cache))
-			invalid <= (!o_wb_stb);
+			invalid <= 1'b1;
 
 	always @(posedge i_clk)
 		if (i_new_pc)
@@ -120,15 +122,15 @@ module	prefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	initial o_valid   = 1'b0;
 	initial o_illegal = 1'b0;
 	always @(posedge i_clk)
-		if (i_rst)
+		if ((i_rst)||(i_new_pc))
 		begin
 			o_valid   <= 1'b0;
 			o_illegal <= 1'b0;
-		end else if ((o_wb_cyc)&&(i_wb_ack))
+		end else if ((o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
 		begin
-			o_valid   <= (!i_wb_err)&&(!invalid);
+			o_valid   <= (!invalid);
 			o_illegal <= ( i_wb_err)&&(!invalid);
-		end else if ((i_stalled_n)||(i_clear_cache))
+		end else if ((i_stalled_n)||(i_clear_cache)||(i_new_pc))
 		begin
 			o_valid <= 1'b0;
 			o_illegal <= 1'b0;

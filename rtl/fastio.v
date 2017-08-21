@@ -168,12 +168,14 @@ module	fastio(i_clk,
 	// places the transitions into a higher frequency bracket, and costs
 	// us no logic to do--only a touch more pain to understand on behalf
 	// of the programmer.)
+	/*
 	wire	[8:0]	rev_pwr_counter;
 	assign rev_pwr_counter[8:0] = { pwr_counter[0],
 			pwr_counter[1], pwr_counter[2],
 			pwr_counter[3], pwr_counter[4],
 			pwr_counter[5], pwr_counter[6],
 			pwr_counter[7], pwr_counter[8] };
+	*/
 
 	//
 	// BTNSW
@@ -181,7 +183,7 @@ module	fastio(i_clk,
 	// The button and switch control register
 	wire	[31:0]	w_btnsw;
 	reg	[3:0]	r_sw,  swcfg,  swnow,  swlast;
-	reg	[3:0]	r_btn, btncfg, btnnow, btnlast, btnstate;
+	reg	[3:0]	r_btn, btncfg, btnnow, btnstate;
 	initial	btn_int = 1'b0;
 	initial	sw_int  = 1'b0;
 	always @(posedge i_clk)
@@ -302,5 +304,10 @@ module	fastio(i_clk,
 		o_wb_ack <= (i_wb_stb);
 	assign	o_board_ints = { gpio_int, sw_int, btn_int };
 
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[2:0]	unused;
+	assign	unused = { i_wb_cyc, date_ack, date_stall };
+	// verilator lint_on  UNUSED
 
 endmodule

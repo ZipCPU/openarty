@@ -3,7 +3,7 @@
 ##
 ## Filename:	mkdatev.pl
 ##
-## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+## Project:	ZBasic, a generic toplevel impl using the full ZipCPU
 ##
 ## Purpose:	This file creates a file containing a `define DATESTAMP
 ##		which can be used to tell when the build took place.
@@ -14,7 +14,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2016, Gisselquist Technology, LLC
+## Copyright (C) 2015-2017, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -26,8 +26,13 @@
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
 ##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
 ## License:	GPL, v3, as defined and found on www.gnu.org,
-##		http:##www.gnu.org/licenses/gpl.html
+##		http://www.gnu.org/licenses/gpl.html
 ##
 ##
 ################################################################################
@@ -46,7 +51,7 @@ print <<"EOM";
 //
 // Filename: 	builddate.v
 //
-// Project:	OpenArty, an entirely open SoC based upon the Arty platform
+// Project:	ZBasic, a generic toplevel impl using the full ZipCPU
 //
 // Purpose:	This file records the date of the last build.  Running "make"
 //		in the main directory will create this file.  The `define found
@@ -58,7 +63,7 @@ print <<"EOM";
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2017, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -71,7 +76,7 @@ print <<"EOM";
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $doc directory, run make with no
+// with this program.  (It's in the \$(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
 //

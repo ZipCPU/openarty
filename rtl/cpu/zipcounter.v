@@ -51,6 +51,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	zipcounter(i_clk, i_ce,
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_data,
 			o_wb_ack, o_wb_stall, o_wb_data,
@@ -81,4 +83,12 @@ module	zipcounter(i_clk, i_ce,
 	always @(posedge i_clk)
 		o_wb_ack <= (i_wb_stb);
 	assign	o_wb_stall = 1'b0;
+
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = i_wb_cyc;
+	// verilator lint_on  UNUSED
+
 endmodule

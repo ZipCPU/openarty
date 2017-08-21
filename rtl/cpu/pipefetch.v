@@ -54,6 +54,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	pipefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stall_n, i_pc,
 			o_i, o_pc, o_v,
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
@@ -120,7 +122,7 @@ module	pipefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stall_n, i_pc,
 				+(3<<(LGCACHELEN-2)))
 			&&(|r_nvalid[(LGCACHELEN):(LGCACHELEN-1)]);
 
-	initial	r_cache_base = RESET_ADDRESS;
+	initial	r_cache_base = RESET_ADDRESS[(AW+1):2];
 	always @(posedge i_clk)
 	begin
 		if ((i_rst)||(i_clear_cache)||((o_wb_cyc)&&(i_wb_err)))
@@ -300,6 +302,5 @@ module	pipefetch(i_clk, i_rst, i_new_pc, i_clear_cache, i_stall_n, i_pc,
 			ill_address <= o_wb_addr - {{(AW-LGCACHELEN-1){1'b0}}, r_acks_waiting};
 
 	assign	o_illegal = (o_pc == ill_address)&&(~i_rst)&&(~i_new_pc)&&(~i_clear_cache);
-
 
 endmodule

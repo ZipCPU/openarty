@@ -155,7 +155,7 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// our data is valid during those handful.
 	//
 	// Timing
-	reg	err_tick, shift_tick, config_tick, mpy_aux, mpy_sync_two,
+	reg	err_tick, shift_tick, mpy_aux, mpy_sync_two,
 		delay_step_clk, step_carry_tick;
 	wire	sub_tick, fltr_tick;
 
@@ -438,7 +438,6 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	reg	delayed_carry;
 	initial	delayed_carry = 0;
 
-	wire	[31:0]	initial_default_step = DEFAULT_STEP;
 	// initial	o_step = 64'h002af31dc461; // 100MHz
 	initial	o_step = { 16'h00, (({ DEFAULT_STEP[27:0], 20'h00 })
 				>> DEFAULT_STEP[31:28])};
@@ -562,8 +561,6 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	always @(posedge i_clk)
 		if (err_tick)
 		r_mpy_err <= (config_filter_errors) ? r_filtered_err : o_err;
-	always @(posedge i_clk)
-		config_tick <= err_tick;
 
 	// Okay, so we've gone from our original tick to the err_tick, the
 	// sub_tick, the shift_tick, and now the fltr_tick. 
@@ -745,5 +742,10 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		else if (tick)
 			o_locked <= 1'b0;
 
+	// verilator lint_off UNUSED
+	wire	[127:0] unused;
+	assign	unused = { shift_hi[63:32], shift_lo[63:32],
+			w_mpy_input[63:32], w_mpy_err[63:32] };
+	// verilator lint_on  UNUSED
 endmodule
 

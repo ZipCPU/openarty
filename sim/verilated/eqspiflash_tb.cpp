@@ -88,6 +88,84 @@ public:
 		m_core->eval();
 // #define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
+#ifdef	NEW_VERILATOR
+#define	VVAR(A)	eqspiflash__DOT_ ## A
+#else
+#define	VVAR(A)	v__DOT_	## A
+#endif
+
+#define	bus_wb_ack	VVAR(_bus_wb_ack)
+#define	rd_data_ack	VVAR(_rd_data_ack)
+#define	ew_data_ack	VVAR(_ew_data_ack)
+#define	id_data_ack	VVAR(_id_data_ack)
+#define	ct_data_ack	VVAR(_ct_data_ack)
+#define	owned		VVAR(_owned)
+#define	owner		VVAR(_owner)
+#define	rd_qspi_req	VVAR(_rd_qspi_req)
+#define	ew_qspi_req	VVAR(_ew_qspi_req)
+#define	id_qspi_req	VVAR(_id_qspi_req)
+#define	ct_qspi_req	VVAR(_ct_qspi_req)
+#define	spi_wr		VVAR(_spi_wr)
+#define	spi_hold	VVAR(_spi_hold)
+#define	spi_len		VVAR(_spi_len)
+#define	spi_dir		VVAR(_spi_dir)
+#define	spi_spd		VVAR(_spi_spd)
+#define	spi_word	VVAR(_spi_word)
+#define	rd_state	VVAR(_rdproc__DOT__rd_state)
+#define	wr_state	VVAR(_ewproc__DOT__wr_state)
+#define	id_state	VVAR(_idotp__DOT__id_state)
+#define	ctstate		VVAR(_ctproc__DOT__ctstate)
+#define	rd_spi_wr	VVAR(_rd_spi_wr)
+#define	ew_spi_wr	VVAR(_ew_spi_wr)
+#define	id_spi_wr	VVAR(_id_spi_wr)
+#define	ct_spi_wr	VVAR(_ct_spi_wr)
+#define	spi_busy	VVAR(_spi_busy)
+#define	spi_valid	VVAR(_spi_valid)
+#define	ll_state	VVAR(_lowlvl__DOT__state)
+#define	ll_input	VVAR(_lowlvl__DOT__r_input)
+#define	spi_out		VVAR(_spi_out)
+#define	id_last_addr	VVAR(_idotp__DOT__last_addr)
+#define	id_lcl_id_addr	VVAR(_idotp__DOT__lcl_id_addr)
+#define	id_loaded	VVAR(_idotp__DOT__id_loaded)
+#define	id_nxt_data_ack	VVAR(_idotp__DOT__nxt_data_ack)
+#define	id_nxt_data	VVAR(_idotp__DOT__nxt_data)
+#define	id_set_val	VVAR(_idotp__DOT__set_val)
+#define	id_set_addr	VVAR(_idotp__DOT__set_addr)
+#define	rd_invalid_ack_pipe	VVAR(_rdproc__DOT__invalid_ack_pipe)
+#define	ct_invalid_ack_pipe	VVAR(_ctproc__DOT__invalid_ack_pipe)
+#define	rd_accepted	VVAR(_rdproc__DOT__accepted)
+#define	ew_accepted	VVAR(_ewproc__DOT__accepted)
+#define	id_accepted	VVAR(_idotp__DOT__accepted)
+#define	ct_accepted	VVAR(_ctproc__DOT__accepted)
+#define	pp_pending	VVAR(_preproc__DOT__pending)
+#define	pp_lcl_key	VVAR(_preproc__DOT__lcl_key)
+#define	pp_ctreg_stb	VVAR(_preproc__DOT__ctreg_stb)
+#define	bus_ctreq	VVAR(_bus_ctreq)
+#define	bus_other_req	VVAR(_bus_other_req)
+#define	pp_wp		VVAR(_preproc__DOT__wp)
+#define	bus_wip		VVAR(_bus_wip)
+#define	pp_lcl_reg	VVAR(_preproc__DOT__lcl_reg)
+#define	xip		VVAR(_w_xip)
+#define	quad		VVAR(_w_quad)
+#define	bus_piperd	VVAR(_bus_piperd)
+#define	pp_wp		VVAR(_preproc__DOT__wp)
+#define	ew_cyc		VVAR(_ewproc__DOT__cyc)
+#define	bus_pipewr	VVAR(_bus_pipewr)
+#define	bus_endwr	VVAR(_bus_endwr)
+#define	ct_ack		VVAR(_ct_ack)
+#define	rd_bus_ack	VVAR(_rd_bus_ack)
+#define	id_bus_ack	VVAR(_id_bus_ack)
+#define	ew_bus_ack	VVAR(_ew_bus_ack)
+#define	pp_lcl_ack	VVAR(_preproc__DOT__lcl_ack)
+#define	rd_leave_xip	VVAR(_rdproc__DOT__r_leave_xip)
+#define	pp_new_req	VVAR(_preproc__DOT__new_req)
+#define	bus_idreq	VVAR(_bus_idreq)
+#define	id_bus_ack	VVAR(_id_bus_ack)
+#define	id_read_request	VVAR(_idotp__DOT__id_read_request)
+#define	rd_requested	VVAR(_rdproc__DOT__r_requested)
+#define	rd_leave_xip	VVAR(_rdproc__DOT__r_leave_xip)
+
+
 		printf("%08lx-WB: %s %s/%s %s %s[%s%s%s%s%s] %s %s@0x%08x[%08x/%08x] -- SPI %s%s[%x/%x](%d,%d)",
 			m_tickcount,
 			(m_core->i_wb_cyc)?"CYC":"   ",
@@ -95,11 +173,11 @@ public:
 			(m_core->i_wb_ctrl_stb)?"CSTB":"    ",
 			(m_core->o_wb_stall)?"STALL":"     ",
 			(m_core->o_wb_ack)?"ACK":"   ",
-			(m_core->v__DOT__bus_wb_ack)?"BS":"  ",
-			(m_core->v__DOT__rd_data_ack)?"RD":"  ",
-			(m_core->v__DOT__ew_data_ack)?"EW":"  ",
-			(m_core->v__DOT__id_data_ack)?"ID":"  ",
-			(m_core->v__DOT__ct_data_ack)?"CT":"  ",
+			(m_core->bus_wb_ack)?"BS":"  ",
+			(m_core->rd_data_ack)?"RD":"  ",
+			(m_core->ew_data_ack)?"EW":"  ",
+			(m_core->id_data_ack)?"ID":"  ",
+			(m_core->ct_data_ack)?"CT":"  ",
 			(m_core->o_cmd_accepted)?"BUS":"   ",
 			(m_core->i_wb_we)?"W":"R",
 			(m_core->i_wb_addr), (m_core->i_wb_data),
@@ -111,8 +189,8 @@ public:
 
 		/// printf("%08lx-EQ: ", m_tickcount);
 		printf("EQ: ");
-		if (m_core->v__DOT__owned) {
-			switch(m_core->v__DOT__owner&3) {
+		if (m_core->owned) {
+			switch(m_core->owner&3) {
 			case 0: printf("RD"); break;
 			case 1: printf("EW"); break;
 			case 2: printf("ID"); break;
@@ -121,35 +199,36 @@ public:
 		} else printf("  ");
 
 		printf(" REQ[%s%s%s%s]",
-			(m_core->v__DOT__rd_qspi_req)?"RD":"  ",
-			(m_core->v__DOT__ew_qspi_req)?"EW":"  ",
-			(m_core->v__DOT__id_qspi_req)?"ID":"  ",
-			(m_core->v__DOT__ct_qspi_req)?"CT":"  ");
+			(m_core->rd_qspi_req)?"RD":"  ",
+			(m_core->ew_qspi_req)?"EW":"  ",
+			(m_core->id_qspi_req)?"ID":"  ",
+			(m_core->ct_qspi_req)?"CT":"  ");
 
 		printf(" %s[%s%2d%s%s0x%08x]",
-			(m_core->v__DOT__spi_wr)?"CMD":"   ",
-			(m_core->v__DOT__spi_hold)?"HLD":"   ",
-			(m_core->v__DOT__spi_len+1)*8,
-			(m_core->v__DOT__spi_dir)?"RD":"WR",
-			(m_core->v__DOT__spi_spd)?"Q":" ",
-			(m_core->v__DOT__spi_word));
+			(m_core->spi_wr)?"CMD":"   ",
+			(m_core->spi_hold)?"HLD":"   ",
+			(m_core->spi_len+1)*8,
+			(m_core->spi_dir)?"RD":"WR",
+			(m_core->spi_spd)?"Q":" ",
+			(m_core->spi_word));
+
 
 		printf(" STATE[%2x%s,%2x%s,%2x%s,%2x%s]",
-			m_core->v__DOT__rdproc__DOT__rd_state,
-				(m_core->v__DOT__rd_spi_wr)?"W":" ",
-			m_core->v__DOT__ewproc__DOT__wr_state,
-				(m_core->v__DOT__ew_spi_wr)?"W":" ",
-			m_core->v__DOT__idotp__DOT__id_state,
-				(m_core->v__DOT__id_spi_wr)?"W":" ",
-			m_core->v__DOT__ctproc__DOT__ctstate,
-				(m_core->v__DOT__ct_spi_wr)?"W":" ");
+			m_core->rd_state,
+				(m_core->rd_spi_wr)?"W":" ",
+			m_core->wr_state,
+				(m_core->ew_spi_wr)?"W":" ",
+			m_core->id_state,
+				(m_core->id_spi_wr)?"W":" ",
+			m_core->ctstate,
+				(m_core->ct_spi_wr)?"W":" ");
 
 		printf(" LL:[%s%s%d(%08x)->%08x]",
-			(m_core->v__DOT__spi_busy)?"BSY":"   ",
-			(m_core->v__DOT__spi_valid)?"VAL":"   ",
-			(m_core->v__DOT__lowlvl__DOT__state),
-			(m_core->v__DOT__lowlvl__DOT__r_input),
-			(m_core->v__DOT__spi_out));
+			(m_core->spi_busy)?"BSY":"   ",
+			(m_core->spi_valid)?"VAL":"   ",
+			(m_core->ll_state),
+			(m_core->ll_input),
+			(m_core->spi_out));
 
 		// printf(" 0x%08x,%02x ", m_core->v__DOT__id_data, 
 			// m_core->v__DOT__bus_addr);
@@ -157,69 +236,72 @@ public:
 			(m_core->v__DOT__bus_wr)?"W":"R",
 			m_core->v__DOT__bus_data, m_core->v__DOT__bus_addr);
 
-		if (m_core->v__DOT__idotp__DOT__id_state == 5)
+		if (m_core->id_state == 5)
 			printf(" %s[%2x]%s",
-				(m_core->v__DOT__idotp__DOT__last_addr)?"LST":"   ",
-				(m_core->v__DOT__idotp__DOT__lcl_id_addr),
-				(m_core->v__DOT__idotp__DOT__id_loaded)?"LOD":"   ");
+				(m_core->id_last_addr)?"LST":"   ",
+				(m_core->id_lcl_id_addr),
+				(m_core->id_loaded)?"LOD":"   ");
 			
 
+
 		printf(" %s[%08x]",
-			(m_core->v__DOT__idotp__DOT__nxt_data_ack)
-			?"NXT":"   ", m_core->v__DOT__idotp__DOT__nxt_data);
+			(m_core->id_nxt_data_ack)
+			?"NXT":"   ", m_core->id_nxt_data);
 		printf(" %s[%x]",
-			(m_core->v__DOT__idotp__DOT__set_val)?"SET":"   ",
-			(m_core->v__DOT__idotp__DOT__set_addr));
+			(m_core->id_set_val)?"SET":"   ",
+			(m_core->id_set_addr));
 
 		printf(" RD:IACK[%x]",
-			(m_core->v__DOT__rdproc__DOT__invalid_ack_pipe));
+			(m_core->rd_invalid_ack_pipe));
 		printf(" CT:IACK[%x]",
-			(m_core->v__DOT__ctproc__DOT__invalid_ack_pipe));
+			(m_core->ct_invalid_ack_pipe));
 
 		{
 			unsigned counts = m_flash->counts_till_idle();
 			if (counts)
 				printf(" %8dI ", counts);
 		}
+
 		printf("%s%s%s%s",
-			(m_core->v__DOT__rdproc__DOT__accepted)?"RD-ACC":"",
-			(m_core->v__DOT__ewproc__DOT__accepted)?"EW-ACC":"",
-			(m_core->v__DOT__idotp__DOT__accepted)?"ID-ACC":"",
-			(m_core->v__DOT__ctproc__DOT__accepted)?"CT-ACC":"");
+			(m_core->rd_accepted)?"RD-ACC":"",
+			(m_core->ew_accepted)?"EW-ACC":"",
+			(m_core->id_accepted)?"ID-ACC":"",
+			(m_core->ct_accepted)?"CT-ACC":"");
 
 
 		printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-			(m_core->v__DOT__preproc__DOT__pending)?" PENDING":"",
-			(m_core->v__DOT__preproc__DOT__lcl_key)?" KEY":"",
-			(m_core->v__DOT__preproc__DOT__ctreg_stb)?" CTSTB":"",
-			(m_core->v__DOT__bus_ctreq)?" BUSCTRL":"",
-			(m_core->v__DOT__bus_other_req)?" BUSOTHER":"",
-			(m_core->v__DOT__preproc__DOT__wp)?" WP":"",
-			(m_core->v__DOT__bus_wip)?" WIP":"",
-			// (m_core->v__DOT__preproc__DOT__lcl_reg)?" LCLREG":"",
-			// (m_core->v__DOT__w_xip)?" XIP":"",
-			// (m_core->v__DOT__w_quad)?" QUAD":"",
-			(m_core->v__DOT__bus_piperd)?" RDPIPE":"",
+			(m_core->pp_pending)?" PENDING":"",
+			(m_core->pp_lcl_key)?" KEY":"",
+			(m_core->pp_ctreg_stb)?" CTSTB":"",
+			(m_core->bus_ctreq)?" BUSCTRL":"",
+			(m_core->bus_other_req)?" BUSOTHER":"",
+			(m_core->pp_wp)?" WP":"",
+			(m_core->bus_wip)?" WIP":"",
+			// (m_core->pp_lcl_reg)?" LCLREG":"",
+			// (m_core->xip)?" XIP":"",
+			// (m_core->quad)?" QUAD":"",
+			(m_core->bus_piperd)?" RDPIPE":"",
 			(m_core->v__DOT__preproc__DOT__wp)?" WRWP":"",
-			(m_core->v__DOT__ewproc__DOT__cyc)?" WRCYC":"",
-			(m_core->v__DOT__bus_pipewr)?" WRPIPE":"",
-			(m_core->v__DOT__bus_endwr)?" ENDWR":"",
-			(m_core->v__DOT__ct_ack)?" CTACK":"",
-			(m_core->v__DOT__rd_bus_ack)?" RDACK":"",
-			(m_core->v__DOT__id_bus_ack)?" IDACK":"",
-			(m_core->v__DOT__ew_bus_ack)?" EWACK":"",
-			(m_core->v__DOT__preproc__DOT__lcl_ack)?" LCLACK":"",
-			(m_core->v__DOT__rdproc__DOT__r_leave_xip)?" LVXIP":"",
-			(m_core->v__DOT__preproc__DOT__new_req)?" NREQ":"");
+			(m_core->ew_cyc)?" WRCYC":"",
+			(m_core->bus_pipewr)?" WRPIPE":"",
+			(m_core->bus_endwr)?" ENDWR":"",
+			(m_core->ct_ack)?" CTACK":"",
+			(m_core->rd_bus_ack)?" RDACK":"",
+			(m_core->id_bus_ack)?" IDACK":"",
+			(m_core->ew_bus_ack)?" EWACK":"",
+			(m_core->pp_lcl_ack)?" LCLACK":"",
+			(m_core->rd_leave_xip)?" LVXIP":"",
+			(m_core->pp_new_req)?" NREQ":"");
+
 
 		printf("%s%s%s",
-			(m_core->v__DOT__bus_idreq)?" BUSID":"",
-			(m_core->v__DOT__id_bus_ack)?" BUSAK":"",
-			(m_core->v__DOT__idotp__DOT__id_read_request)?" IDRD":"");
+			(m_core->bus_idreq)?" BUSID":"",
+			(m_core->id_bus_ack)?" BUSAK":"",
+			(m_core->id_read_request)?" IDRD":"");
 
-		if (m_core->v__DOT__rdproc__DOT__r_requested)
+		if (m_core->rd_requested)
 			fputs(" RD:R_REQUESTED", stdout);
-		if (m_core->v__DOT__rdproc__DOT__r_leave_xip)
+		if (m_core->rd_leave_xip)
 			fputs(" RD:R_LVXIP", stdout);
 
 

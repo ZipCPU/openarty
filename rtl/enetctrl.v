@@ -222,4 +222,8 @@ module	enetctrl(i_clk, i_rst,
 			o_mdclk, o_mdwe, o_mdio, i_mdio		// 4 bits
 		};
 
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = { i_wb_cyc };
+	// verilator lint_on  UNUSED
 endmodule

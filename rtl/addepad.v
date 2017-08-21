@@ -39,11 +39,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-module addepad(i_clk, i_ce, i_en, i_cancel, i_v, i_d, o_v, o_d);
+module addepad(i_clk, i_ce, i_cancel, i_v, i_d, o_v, o_d);
 	parameter	MINNIBBLES=120;
 	localparam	LGNCOUNT=(MINNIBBLES<63)? 6
 				:((MINNIBBLES<127)? 7:((MINNIBBLES<255)? 8:9));
-	input	wire		i_clk, i_ce, i_en, i_cancel;
+	input	wire		i_clk, i_ce, i_cancel;
 	input	wire		i_v;	// Valid
 	input	wire	[3:0]	i_d;	// Data nibble
 	output	reg		o_v;

@@ -75,7 +75,7 @@ module	wbudecompress(i_clk, i_stb, i_word, o_stb, o_word);
 	//	{ o_stb, r_stb } = 4'h2 when done
 	reg	[7:0]	cmd_addr;
 	always @(posedge i_clk)
-		cmd_addr = wr_addr - { r_word[32:31], r_word[29:24] };
+		cmd_addr <= wr_addr - { r_word[32:31], r_word[29:24] };
 
 	// Let's also calculate the address, in case this is a compressed
 	// address word

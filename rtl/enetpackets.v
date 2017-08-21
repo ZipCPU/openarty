@@ -190,13 +190,13 @@ module	enetpackets(i_wb_clk, i_reset,
 	reg	wr_ctrl;
 	reg	[2:0]	wr_addr;
 	reg	[31:0]	wr_data;
-	reg	[3:0]	wr_sel;
+	//reg	[3:0]	wr_sel;
 	always @(posedge i_wb_clk)
 	begin
 		wr_ctrl<=((i_wb_stb)&&(i_wb_we)&&(i_wb_addr[(MAW+1):MAW] == 2'b00));
 		wr_addr <= i_wb_addr[2:0];
 		wr_data <= i_wb_data;
-		wr_sel  <= i_wb_sel;
+		// wr_sel  <= i_wb_sel;
 	end
 
 	reg	[31:0]	txmem	[0:((1<<MAW)-1)];
@@ -214,9 +214,9 @@ module	enetpackets(i_wb_clk, i_reset,
 
 	reg	tx_cmd, tx_cancel;
 `ifdef	TX_SYNCHRONOUS_WITH_WB_CLK
-	wire	tx_busy, tx_complete;
+	wire	tx_busy;
 `else
-	reg	tx_busy, tx_complete;
+	reg	tx_busy;
 `endif
 	reg	config_hw_crc, config_hw_mac, config_hw_ip_check;
 	reg	rx_crcerr, rx_err, rx_miss, rx_clear;
@@ -400,10 +400,9 @@ module	enetpackets(i_wb_clk, i_reset,
 	always @(posedge i_wb_clk)
 		tx_clk_stb <= (r_tx_clk)&&(!last_tx_clk);
 `else
-	wire	tx_clk_stb, last_tx_clk;
+	wire	tx_clk_stb;
 
 	assign	tx_clk_stb = 1'b1;
-	assign	last_tx_clk= 1'b0;
 `endif
 
 	wire	[(MAW+2):0]	rd_tx_addr;
@@ -502,7 +501,7 @@ module	enetpackets(i_wb_clk, i_reset,
 `endif
 
 `ifndef	TX_BYPASS_PADDING
-	addepad	txpadi(`TXCLK, tx_clk_stb, 1'b1, n_tx_cancel,
+	addepad	txpadi(`TXCLK, tx_clk_stb, n_tx_cancel,
 				w_macen, w_macd, w_paden, w_padd);
 `else
 	assign	w_paden = w_macen;
@@ -522,15 +521,13 @@ module	enetpackets(i_wb_clk, i_reset,
 
 `ifdef	TX_SYNCRONOUS_WITH_WB_CLK
 	assign	tx_busy = n_tx_busy;
-	assign	tx_complete = n_tx_complete;
 `else
-	(* ASYNC_REG = "TRUE" *) reg	r_tx_busy, r_tx_complete;
+	(* ASYNC_REG = "TRUE" *) reg	r_tx_busy;
 	always @(posedge i_wb_clk)
 	begin
 		r_tx_busy <= (n_tx_busy || o_net_tx_en || w_txcrcen || w_macen || w_paden);
 		tx_busy <= r_tx_busy;
 
-		r_tx_complete <= n_tx_complete;
 		tx_busy <= r_tx_busy;
 	end
 `endif
@@ -559,9 +556,8 @@ module	enetpackets(i_wb_clk, i_reset,
 		rx_clk_stb <= (r_rx_clk)&&(!last_rx_clk);
 
 `else
-	wire	rx_clk_stb, last_rx_clk;
+	wire	rx_clk_stb;
 	assign	rx_clk_stb = 1'b1;
-	assign	last_rx_clk = 1'b0;
 `endif
 
 
@@ -641,7 +637,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	rxewrite #(MAW) rxememi(`RXCLK, 1'b1, (n_rx_net_err), w_rxmac, w_rxmacd,
 			w_rxwr, w_rxaddr, w_rxdata, w_rxlen);
 
-	reg	last_rxwr, n_rx_valid, n_rxmiss, n_eop, n_rx_busy, n_rx_crcerr,
+	reg	last_rxwr, n_rx_valid, n_eop, n_rx_busy, n_rx_crcerr,
 		n_rx_err, n_rx_broadcast, n_rx_miss;
 	reg	[(MAW+1):0]	n_rx_len;
 
@@ -772,6 +768,7 @@ module	enetpackets(i_wb_clk, i_reset,
 		i_net_rxd };					// 4 bits
 
 
+	/*
 	wire	[31:0]	txdbg;
 	assign	txdbg = { n_tx_cmd, i_net_dv, rx_busy, n_rx_err, i_net_rxd,
 			{(24-(MAW+3)-10){1'b0}}, 
@@ -780,6 +777,13 @@ module	enetpackets(i_wb_clk, i_reset,
 		n_tx_cmd, n_tx_complete, n_tx_busy, o_net_tx_en,
 		o_net_txd
 		};
+	*/
 
 	assign	o_debug = rxdbg;
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[4:0]	unused;
+	assign	unused = { rd_tx_addr[2:0], i_reset, i_wb_cyc };
+	// verilator lint_on  UNUSED
 endmodule

@@ -6,10 +6,8 @@
 //
 // Purpose:	This portion of the ZIP CPU implements a number of soft
 //		peripherals to the CPU nearby its CORE.  The functionality
-//		sits on the data bus, and does not include any true
-//		external hardware peripherals.  The peripherals included here
-//		include:
-//
+//	sits on the data bus, and does not include any true external hardware
+//	peripherals.  The peripherals included here include:
 //
 //	Local interrupt controller--for any/all of the interrupts generated
 //		here.  This would include a pin for interrupts generated
@@ -21,21 +19,6 @@
 //		modern systems (Linux), they tend to send all interrupts to the
 //		same interrupt vector anyway.  Hence, that's what we do here.
 //
-//	Bus Error interrupts -- generates an interrupt any time the wishbone
-//		bus produces an error on a given access, for whatever purpose
-//		also records the address on the bus at the time of the error.
-//
-//	Trap instructions
-//		Writing to this "register" will always create an interrupt.
-//		After the interrupt, this register may be read to see what
-//		value had been written to it.
-//
-//	Bit reverse register ... ?
-//
-//	(Potentially an eventual floating point co-processor ...)
-//
-//	Real-time clock
-//
 //	Interval timer(s) (Count down from fixed value, and either stop on
 //		zero, or issue an interrupt and restart automatically on zero)
 //		These can be implemented as watchdog timers if desired--the
@@ -46,18 +29,34 @@
 //		interrupt/time-out line is wired to the reset line instead of
 //		the interrupt line of the CPU.
 //
-//	ROM Memory map
-//		Set a register to control this map, and a DMA will begin to
-//		fill this memory from a slower FLASH.  Once filled, accesses
-//		will be from this memory instead of 
+//	Direct Memory Access Controller: This controller allows you to command
+//		automatic memory moves.  Such memory moves will take place
+//		without the CPU's involvement until they are done.  See the
+//		DMA specification for more information. (Currently contained
+//		w/in the ZipCPU spec.)
 //
+//	(Potentially an eventual floating point co-processor ...?)
 //
-//	Doing some market comparison, let's look at what peripherals a TI
-//	MSP430 might offer: MSP's may have I2C ports, SPI, UART, DMA, ADC,
-//	Comparators, 16,32-bit timers, 16x16 or 32x32 timers, AES, BSL,
-//	brown-out-reset(s), real-time-clocks, temperature sensors, USB ports,
-//	Spi-Bi-Wire, UART Boot-strap Loader (BSL), programmable digital I/O,
-//	watchdog-timers,
+// Busses:	The ZipSystem implements a series of busses to make this take
+//		place.  These busses are identified by their prefix:
+//
+//	cpu	This is the bus as the CPU sees it.  Since the CPU controls
+//		two busses (a local and a global one), it uses _gbl_ to indicate
+//		the external bus (going through the MMU if necessary) and
+//		_lcl_ to indicate a peripheral bus seen here.
+//
+//	mmu	Sits between the CPU's wishbone interface and the external
+//		bus.  Has no access to peripherals.
+//
+//	sys	A local bus implemented here within this space.  This is how the
+//		CPU talks to the ZipSystem peripherals.  However, this bus
+//		can also be accessed from the external debug bus.
+//
+//	io_dbg
+//	io_wb
+//
+//	dbg	This is identical to the io_dbg bus, but separated by a clock
+//	dc	The output of the DMA controller
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -88,23 +87,20 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 `include "cpudefs.v"
+//
+`define	RESET_BIT	6
+`define	STEP_BIT	8
+`define	HALT_BIT	10
+`define	CLEAR_CACHE_BIT	11
 //
 // While I hate adding delays to any bus access, this next delay is required
 // to make timing close in my Basys-3 design.
 `define	DELAY_DBG_BUS
-// On my previous version, I needed to add a delay to access the external
-// bus.  Activate the define below and that delay will be put back into place.
-// This particular version no longer needs the delay in order to run at 
-// 100 MHz.  Timing indicates I may even run this at 250 MHz without the
-// delay too, so we're doing better.  To get rid of this, I placed the logic
-// determining whether or not I was accessing the local system bus one clock
-// earlier, or into the memops.v file.  This also required my wishbone bus
-// arbiter to maintain the bus selection as well, so that got updated ...
-// you get the picture.  But, the bottom line is that I no longer need this
-// delay.
 //
-// `define	DELAY_EXT_BUS	// Required no longer!
+// `define	DELAY_EXT_BUS
 //
 //
 // If space is tight, you might not wish to have your performance and
@@ -118,25 +114,29 @@
 //
 // Now, where am I placing all of my peripherals?
 `define	PERIPHBASE	32'hc0000000
-`define	INTCTRL		5'h0	// 
-`define	WATCHDOG	5'h1	// Interrupt generates reset signal
-`define	BUSWATCHDOG	5'h2	// Sets IVEC[0]
-`define	CTRINT		5'h3	// Sets IVEC[5]
-`define	TIMER_A		5'h4	// Sets IVEC[4]
-`define	TIMER_B		5'h5	// Sets IVEC[3]
-`define	TIMER_C		5'h6	// Sets IVEC[2]
-`define	JIFFIES		5'h7	// Sets IVEC[1]
+`define	INTCTRL		8'h0	// 
+`define	WATCHDOG	8'h1	// Interrupt generates reset signal
+`define	BUSWATCHDOG	8'h2	// Sets IVEC[0]
+`define	CTRINT		8'h3	// Sets IVEC[5]
+`define	TIMER_A		8'h4	// Sets IVEC[4]
+`define	TIMER_B		8'h5	// Sets IVEC[3]
+`define	TIMER_C		8'h6	// Sets IVEC[2]
+`define	JIFFIES		8'h7	// Sets IVEC[1]
 
 
 `ifdef	INCLUDE_ACCOUNTING_COUNTERS
-`define	MSTR_TASK_CTR	5'h08
-`define	MSTR_MSTL_CTR	5'h09
-`define	MSTR_PSTL_CTR	5'h0a
-`define	MSTR_INST_CTR	5'h0b
-`define	USER_TASK_CTR	5'h0c
-`define	USER_MSTL_CTR	5'h0d
-`define	USER_PSTL_CTR	5'h0e
-`define	USER_INST_CTR	5'h0f
+`define	MSTR_TASK_CTR	8'h08
+`define	MSTR_MSTL_CTR	8'h09
+`define	MSTR_PSTL_CTR	8'h0a
+`define	MSTR_INST_CTR	8'h0b
+`define	USER_TASK_CTR	8'h0c
+`define	USER_MSTL_CTR	8'h0d
+`define	USER_PSTL_CTR	8'h0e
+`define	USER_INST_CTR	8'h0f
+`endif
+
+`ifdef	OPT_MMU
+`define	MMU_ADDR	8'h80
 `endif
 
 // Although I have a hole at 5'h2, the DMA controller requires four wishbone
@@ -177,12 +177,15 @@ module	zipsystem(i_clk, i_rst,
 `endif
 		);
 	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=30,
-			LGICACHE=10, START_HALTED=1, EXTERNAL_INTERRUPTS=1,
+			LGICACHE=10;
+	parameter [0:0]	START_HALTED=1;
+	parameter	EXTERNAL_INTERRUPTS=1,
 `ifdef	OPT_MULTIPLY
-			IMPLEMENT_MPY = `OPT_MULTIPLY,
+			IMPLEMENT_MPY = `OPT_MULTIPLY;
 `else
-			IMPLEMENT_MPY = 0,
+			IMPLEMENT_MPY = 0;
 `endif
+	parameter [0:0]
 `ifdef	OPT_DIVIDE
 			IMPLEMENT_DIVIDE=1,
 `else
@@ -195,11 +198,21 @@ module	zipsystem(i_clk, i_rst,
 `endif
 			IMPLEMENT_LOCK=1;
 	localparam	// Derived parameters
-			AW=ADDRESS_WIDTH;
+			PHYSICAL_ADDRESS_WIDTH=ADDRESS_WIDTH,
+			PAW=ADDRESS_WIDTH,
+`ifdef	OPT_MMU
+			VIRTUAL_ADDRESS_WIDTH=30,
+`else
+			VIRTUAL_ADDRESS_WIDTH=PAW,
+`endif
+			LGTLBSZ = 6,
+			VAW=VIRTUAL_ADDRESS_WIDTH;
+
+	localparam	AW=ADDRESS_WIDTH;
 	input	wire	i_clk, i_rst;
 	// Wishbone master
 	output	wire		o_wb_cyc, o_wb_stb, o_wb_we;
-	output	wire	[(AW-1):0]	o_wb_addr;
+	output	wire	[(PAW-1):0]	o_wb_addr;
 	output	wire	[31:0]	o_wb_data;
 	output	wire	[3:0]	o_wb_sel;
 	input	wire		i_wb_ack, i_wb_stall;
@@ -273,8 +286,12 @@ module	zipsystem(i_clk, i_rst,
 	wire	[31:0]	dbg_idata, dbg_odata;
 	reg		dbg_ack;
 `ifdef	DELAY_DBG_BUS
-	wire		dbg_err, no_dbg_err;
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire		no_dbg_err;
 	wire	[3:0]	dbg_sel;
+	// verilator lint_on  UNUSED
+	wire		dbg_err;
 	assign		dbg_err = 1'b0;
 	busdelay #(1,32) wbdelay(i_clk,
 		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data, 4'hf,
@@ -296,10 +313,24 @@ module	zipsystem(i_clk, i_rst,
 	//
 	//
 	wire	sys_cyc, sys_stb, sys_we;
-	wire	[4:0]	sys_addr;
-	wire	[(AW-1):0]	cpu_addr;
+	wire	[7:0]	sys_addr;
+	wire	[(PAW-1):0]	cpu_addr;
 	wire	[31:0]	sys_data;
-	wire		sys_ack, sys_stall;
+	reg	[31:0]	sys_idata;
+	reg		sys_ack;
+	wire		sys_stall;
+
+	wire	sel_counter, sel_timer, sel_pic, sel_apic,
+		sel_watchdog, sel_bus_watchdog, sel_dmac, sel_mmus;
+	//
+	assign	sel_pic         = (sys_stb)&&(sys_addr == `INTCTRL);
+	assign	sel_watchdog    = (sys_stb)&&(sys_addr == `WATCHDOG);
+	assign	sel_bus_watchdog= (sys_stb)&&(sys_addr == `BUSWATCHDOG);
+	assign	sel_apic        = (sys_stb)&&(sys_addr == `CTRINT);
+	assign	sel_timer       = (sys_stb)&&(sys_addr[7:2] == 6'h1);
+	assign	sel_counter     = (sys_stb)&&(sys_addr[7:3] == 5'h1);
+	assign	sel_dmac        = (sys_stb)&&(sys_addr[7:4] == 4'h1);
+	assign	sel_mmus        = (sys_stb)&&(sys_addr[7]);
 
 	//
 	// The external debug interface
@@ -318,39 +349,42 @@ module	zipsystem(i_clk, i_rst,
 	reg		cmd_reset, cmd_halt, cmd_step, cmd_clear_pf_cache;
 	reg	[5:0]	cmd_addr;
 	wire	[3:0]	cpu_dbg_cc;
-	assign	dbg_cmd_write = (dbg_cyc)&&(dbg_stb)&&(dbg_we)&&(~dbg_addr);
+	assign	dbg_cmd_write = (dbg_stb)&&(dbg_we)&&(!dbg_addr);
+	//
+	// Always start us off with an initial reset
 	//
 	initial	cmd_reset = 1'b1;
 	always @(posedge i_clk)
-		cmd_reset <= ((dbg_cmd_write)&&(dbg_idata[6]));
+		cmd_reset <= ((dbg_cmd_write)&&(dbg_idata[`RESET_BIT]))
+			||(wdt_reset);
 	//
 	initial	cmd_halt  = START_HALTED;
 	always @(posedge i_clk)
-		if (i_rst)
-			cmd_halt <= (START_HALTED == 1)? 1'b1 : 1'b0;
+		if ((i_rst)||(cmd_reset))
+			cmd_halt <= START_HALTED;
 		else if (dbg_cmd_write)
-			cmd_halt <= ((dbg_idata[10])||(dbg_idata[8]));
+			cmd_halt <= ((dbg_idata[`HALT_BIT])&&(!dbg_idata[`STEP_BIT]));
 		else if ((cmd_step)||(cpu_break))
 			cmd_halt  <= 1'b1;
 
 	initial	cmd_clear_pf_cache = 1'b1;
 	always @(posedge i_clk)
-		cmd_clear_pf_cache = (~i_rst)&&(dbg_cmd_write)
-					&&((dbg_idata[11])||(dbg_idata[6]));
+		cmd_clear_pf_cache <= (dbg_cmd_write)&&(dbg_idata[`CLEAR_CACHE_BIT]);
 	//
 	initial	cmd_step  = 1'b0;
 	always @(posedge i_clk)
-		cmd_step <= (dbg_cmd_write)&&(dbg_idata[8]);
+		cmd_step <= (dbg_cmd_write)&&(dbg_idata[`STEP_BIT]);
 	//
+	initial	cmd_addr = 6'h0;
 	always @(posedge i_clk)
 		if (dbg_cmd_write)
 			cmd_addr <= dbg_idata[5:0];
 
 	wire	cpu_reset;
-	assign	cpu_reset = (cmd_reset)||(wdt_reset)||(i_rst);
+	assign	cpu_reset = (cmd_reset);
 
 	wire	cpu_halt, cpu_dbg_stall;
-	assign	cpu_halt = (i_rst)||((cmd_halt)&&(~cmd_step));
+	assign	cpu_halt = (cmd_halt);
 	wire	[31:0]	pic_data;
 	wire	[31:0]	cmd_data;
 	// Values:
@@ -370,11 +404,11 @@ module	zipsystem(i_clk, i_rst,
 		assign	cmd_data = { {(16-EXTERNAL_INTERRUPTS){1'b0}},
 					i_ext_int,
 				cpu_dbg_cc,	// 4 bits
-				1'b0, cmd_halt, (~cpu_dbg_stall), 1'b0,
+				1'b0, cmd_halt, (!cpu_dbg_stall), 1'b0,
 				pic_data[15], cpu_reset, cmd_addr };
 	else
 		assign	cmd_data = { i_ext_int[15:0], cpu_dbg_cc,
-				1'b0, cmd_halt, (~cpu_dbg_stall), 1'b0,
+				1'b0, cmd_halt, (!cpu_dbg_stall), 1'b0,
 				pic_data[15], cpu_reset, cmd_addr };
 	endgenerate
 
@@ -387,8 +421,8 @@ module	zipsystem(i_clk, i_rst,
 	wire		wdt_ack, wdt_stall, wdt_reset;
 	wire	[31:0]	wdt_data;
 	ziptimer #(32,31,0)
-		watchdog(i_clk, cpu_reset, ~cmd_halt,
-			sys_cyc, ((sys_stb)&&(sys_addr == `WATCHDOG)), sys_we,
+		watchdog(i_clk, cpu_reset, !cmd_halt,
+			sys_cyc, (sys_stb)&&(sel_watchdog), sys_we,
 				sys_data,
 			wdt_ack, wdt_stall, wdt_data, wdt_reset);
 
@@ -399,21 +433,20 @@ module	zipsystem(i_clk, i_rst,
 	// take less than the number written to this register.
 	//
 	reg	wdbus_ack;
-	reg	[(AW-1):0] 	r_wdbus_data;
+	reg	[(PAW-1):0] 	r_wdbus_data;
 	wire	[31:0]	 	wdbus_data;
-	wire	[14:0]	wdbus_ignored_data;
 	wire	reset_wdbus_timer, wdbus_int;
 	assign	reset_wdbus_timer = ((o_wb_cyc)&&((o_wb_stb)||(i_wb_ack)));
 	wbwatchdog #(14) watchbus(i_clk,(cpu_reset)||(reset_wdbus_timer),
 			o_wb_cyc, 14'h2000, wdbus_int);
 	initial	r_wdbus_data = 0;
 	always @(posedge i_clk)
-		if ((wdbus_int)||(cpu_ext_err))
-			r_wdbus_data = o_wb_addr;
-	assign	wdbus_data = { {(32-AW){1'b0}}, r_wdbus_data };
+		if ((wdbus_int)||(cpu_err))
+			r_wdbus_data <= o_wb_addr;
+	assign	wdbus_data = { {(32-PAW){1'b0}}, r_wdbus_data };
 	initial	wdbus_ack = 1'b0;
 	always @(posedge i_clk)
-		wdbus_ack <= ((sys_cyc)&&(sys_stb)&&(sys_addr == 5'h02));
+		wdbus_ack <= ((sys_cyc)&&(sys_stb)&&(sel_bus_watchdog));
 
 	// Counters -- for performance measurement and accounting
 	//
@@ -430,7 +463,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		mtc_ack, mtc_stall;
 	wire	[31:0]	mtc_data;
 	zipcounter	mtask_ctr(i_clk, (~cpu_halt), sys_cyc,
-				(sys_stb)&&(sys_addr == `MSTR_TASK_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b000),
 					sys_we, sys_data,
 				mtc_ack, mtc_stall, mtc_data, mtc_int);
 
@@ -438,7 +471,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		moc_ack, moc_stall;
 	wire	[31:0]	moc_data;
 	zipcounter	mmstall_ctr(i_clk,(cpu_op_stall), sys_cyc,
-				(sys_stb)&&(sys_addr == `MSTR_MSTL_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b001),
 					sys_we, sys_data,
 				moc_ack, moc_stall, moc_data, moc_int);
 
@@ -446,7 +479,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		mpc_ack, mpc_stall;
 	wire	[31:0]	mpc_data;
 	zipcounter	mpstall_ctr(i_clk,(cpu_pf_stall), sys_cyc,
-				(sys_stb)&&(sys_addr == `MSTR_PSTL_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b010),
 					sys_we, sys_data,
 				mpc_ack, mpc_stall, mpc_data, mpc_int);
 
@@ -454,7 +487,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		mic_ack, mic_stall;
 	wire	[31:0]	mic_data;
 	zipcounter	mins_ctr(i_clk,(cpu_i_count), sys_cyc,
-				(sys_stb)&&(sys_addr == `MSTR_INST_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b011),
 					sys_we, sys_data,
 				mic_ack, mic_stall, mic_data, mic_int);
 
@@ -466,7 +499,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		utc_ack, utc_stall;
 	wire	[31:0]	utc_data;
 	zipcounter	utask_ctr(i_clk,(~cpu_halt)&&(cpu_gie), sys_cyc,
-				(sys_stb)&&(sys_addr == `USER_TASK_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b100),
 					sys_we, sys_data,
 				utc_ack, utc_stall, utc_data, utc_int);
 
@@ -474,7 +507,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		uoc_ack, uoc_stall;
 	wire	[31:0]	uoc_data;
 	zipcounter	umstall_ctr(i_clk,(cpu_op_stall)&&(cpu_gie), sys_cyc,
-				(sys_stb)&&(sys_addr == `USER_MSTL_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b101),
 					sys_we, sys_data,
 				uoc_ack, uoc_stall, uoc_data, uoc_int);
 
@@ -482,7 +515,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		upc_ack, upc_stall;
 	wire	[31:0]	upc_data;
 	zipcounter	upstall_ctr(i_clk,(cpu_pf_stall)&&(cpu_gie), sys_cyc,
-				(sys_stb)&&(sys_addr == `USER_PSTL_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b110),
 					sys_we, sys_data,
 				upc_ack, upc_stall, upc_data, upc_int);
 
@@ -490,7 +523,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		uic_ack, uic_stall;
 	wire	[31:0]	uic_data;
 	zipcounter	uins_ctr(i_clk,(cpu_i_count)&&(cpu_gie), sys_cyc,
-				(sys_stb)&&(sys_addr == `USER_INST_CTR),
+				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b111),
 					sys_we, sys_data,
 				uic_ack, uic_stall, uic_data, uic_int);
 
@@ -526,7 +559,7 @@ module	zipsystem(i_clk, i_rst,
 	assign	uic_int = 1'b0;
 
 	always @(posedge i_clk)
-		actr_ack <= (sys_stb)&&(sys_addr[4:3] == 2'b01);
+		actr_ack <= sel_counter;
 `endif	//	INCLUDE_ACCOUNTING_COUNTERS
 
 	//
@@ -537,14 +570,14 @@ module	zipsystem(i_clk, i_rst,
 	wire		dmac_ack, dmac_stall;
 	wire		dc_cyc, dc_stb, dc_we, dc_ack, dc_stall;
 	wire	[31:0]	dc_data;
-	wire	[(AW-1):0]	dc_addr;
+	wire	[(PAW-1):0]	dc_addr;
 	wire		cpu_gbl_cyc;
 	wire	[31:0]	dmac_int_vec;
 	assign	dmac_int_vec = { 1'b0, alt_int_vector, 1'b0,
 					main_int_vector[14:1], 1'b0 };
-	assign	dmac_stb = (sys_stb)&&(sys_addr[4]);
+	assign	dmac_stb = (sys_stb)&&(sel_dmac);
 `ifdef	INCLUDE_DMA_CONTROLLER
-	wbdmac	#(AW) dma_controller(i_clk, cpu_reset,
+	wbdmac	#(PAW) dma_controller(i_clk, cpu_reset,
 				sys_cyc, dmac_stb, sys_we,
 					sys_addr[1:0], sys_data,
 					dmac_ack, dmac_stall, dmac_data,
@@ -566,7 +599,7 @@ module	zipsystem(i_clk, i_rst,
 	assign	dc_cyc  = 1'b0;
 	assign	dc_stb  = 1'b0;
 	assign	dc_we   = 1'b0;
-	assign	dc_addr = { (AW) {1'b0} };
+	assign	dc_addr = { (PAW) {1'b0} };
 	assign	dc_data = 32'h00;
 
 	assign	dmac_int = 1'b0;
@@ -575,7 +608,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		ctri_sel, ctri_stall;
 	reg		ctri_ack;
 	wire	[31:0]	ctri_data;
-	assign	ctri_sel = (sys_stb)&&(sys_addr == `CTRINT);
+	assign	ctri_sel = (sys_stb)&&(sel_apic);
 	always @(posedge i_clk)
 		ctri_ack <= ctri_sel;
 	assign	ctri_stall = 1'b0;
@@ -621,7 +654,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		tma_ack, tma_stall;
 	wire	[31:0]	tma_data;
 	ziptimer timer_a(i_clk, cpu_reset, ~cmd_halt,
-			sys_cyc, (sys_stb)&&(sys_addr == `TIMER_A), sys_we,
+			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b00), sys_we,
 				sys_data,
 			tma_ack, tma_stall, tma_data, tma_int);
 
@@ -631,7 +664,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		tmb_ack, tmb_stall;
 	wire	[31:0]	tmb_data;
 	ziptimer timer_b(i_clk, cpu_reset, ~cmd_halt,
-			sys_cyc, (sys_stb)&&(sys_addr == `TIMER_B), sys_we,
+			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b01), sys_we,
 				sys_data,
 			tmb_ack, tmb_stall, tmb_data, tmb_int);
 
@@ -641,7 +674,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		tmc_ack, tmc_stall;
 	wire	[31:0]	tmc_data;
 	ziptimer timer_c(i_clk, cpu_reset, ~cmd_halt,
-			sys_cyc, (sys_stb)&&(sys_addr == `TIMER_C), sys_we,
+			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0]==2'b10), sys_we,
 				sys_data,
 			tmc_ack, tmc_stall, tmc_data, tmc_int);
 
@@ -651,7 +684,7 @@ module	zipsystem(i_clk, i_rst,
 	wire		jif_ack, jif_stall;
 	wire	[31:0]	jif_data;
 	zipjiffies jiffies(i_clk, ~cmd_halt,
-			sys_cyc, (sys_stb)&&(sys_addr == `JIFFIES), sys_we,
+			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b11), sys_we,
 				sys_data,
 			jif_ack, jif_stall, jif_data, jif_int);
 
@@ -664,13 +697,13 @@ module	zipsystem(i_clk, i_rst,
 	begin
 		icontrol #(6+EXTERNAL_INTERRUPTS)	pic(i_clk, cpu_reset,
 					(sys_cyc)&&(sys_stb)&&(sys_we)
-						&&(sys_addr==`INTCTRL),
+						&&(sel_pic),
 					sys_data, pic_data,
 					main_int_vector[(6+EXTERNAL_INTERRUPTS-1):0], pic_interrupt);
 	end else begin
 		icontrol #(15)	pic(i_clk, cpu_reset,
 					(sys_cyc)&&(sys_stb)&&(sys_we)
-						&&(sys_addr==`INTCTRL),
+						&&(sel_pic),
 					sys_data, pic_data,
 					main_int_vector[14:0], pic_interrupt);
 	end endgenerate
@@ -679,27 +712,27 @@ module	zipsystem(i_clk, i_rst,
 	assign	pic_stall = 1'b0;
 	reg	pic_ack;
 	always @(posedge i_clk)
-		pic_ack <= (sys_stb)&&(sys_addr == `INTCTRL);
+		pic_ack <= (sys_stb)&&(sel_pic);
 
 	//
 	// The CPU itself
 	//
 	wire		cpu_gbl_stb, cpu_lcl_cyc, cpu_lcl_stb, 
 			cpu_we, cpu_dbg_we;
-	wire	[31:0]	cpu_data, wb_data;
-	wire	[3:0]	cpu_sel;
+	wire	[31:0]	cpu_data, cpu_idata;
+	wire	[3:0]	cpu_sel, mmu_sel;
 	wire		cpu_ack, cpu_stall, cpu_err;
 	wire	[31:0]	cpu_dbg_data;
 	assign cpu_dbg_we = ((dbg_cyc)&&(dbg_stb)&&(~cmd_addr[5])
 					&&(dbg_we)&&(dbg_addr));
-	zipcpu	#(
-			.RESET_ADDRESS(RESET_ADDRESS),
-			.ADDRESS_WIDTH(ADDRESS_WIDTH),
+	zipcpu	#(	.RESET_ADDRESS(RESET_ADDRESS),
+			.ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH),
 			.LGICACHE(LGICACHE),
 			.IMPLEMENT_MPY(IMPLEMENT_MPY),
 			.IMPLEMENT_DIVIDE(IMPLEMENT_DIVIDE),
 			.IMPLEMENT_FPU(IMPLEMENT_FPU),
-			.IMPLEMENT_LOCK(IMPLEMENT_LOCK)
+			.IMPLEMENT_LOCK(IMPLEMENT_LOCK),
+			.WITH_LOCAL_BUS(1'b1)
 		)
 		thecpu(i_clk, cpu_reset, pic_interrupt,
 			cpu_halt, cmd_clear_pf_cache, cmd_addr[4:0], cpu_dbg_we,
@@ -708,13 +741,103 @@ module	zipsystem(i_clk, i_rst,
 			cpu_gbl_cyc, cpu_gbl_stb,
 				cpu_lcl_cyc, cpu_lcl_stb,
 				cpu_we, cpu_addr, cpu_data, cpu_sel,
-				cpu_ack, cpu_stall, wb_data,
-				cpu_err,
+				// Return values from the Wishbone bus
+				cpu_ack, cpu_stall, cpu_idata, cpu_err,
 			cpu_op_stall, cpu_pf_stall, cpu_i_count
 `ifdef	DEBUG_SCOPE
 			, o_cpu_debug
 `endif
 			);
+
+	wire	ext_ack, ext_stall;
+	wire	mmu_cyc, mmu_stb, mmu_we, mmu_stall, mmu_ack, mmu_err;
+	wire	mmus_ack, mmus_stall;
+	wire [PAW-1:0]	mmu_addr;
+	wire [31:0]	mmu_data, mmu_idata, mmus_data;
+
+	// Specific responses from the MMU
+	wire		cpu_miss;
+
+	// The mmu_cpu_ lines are the return bus lines from the MMU.  They
+	// are separate from the cpu_'s lines simply because either the sys_
+	// (local) bus or the mmu_cpu_ (global) bus might return a response to
+	// the CPU, and the responses haven't been merged back together again
+	// yet.
+	wire		mmu_cpu_ack, mmu_cpu_stall;
+	wire	[31:0]	mmu_cpu_idata;
+
+	// The wires associated with cache snooping
+	wire		pf_return_stb, pf_return_we, pf_return_cachable;
+	wire	[19:0]	pf_return_v, pf_return_p;
+
+`ifdef	OPT_MMU
+	// Ok ... here's the MMU
+	zipmmu	#(	.LGTBL(LGTLBSZ),
+			.ADDRESS_WIDTH(PHYSICAL_ADDRESS_WIDTH)
+			)
+		themmu(i_clk, cpu_reset,
+			// Slave interface
+			(sys_stb)&&(sel_mmus),
+				sys_we, sys_addr[7:0], sys_data,
+				mmus_ack, mmus_stall, mmus_data,
+			// CPU global bus master lines
+			cpu_gbl_cyc, cpu_gbl_stb, cpu_we, cpu_addr,
+				cpu_data, cpu_sel,
+			// MMU bus master outgoing lines
+			mmu_cyc, mmu_stb, mmu_we, mmu_addr, mmu_data, mmu_sel,
+				// .... and the return from the slave(s)
+				mmu_stall, mmu_ack, mmu_err, mmu_idata,
+			// CPU gobal bus master return lines
+				mmu_cpu_stall, mmu_cpu_ack, cpu_err, cpu_miss, mmu_cpu_idata,
+				pf_return_stb, pf_return_we, pf_return_p, pf_return_v,
+					pf_return_cachable);
+
+`else
+	assign	mmu_cyc   = cpu_gbl_cyc;
+	assign	mmu_stb   = cpu_gbl_stb;
+	assign	mmu_we    = cpu_we;
+	assign	mmu_addr  = cpu_addr;
+	assign	mmu_data  = cpu_data;
+	assign	mmu_sel   = cpu_sel;
+	assign	mmu_idata = 0; /// HUH?  I forgot what this was supposed to be connected to
+	assign	cpu_miss  = 1'b0;
+	assign	cpu_err   = (mmu_err)&&(cpu_gbl_cyc);
+	assign	mmu_cpu_idata = mmu_idata;
+	assign	mmu_cpu_stall = mmu_stall;
+	assign	mmu_cpu_ack   = mmu_ack;
+	reg	r_mmus_ack;
+	initial	r_mmus_ack = 1'b0;
+	always @(posedge i_clk)
+		r_mmus_ack <= (sys_stb)&&(sys_addr[7]);
+	assign	mmus_ack   = r_mmus_ack;
+	assign	mmus_stall = 1'b0;
+	assign	mmus_data  = 32'h0;
+
+	assign	pf_return_stb = 0;
+	assign	pf_return_v   = 0;
+	assign	pf_return_p   = 0;
+	assign	pf_return_we  = 0;
+	assign	pf_return_cachable = 0;
+`endif
+	// Responses from the MMU still need to be merged/muxed back together
+	// with the responses from the local bus
+	assign	cpu_ack   = ((cpu_lcl_cyc)&&(sys_ack))
+				||((cpu_gbl_cyc)&&(mmu_cpu_ack));
+	assign	cpu_stall = ((cpu_lcl_cyc)&&(sys_stall))
+				||((cpu_gbl_cyc)&&(mmu_cpu_stall));
+	assign	cpu_idata     = (cpu_gbl_cyc)?mmu_cpu_idata : sys_idata;
+
+	// The following lines (will be/) are used to allow the prefetch to
+	// snoop on any external interaction.  Until this capability is
+	// integrated into the CPU, they are unused.  Here we tell Verilator
+	// not to be surprised that these lines are unused:
+
+	// verilator lint_off UNUSED
+	wire	[(3+1+20+20-1):0]	mmu_unused;
+	assign	mmu_unused = { pf_return_stb, pf_return_we,
+				pf_return_p, pf_return_v, pf_return_cachable,
+				cpu_miss };
+	// verilator lint_on UNUSED
 
 	// Now, arbitrate the bus ... first for the local peripherals
 	// For the debugger to have access to the local system bus, the
@@ -731,25 +854,31 @@ module	zipsystem(i_clk, i_rst,
 	//			by not waiting for the CPU to fully halt,
 	//			his results may not be what he expects.
 	//
-	wire	sys_dbg_cyc = ((dbg_cyc)&&(~cpu_lcl_cyc)&&(dbg_addr))
-				&&(((cpu_halt)&&(~cpu_dbg_stall))
-					||(~cmd_addr[5]));
+	wire	sys_dbg_cyc = ((dbg_cyc)&&(!cpu_lcl_cyc)&&(dbg_addr))
+				&&(cmd_addr[5]);
 	assign	sys_cyc = (cpu_lcl_cyc)||(sys_dbg_cyc);
 	assign	sys_stb = (cpu_lcl_cyc)
 				? (cpu_lcl_stb)
 				: ((dbg_stb)&&(dbg_addr)&&(cmd_addr[5]));
 
 	assign	sys_we  = (cpu_lcl_cyc) ? cpu_we : dbg_we;
-	assign	sys_addr= (cpu_lcl_cyc) ? cpu_addr[4:0] : cmd_addr[4:0];
+	assign	sys_addr= (cpu_lcl_cyc) ? cpu_addr[7:0] : { 3'h0, cmd_addr[4:0]};
 	assign	sys_data= (cpu_lcl_cyc) ? cpu_data : dbg_idata;
 
 	// Return debug response values
-	assign	dbg_odata = (~dbg_addr)?cmd_data
-				:((~cmd_addr[5])?cpu_dbg_data : wb_data);
+	// A return from one of three busses:
+	//	CMD	giving command instructions to the CPU (step, halt, etc)
+	//	CPU-DBG-DATA	internal register responses from within the CPU
+	//	sys	Responses from the front-side bus here in the ZipSystem
+	assign	dbg_odata = (!dbg_addr) ? cmd_data
+				:((!cmd_addr[5])?cpu_dbg_data : sys_idata);
 	initial dbg_ack = 1'b0;
 	always @(posedge i_clk)
-		dbg_ack <= (dbg_cyc)&&(dbg_stb)&&(~dbg_stall);
-	assign	dbg_stall=(dbg_cyc)&&((~sys_dbg_cyc)||(sys_stall))&&(dbg_addr);
+		dbg_ack <= (dbg_stb)&&(!dbg_stall);
+	assign	dbg_stall=(dbg_cyc)&&(
+		((!sys_dbg_cyc)&&(cpu_dbg_stall))
+			||(sys_stall)
+		)&&(dbg_addr);
 
 	// Now for the external wishbone bus
 	//	Need to arbitrate between the flash cache and the CPU
@@ -757,22 +886,20 @@ module	zipsystem(i_clk, i_rst,
 	// cache gets access to the bus--the CPU will be stuck until the 
 	// flash cache is finished with the bus.
 	wire		ext_cyc, ext_stb, ext_we, ext_err;
-	wire		cpu_ext_ack, cpu_ext_stall, ext_ack, ext_stall,
-				cpu_ext_err;
-	wire	[(AW-1):0]	ext_addr;
+	wire	[(PAW-1):0]	ext_addr;
 	wire	[31:0]		ext_odata;
 	wire	[3:0]		ext_sel;
-	wbpriarbiter #(32,AW) dmacvcpu(i_clk,
-			cpu_gbl_cyc, cpu_gbl_stb, cpu_we, cpu_addr, cpu_data, cpu_sel,
-				cpu_ext_ack, cpu_ext_stall, cpu_ext_err,
+	wbpriarbiter #(32,PAW) dmacvcpu(i_clk,
+			mmu_cyc, mmu_stb, mmu_we, mmu_addr, mmu_data, mmu_sel,
+				mmu_ack, mmu_stall, mmu_err,
 			dc_cyc, dc_stb, dc_we, dc_addr, dc_data, 4'hf,
 					dc_ack, dc_stall, dc_err,
 			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
 				ext_ack, ext_stall, ext_err);
 
 `ifdef	DELAY_EXT_BUS
-	busdelay #(AW,32) extbus(i_clk,
-			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata,
+	busdelay #(.AW(PAW),.DW(32),.DELAY_STALL(0)) extbus(i_clk,
+			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
 				ext_ack, ext_stall, ext_idata, ext_err,
 			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
 				i_wb_ack, i_wb_stall, i_wb_data, (i_wb_err)||(wdbus_int));
@@ -796,19 +923,44 @@ module	zipsystem(i_clk, i_rst,
 				:(tmb_ack ? tmb_data
 				:(tmc_ack ? tmc_data
 				:jif_data));
-	assign	wb_data = (tmr_ack|wdt_ack)?((tmr_ack)?tmr_data:wdt_data)
-			:((actr_ack|dmac_ack)?((actr_ack)?actr_data:dmac_data)
-			:((pic_ack|ctri_ack)?((pic_ack)?pic_data:ctri_data)
-			:((wdbus_ack)?wdbus_data:(ext_idata))));
+	always @(posedge i_clk)
+		casez({	mmus_ack,  tmr_ack, wdt_ack,  actr_ack,
+			dmac_ack, pic_ack, ctri_ack, wdbus_ack })
+		8'b1???????: sys_idata <=  mmus_data;
+		8'b01??????: sys_idata <=  tmr_data;
+		8'b001?????: sys_idata <=  wdt_data;
+		8'b0001????: sys_idata <=  actr_data;
+		8'b00001???: sys_idata <=  dmac_data;
+		8'b000001??: sys_idata <=  pic_data;
+		8'b0000001?: sys_idata <=  ctri_data;
+		8'b00000001: sys_idata <=  wdbus_data;
+		default:     sys_idata <=  mmus_data;
+		endcase
 
+	always @(posedge i_clk)
+		sys_ack <= (|{	mmu_ack, tmr_ack, wdt_ack, actr_ack,
+				dmac_ack, pic_ack, ctri_ack, wdbus_ack, mmus_ack });
+		
 	assign	sys_stall = (tma_stall | tmb_stall | tmc_stall | jif_stall
 				| wdt_stall | ctri_stall | actr_stall 
-				| pic_stall | dmac_stall); // Always 1'b0!
-	assign	cpu_stall = (sys_stall)|(cpu_ext_stall);
-	assign	sys_ack = (tmr_ack|wdt_ack|ctri_ack|actr_ack|pic_ack|dmac_ack|wdbus_ack);
-	assign	cpu_ack = (sys_ack)||(cpu_ext_ack);
-	assign	cpu_err = (cpu_ext_err)&&(cpu_gbl_cyc);
+				| pic_stall | dmac_stall | mmus_stall); // Always 1'b0!
 
-	assign	o_ext_int = (cmd_halt) && (~cpu_stall);
+	assign	o_ext_int = (cmd_halt) && (!cpu_stall);
 
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[5:0]	unused;
+	assign unused = { no_dbg_err, dbg_sel, sel_mmus };
+`ifndef	INCLUDE_ACCOUNTING_COUNTERS
+	wire	[11:0]	unused_ctrs;
+	assign	unused_ctrs = {
+		moc_int, mpc_int, mic_int, mtc_int,
+		uoc_int, upc_int, uic_int, utc_int,
+		cpu_gie, cpu_op_stall, cpu_pf_stall, cpu_i_count };
+`endif
+`ifndef	INCLUDE_DMA_CONTROLLER
+	wire	[34:0]	unused_dmac;
+	assign	unused_dmac = { dc_err, dc_ack, dc_stall, dmac_int_vec };
+`endif
+	// verilator lint_on UNUSED
 endmodule

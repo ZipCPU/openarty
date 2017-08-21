@@ -50,6 +50,10 @@
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
+//
+`default_nettype	none
+//
 module rtcdate(i_clk, i_ppd, i_wb_cyc_stb, i_wb_we, i_wb_data,
 		o_wb_ack, o_wb_stall, o_wb_data);
 	input	wire	i_clk;
@@ -208,4 +212,10 @@ module rtcdate(i_clk, i_ppd, i_wb_cyc_stb, i_wb_we, i_wb_data,
 		o_wb_ack <= (i_wb_cyc_stb);
 	assign	o_wb_stall = 1'b0;
 	assign	o_wb_data = { 2'h0, r_year, 3'h0, r_mon, 2'h0, r_day };
+
+	// Make verilator happy
+	// verilator lint_off UNUSED
+	wire	[3:0]	unused;
+	assign unused = { i_wb_data[30], i_wb_data[14:13], i_wb_data[6] };
+	// verilator lint_on  UNUSED
 endmodule
