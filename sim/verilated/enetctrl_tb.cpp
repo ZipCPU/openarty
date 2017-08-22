@@ -47,7 +47,7 @@
 const int	BOMBCOUNT = 2048;
 
 #ifdef	NEW_VERILATOR
-#define	VVAR(A)	enetctrl__DOT__ ## A
+#define	VVAR(A)	enetctrl__DOT_ ## A
 #else
 #define	VVAR(A)	v__DOT_ ## A
 #endif
