@@ -1,4 +1,4 @@
-#!/bin/bash
+#!bash
 ################################################################################
 ##
 ## Filename:	vversion.sh
@@ -53,7 +53,8 @@ then
   exit -1
 fi
 
-VVER=`${VERILATOR} -V | head -1 | cut -d " " -f 2`
+VVERLINE=`${VERILATOR} -V | head -1`
+VVER=`echo ${VVERLINE} | cut -d " " -f 2`
 LATER=`echo $VVER \>= 3.9 | bc`
 if [[ $LATER > 0 ]];
 then
