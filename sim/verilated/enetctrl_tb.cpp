@@ -100,7 +100,7 @@ public:
 			((m_core->o_mdwe)&(m_core->o_mdio))
 				|((m_core->o_mdwe)?0:1));
 
-#define	DEBUGGING_OUTPUT
+// #define	DEBUGGING_OUTPUT
 #ifdef	DEBUGGING_OUTPUT
 		printf("%08lx-WB: %s %s %s%s %s@0x%02x[%04x/%04x] -- %d[%d->(%d)->%d]",
 			m_tickcount,
