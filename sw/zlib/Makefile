@@ -24,7 +24,7 @@
 ## for more details.
 ##
 ## You should have received a copy of the GNU General Public License along
-## with this program.  (It's in the $(ROOT)/doc directory, run make with no
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
 ##
@@ -47,19 +47,23 @@ $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.s: %.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) -fdump-rtl-all -S $< -o $@
 
 $(OBJDIR)/crt0.o: crt0.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) -ffreestanding -c $< -o $@
 
 libarty.a: $(LIBOBJS)
 	$(AR) -cru libarty.a $(LIBOBJS)
 
-clean:
-	rm -rf libarty.a libarty.a $(OBJDIR)/
+define	mk-objdir
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
+endef
 
 define	build-depends
 	@echo "Building dependency file(s)"
+	$(mk-objdir)
 	@$(CC) $(CFLAGS) -MM $(LIBSRCS) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
@@ -69,14 +73,17 @@ tags: $(LIBSRCS) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(LIBSRCS) $(HEADERS)
 
-$(OBJDIR)/depends.txt: $(OBJDIR)/
-	$(build-depends)
+
+.PHONY: clean
+clean:
+	rm -rf libarty.a libarty.a $(OBJDIR)/
+
 
 .PHONY: depends
-depends:
+depends: tags
 	$(build-depends)
 
-$(OBJDIR)/:
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+$(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
+	$(build-depends)
 
 -include $(OBJDIR)/depends.txt

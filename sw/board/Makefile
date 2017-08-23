@@ -56,12 +56,16 @@ CFLAGS  := -O3 -I../zlib
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) -c $< -o $@
 $(OBJDIR)/hello.o: hello.c
+	$(mk-objdir)
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/gettysburg.o: gettysburg.c
+	$(mk-objdir)
 	$(CC) -O3 -c $< -o $@
 $(OBJDIR)/%.s: %.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) $(DUMPRTL) -S $< -o $@
 $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 	bash -c "$(RDELF) -a $^ ; $(OBJDUMP) -S -D $^ " | tee $@
@@ -83,6 +87,7 @@ $(OBJDIR)/cputest.s: cputest.c
 	$(CC) $(CFLAGS) -S -Wa,-cis -fno-builtin $< -o $@
 
 $(OBJDIR)/cmptst.o: cmptst.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 cputest: $(OBJDIR)/cputest.o artyram.ld
@@ -121,13 +126,14 @@ cmptst: $(OBJDIR)/cmptst.o
 exstartup.txt: exstartup
 	$(OBJDUMP) -S -D $^ > $@
 
-clean:
-	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS))
-	rm -rf $(addsuffix .txt,$(PROGRAMS))
-	rm -rf $(OBJDIR)/
+define	mk-objdir
+	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
+endef
+
 
 define	build-depends
 	@echo "Building dependency file(s)"
+	$(mk-objdir)
 	@$(CC) $(CFLAGS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
 	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
 	@rm $(OBJDIR)/xdepends.txt
@@ -137,14 +143,16 @@ tags: $(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
 
-$(OBJDIR)/depends.txt: $(OBJDIR)/
+clean:
+	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS))
+	rm -rf $(addsuffix .txt,$(PROGRAMS))
+	rm -rf $(OBJDIR)/
+
+$(OBJDIR)/depends.txt: tags
 	$(build-depends)
 
 .PHONY: depends
 depends:
 	$(build-depends)
-
-$(OBJDIR)/:
-	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 
 -include $(OBJDIR)/depends.txt
