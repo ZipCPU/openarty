@@ -799,7 +799,6 @@ module	zipsystem(i_clk, i_rst,
 	assign	mmu_addr  = cpu_addr;
 	assign	mmu_data  = cpu_data;
 	assign	mmu_sel   = cpu_sel;
-	assign	mmu_idata = 0; /// HUH?  I forgot what this was supposed to be connected to
 	assign	cpu_miss  = 1'b0;
 	assign	cpu_err   = (mmu_err)&&(cpu_gbl_cyc);
 	assign	mmu_cpu_idata = mmu_idata;
@@ -896,6 +895,7 @@ module	zipsystem(i_clk, i_rst,
 					dc_ack, dc_stall, dc_err,
 			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
 				ext_ack, ext_stall, ext_err);
+	assign	mmu_idata = ext_idata;
 
 `ifdef	DELAY_EXT_BUS
 	busdelay #(.AW(PAW),.DW(32),.DELAY_STALL(0)) extbus(i_clk,
