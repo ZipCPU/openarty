@@ -42,7 +42,7 @@ all:	archive datestamp rtl sim sw
 # all:	datestamp archive rtl sw sim bench bit
 #
 # Could also depend upon load, if desired, but not necessary
-BENCH := `find bench -name Makefile` `find bench -name "*.cpp"` `find bench -name "*.h"`
+BENCH := # `find bench -name Makefile` `find bench -name "*.cpp"` `find bench -name "*.h"`
 SIM   := `find sim -name Makefile` `find sim -name "*.cpp"` `find sim -name "*.h"` `find sim -name "*.c"`
 RTL   := `find rtl -name "*.v"` `find rtl -name Makefile`
 NOTES := `find . -name "*.txt"` `find . -name "*.html"`
