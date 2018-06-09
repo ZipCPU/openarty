@@ -396,7 +396,7 @@ module	busmaster(i_clk, i_rst,
 	//
 	//
 	assign	wbu_idata = dwb_idata;
-	busdelay #(ZA)	wbu_zip_delay(i_clk,
+	busdelay #(ZA)	wbu_zip_delay(i_clk, 1'b0,
 			dwb_cyc, dwb_stb, dwb_we, dwb_addr, dwb_odata, dwb_sel,
 				dwb_ack, dwb_stall, dwb_idata, dwb_err,
 			wb_cyc, wb_stb, wb_we, wb_addr, wb_data, wb_sel,

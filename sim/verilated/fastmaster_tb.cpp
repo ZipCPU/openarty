@@ -1346,6 +1346,8 @@ int	main(int argc, char **argv) {
 	} else
 		while(!tb->done())
 			tb->tick();
+	fflush(stdout);
+	printf("tb->done() = %s\n", (tb->done())?"true":"false");
 
 #endif
 

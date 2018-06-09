@@ -76,9 +76,9 @@ module toplevel(sys_clk_i, i_reset_btn,
 	o_oled_sck, o_oled_cs_n, o_oled_mosi, o_oled_dcn, o_oled_reset_n,
 		o_oled_vccen, o_oled_pmoden,
 	// PMod I/O
-	i_aux_rx, i_aux_cts_n, o_aux_tx, o_aux_rts_n,
+	i_aux_rx, i_aux_cts_n, o_aux_tx, o_aux_rts_n
 	// Chip-kit SPI port
-	o_ck_csn, o_ck_sck, o_ck_mosi
+	// o_ck_csn, o_ck_sck, o_ck_mosi
 	);
 	input	wire	[0:0]	sys_clk_i;
 	input	wire		i_reset_btn;
@@ -132,7 +132,8 @@ module toplevel(sys_clk_i, i_reset_btn,
 	// Aux UART
 	input	wire		i_aux_rx, i_aux_cts_n;
 	output	wire		o_aux_tx, o_aux_rts_n;
-	output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
+	// ChipKit SPI port
+	// output	wire		o_ck_csn, o_ck_sck, o_ck_mosi;
 
 	wire	eth_tx_clk, eth_rx_clk;
 `ifdef	VERILATOR

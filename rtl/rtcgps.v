@@ -41,6 +41,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	rtcgps(i_clk, 
 		// Wishbone interface
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
@@ -62,7 +64,6 @@ module	rtcgps(i_clk,
 	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
 	input	wire	[1:0]	i_wb_addr;
 	input	wire	[31:0]	i_wb_data;
-	// input		i_btn;
 	output	reg	[31:0]	o_data;
 	output	wire		o_interrupt, o_ppd;
 	// GPS interface
@@ -183,13 +184,13 @@ module	rtcgps(i_clk,
 
 		if (ck_wr)
 		begin
-			if (~r_data[7])
+			if (!r_data[7])
 				clock[6:0] <= i_wb_data[6:0];
-			if (~r_data[15])
+			if (!r_data[15])
 				clock[14:8] <= i_wb_data[14:8];
-			if (~r_data[22])
+			if (!r_data[22])
 				clock[21:16] <= i_wb_data[21:16];
-			if ((~i_gps_valid)&&(r_data_zero_byte))
+			if ((!i_gps_valid)&&(r_data_zero_byte))
 				ck_sub <= 8'h00;
 			ck_pending <= 5'h1f;
 		end else
@@ -258,11 +259,11 @@ module	rtcgps(i_clk,
 			timer[25] <= 1'b0; // Clear any alarm
 			if (ztimer) // unless we've hit zero
 				timer[25] <= 1'b1;
-			else if (~new_timer)
+			else if (!new_timer)
 				timer[23:0] <= next_timer;
 		end
 
-		tm_int <= (tm_running)&&(tm_pps)&&(~tm_alarm)&&(ztimer);
+		tm_int <= (tm_running)&&(tm_pps)&&(!tm_alarm)&&(ztimer);
 
 		if (tm_alarm) // Stop the timer on an alarm
 			timer[24] <= 1'b0;
@@ -369,7 +370,7 @@ module	rtcgps(i_clk,
 		if (sw_wr)
 		begin
 			stopwatch[0] <= r_data[0];
-			if((r_data[1])&&((~stopwatch[0])||(~r_data[0])))
+			if((r_data[1])&&((~stopwatch[0])||(!r_data[0])))
 			begin
 				stopwatch[31:1] <= 31'h00;
 				sw_sub <= 8'h00;
@@ -411,12 +412,12 @@ module	rtcgps(i_clk,
 				alarm_time[15:8] <= i_wb_data[15:8];
 			// Here's the same thing for the seconds: only adjust
 			// the alarm seconds if the new bits are not all 1's. 
-			if (~r_data[7])
+			if (!r_data[7])
 				alarm_time[7:0] <= i_wb_data[7:0];
 			al_enabled <= i_wb_data[24];
 			// Reset the alarm if a '1' is written to the tripped
 			// register, or if the alarm is disabled.
-			if ((r_data[25])||(~r_data[24]))
+			if ((r_data[25])||(!r_data[24]))
 				al_tripped <= 1'b0;
 		end
 
@@ -454,7 +455,7 @@ module	rtcgps(i_clk,
 
 	always @(posedge i_clk)
 		case(i_wb_addr)
-		2'b00: o_data <= { ~i_gps_valid, 7'h0, 2'b00, clock[21:0] };
+		2'b00: o_data <= { !i_gps_valid, 7'h0, 2'b00, clock[21:0] };
 		2'b01: o_data <= { 6'h00, timer };
 		2'b10: o_data <= stopwatch;
 		2'b11: o_data <= { 6'h00, al_tripped, al_enabled, 2'b00, alarm_time };

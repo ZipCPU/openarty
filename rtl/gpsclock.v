@@ -102,7 +102,6 @@
 //
 `default_nettype	none
 //
-// `define	DEBUG
 //
 module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		i_wb_cyc_stb, i_wb_we, i_wb_addr, i_wb_data,
@@ -444,10 +443,8 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	always @(posedge i_clk)
 		if ((i_rst)||(dly_config))
 			o_step <= pre_step;
-`ifndef	DEBUG
 		else if ((o_tracking) && (tick))
 			 o_step <= new_step;
-`endif
 
 	initial	delayed_step = 0;
 	always @(posedge i_clk)
@@ -625,9 +622,6 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 			delayed_step_correction <= w_mpy_out[(HRW-1):0];
 		end
 
-`ifdef	DEBUG
-	assign	count_correction = o_step;
-`else
 	// The correction for the number of counts in our counter is given
 	// by pre_count_correction.  When we add this to the counter, we'll
 	// need to add the step to it as well.  To help timing out with 64-bit
@@ -653,7 +647,6 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 			r_count_correction <= count_correction;
 		else
 			r_count_correction <= o_step;
-`endif
 
 	initial	delay_step_clk = 1'b0;
 	always @(posedge i_clk)
@@ -742,6 +735,7 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		else if (tick)
 			o_locked <= 1'b0;
 
+	// Make verilator happy
 	// verilator lint_off UNUSED
 	wire	[127:0] unused;
 	assign	unused = { shift_hi[63:32], shift_lo[63:32],
