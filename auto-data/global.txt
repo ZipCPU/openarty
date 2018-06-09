@@ -1,0 +1,112 @@
+################################################################################
+##
+## Filename: 	global.txt
+##
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	Capture any global configuration parameters
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@LEGAL=../auto-data/legalgen.txt
+@PROJECT=VideoZip, a ZipCPU SoC supporting video functionality
+#
+# @KEYS.TRIMLIST is a list of all string keys that need to be trimmed (have
+# spaces removed from either side) before being used
+# @KEYS.INTLIST is a list of all things that need to be converted to integers
+@KEYS.INTLIST= BUS_ADDRESS_WIDTH NADDR NPIC NSCOPES PIC.MAX REGS.N ID
+@DEFAULT.BUS=wb
+@$RESET_ADDRESS=@$flash.BASE+(@$flash.NADDR)
+@RESET_ADDRESS.FORMAT=32'h%08x
+@VERILATOR_PREFIX=v
+@XDC.FILE=../arty.xdc
+@REGDEFS.H.INSERT=
+typedef	struct {
+	unsigned	m_addr;
+	const char	*m_name;
+} REGNAME;
+
+extern	const	REGNAME	*bregs;
+extern	const	int	NREGS;
+// #define	NREGS	(sizeof(bregs)/sizeof(bregs[0]))
+
+extern	unsigned	addrdecode(const char *v);
+extern	const	char *addrname(const unsigned v);
+@REGDEFS.CPP.INCLUDE=
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <ctype.h>
+@REGDEFS.CPP.INSERT=
+#define	RAW_NREGS	(sizeof(raw_bregs)/sizeof(bregs[0]))
+
+const	REGNAME		*bregs = raw_bregs;
+const	int	NREGS = RAW_NREGS;
+
+unsigned	addrdecode(const char *v) {
+	if (isalpha(v[0])) {
+		for(int i=0; i<NREGS; i++)
+			if (strcasecmp(v, bregs[i].m_name)==0)
+				return bregs[i].m_addr;
+		fprintf(stderr, "Unknown register: %s\n", v);
+		exit(-2);
+#ifdef	R_ZIPCTRL
+	} else if (strcasecmp(v, "CPU")==0) {
+		return R_ZIPCTRL;
+#endif	// R_ZIPCTRL
+#ifdef	R_ZIPDATA
+	} else if (strcasecmp(v, "CPUD")==0) {
+		return R_ZIPDATA;
+#endif	// R_ZIPDATA
+	} else
+		return strtoul(v, NULL, 0);
+}
+
+const	char *addrname(const unsigned v) {
+	for(int i=0; i<NREGS; i++)
+		if (bregs[i].m_addr == v)
+			return bregs[i].m_name;
+	return NULL;
+}
+
+@SIM.INCLUDE=
+#include "verilated.h"
+#include "Vmain.h"
+#define	BASECLASS	Vmain
+
+#include "design.h"
+#include "regdefs.h"
+#include "testb.h"
+@PREFIX=wb
+@BUS.NAME=wb
+@BUS.TYPE=wb
+@$BUS.WIDTH=32
+@BUS.CLOCK=clk
+@$BUS.NULLSZ=0x400

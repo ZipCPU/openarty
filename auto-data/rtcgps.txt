@@ -1,0 +1,79 @@
+################################################################################
+##
+## Filename: 	rtcgps.txt
+##
+## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+##
+## Purpose:	
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=rtc
+@NADDR=4
+@SLAVE.TYPE=DOUBLE
+@SLAVE.BUS=wb
+@ACCESS=RTC_ACCESS
+@$CLKSTEP=((1<<48)/@$CLKFREQHZ)
+@CLKSTEP.FORMAT=32'h%08x
+@INT.RTC.WIRE=rtc_int
+@INT.RTC.PIC=altpic
+@MAIN.DEFNS=
+	// Definitions in support of the GPS driven RTC
+	wire	rtc_ppd, rtc_pps;
+	reg	r_rtc_ack;
+@MAIN.INSERT=
+	rtcgps	#(@$CLKSTEP) the@$(PREFIX)(i_clk,
+		wb_cyc, (wb_stb)&&(@$(PREFIX)_sel), wb_we, wb_addr[1:0], wb_data,
+		@$(PREFIX)_data, @$(PREFIX)_int, @$(PREFIX)_ppd,
+		gps_tracking, ck_pps, gps_step[47:16], rtc_pps);
+	initial	r_rtc_ack = 1'b0;
+	always @(posedge i_clk)
+		r_rtc_ack <= (wb_stb)&&(rtc_sel);
+	assign	rtc_ack = r_rtc_ack;
+@MAIN.ALT=
+	assign	rtc_pps = 1'b0;
+@REGS.NOTE= // RTC clock registers
+@REGS.N=4
+@REGS.0= 0 R_CLOCK	CLOCK TIMER
+@REGS.1= 1 R_TIMER	TIMER
+@REGS.2= 2 R_STOPWATCH	STOPWATCH
+@REGS.3= 3 R_CKALARM	ALARM CKALARM
+@BDEF.DEFN=
+typedef	struct	RTCLIGHT_S	{
+	unsigned	r_clock, r_stopwatch, r_timer, r_alarm;
+} RTCLIGHT;
+@BDEF.IONAME=_rtc
+@BDEF.IOTYPE=RTCLIGHT
+@BDEF.OSDEF=_BOARD_HAS_RTCLIGHT
+@BDEF.OSVAL=static volatile @$BDEF.IOTYPE *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$REGBASE);
+#
+#
+@RTL.MAKE.GROUP=RTCGPS
+@RTL.MAKE.FILES=rtcgps.v

@@ -1,0 +1,58 @@
+################################################################################
+##
+## Filename: 	rtcdate.txt
+##
+## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+##
+## Purpose:	
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=date
+@NADDR=1
+@ACCESS=RTCDATE_ACCESS
+@DEPENDS=RTC_ACCESS
+@SLAVE.TYPE=SINGLE
+@SLAVE.BUS=wb
+@RTL.MAKE.GROUP=RTCDATE
+@RTL.MAKE.FILES=rtcdate.v
+@MAIN.INSERT=
+	//
+	// The Calendar DATE
+	//
+	rtcdate	the@$(PREFIX)(i_clk, rtc_ppd,
+		(wb_stb)&&(@$(PREFIX)_sel), wb_we, wb_data,
+			@$(PREFIX)_ack, @$(PREFIX)_stall, @$(PREFIX)_data);
+@REGS.N=1
+@REGS.0= 0 R_DATE RTCDATE DATE
+@BDEF.IONAME=	_date
+@BDEF.IOTYPE=	unsigned
+@BDEF.OSDEF=	_BOARD_HAS_RTCDATE
+@BDEF.OSVAL=	static volatile @$BDEF.IOTYPE *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$REGBASE);

@@ -1,0 +1,144 @@
+################################################################################
+##
+## Filename: 	enet.txt
+##
+## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+##
+## Purpose:	
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=netb
+@NADDR=0x1000
+# Technically, this could be DOUBLE memory.  It meets the requirements.
+# Here, we place it into OTHER anyway, to guarantee it gets shuffled into
+# an address last.
+@SLAVE.TYPE=OTHER
+@SLAVE.BUS=wb
+@MAIN.INSERT=
+`ifndef	ETHERNET_ACCESS
+	// Ethernet packet memory declaration
+	//
+	// The only time this needs to be defined is when the ethernet module
+	// itself isnt defined.  Otherwise, the access is accomplished by the
+	// ethernet module
+
+	memdev #(13)
+		enet_buffers(i_clk,
+			(wb_cyc), (wb_stb)&&(netb_sel),(wb_we)&&(wb_addr[11]),
+				wb_addr[11:0], wb_data, wb_sel,
+				netb_ack, netb_stall, netb_data);
+
+`else
+
+	assign	netb_ack   = 1'b0;
+	assign	netb_stall = 1'b0;
+
+`endif
+
+@REGS.N=2
+@REGS.0= 0	R_NET_RXBUF NETRXB
+@REGS.1= 0x800	R_NET_TXBUF NETTXB
+@PREFIX=netp
+@INT.NETRX.WIRE=netrx_int
+@INT.NETTX.WIRE=nettx_int
+@INT.NETRX.PIC=syspic
+@INT.NETTX.PIC=syspic
+@NADDR=8
+@SLAVE.TYPE=DOUBLE
+@SLAVE.BUS=wb
+@ACCESS=ETHERNET_ACCESS
+@MAIN.PORTLIST=
+		// Ethernet control (packets) lines
+		o_net_reset_n, i_net_rx_clk, i_net_col, i_net_crs, i_net_dv,
+			i_net_rxd, i_net_rxerr,
+		i_net_tx_clk, o_net_tx_en, o_net_txd
+@MAIN.IODECL=
+	// Ethernet control
+	output	wire		o_net_reset_n;
+	input	wire		i_net_rx_clk, i_net_col, i_net_crs, i_net_dv;
+	input	wire	[7:0]	i_net_rxd;
+	input	wire		i_net_rxerr;
+	input	wire		i_net_tx_clk;
+	output	wire		o_net_tx_en;
+	output	wire	[7:0]	o_net_txd;
+@MAIN.DEFNS=
+	//
+	wire	[31:0]	netp_debug;
+@MAIN.INSERT=
+	enetpackets	#(12)
+		netctrl(i_clk, i_reset, wb_cyc,(wb_stb)&&((netp_sel)||(netb_sel)),
+			wb_we, { (netb_sel), wb_addr[10:0] }, wb_data, wb_sel,
+				netp_ack, netp_stall, netp_data,
+			o_net_reset_n,
+			i_net_rx_clk, i_net_col, i_net_crs, i_net_dv, i_net_rxd,
+				i_net_rxerr,
+			i_net_tx_clk, o_net_tx_en, o_net_txd,
+			netrx_int, nettx_int, netp_debug);
+@REGS.N=8
+@REGS.0= 0 R_NET_RXCMD	RXCMD,NETRX
+@REGS.1= 1 R_NET_TXCMD	TXCMD,NETTX
+@REGS.2= 2 R_NET_MACHI	MACHI
+@REGS.3= 3 R_NET_MACLO	MACLO
+@REGS.4= 4 R_NET_RXMISS	NETMISS
+@REGS.5= 5 R_NET_RXERR	NETERR
+@REGS.6= 6 R_NET_RXCRC	NETCRCERR
+@REGS.7= 7 R_NET_TXCOL	NETCOL
+@BDEF.DEFN=
+// Network packet interface
+#define	ENET_TXGO		0x004000
+#define	ENET_TXBUSY		0x004000
+#define	ENET_NOHWCRC		0x008000
+#define	ENET_NOHWMAC		0x010000
+#define	ENET_RESET		0x020000
+#define	ENET_NOHWIPCHK		0x040000
+#define	ENET_TXCMD(LEN)		((LEN)|ENET_TXGO)
+#define	ENET_TXCLR		0x038000
+#define	ENET_TXCANCEL		0x000000
+#define	ENET_RXAVAIL		0x004000
+#define	ENET_RXBUSY		0x008000
+#define	ENET_RXMISS		0x010000
+#define	ENET_RXERR		0x020000
+#define	ENET_RXCRC		0x040000	// Set on a CRC error
+#define	ENET_RXLEN		rxcmd & 0x0ffff
+#define	ENET_RXCLR		0x004000
+#define	ENET_RXBROADCAST	0x080000
+#define	ENET_RXCLRERR		0x078000
+#define	ENET_TXBUFLN(NET)	(1<<(NET.txcmd>>24))
+#define	ENET_RXBUFLN(NET)	(1<<(NET.rxcmd>>24))
+typedef	struct ENETPACKET_S {
+	unsigned	n_rxcmd, n_txcmd;
+	unsigned long	n_mac;
+	unsigned	n_rxmiss, n_rxerr, n_rxcrc, n_txcol;
+} ENETPACKET;
+@BDEF.IONAME=io_enet
+@BDEF.IOTYPE=ENETPACKET
+@BDEF.OSDEF=_BOARD_HAS_ENETP
+@BDEF.OSVAL=static volatile *const _netp = &((ENETPACKET *)@$THIS.BASE);

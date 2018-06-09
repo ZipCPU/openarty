@@ -1,0 +1,436 @@
+################################################################################
+##
+## Filename: 	zipmaster.txt
+##
+## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+##
+## Purpose:	To describe what needs to be done to make the ZipCPU a part
+##		of a main .v file.  This Wishbone Master description
+##	illustrates how some of how a wishbone bus master might be integrated
+##	into the automatic FPGA designer.
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+## Define @SYSPIC so that other peripherals needing to be on the ZipSystem's
+## PIC know the name of the PIC we are using.  Note that this is a global.
+##
+@SYSPIC= syspic
+@PREFIX=zip
+@ACCESS=INCLUDE_ZIPCPU
+@MASTER.TYPE=CPU
+@MASTER.BUS=zip
+@BUS.NAME=zip
+@BUS.WIDTH=32
+@BUS.CLOCK=clk
+@SCOPE.TRIGGER=zip_trigger
+@SCOPE.DATA=zip_debug
+@INT.ZIP.WIRE=zip_cpu_int
+@INT.ZIP.BUS=buspic
+@CPURESET=i_cpu_resetn
+@TOP.PORTLIST=
+# 		// A reset wire for the ZipCPU
+# 		i_cpu_resetn
+@TOP.IODECL=
+# 	// A reset wire for the ZipCPU
+# 	input	wire		i_cpu_resetn;
+@TOP.MAIN=
+ 		// Reset wire for the ZipCPU
+ 		s_reset
+@MAIN.PORTLIST=
+		i_cpu_reset
+@MAIN.IODECL=
+	input	wire		i_cpu_reset;
+@MAIN.PARAM=
+	//
+	//
+	// Variables/definitions needed by the ZipCPU BUS master
+	//
+	//
+	// A 32-bit address indicating where teh ZipCPU should start running
+	// from
+	localparam	RESET_ADDRESS = @$RESET_ADDRESS;
+	//
+	// The number of valid bits on the bus
+	localparam	ZIP_ADDRESS_WIDTH = @$(MASTER.BUS.AWID);	// Zip-CPU address width
+	//
+	// Number of ZipCPU interrupts
+	localparam	ZIP_INTS = 16;
+	//
+	// ZIP_START_HALTED
+	//
+	// A boolean, indicating whether or not the ZipCPU be halted on startup?
+	localparam	ZIP_START_HALTED=1'b1;
+@MAIN.DEFNS=
+	// ZipSystem/ZipCPU connection definitions
+	// All we define here is a set of scope wires
+	wire	[31:0]	zip_debug;
+	wire		zip_trigger;
+	wire	[15:0] zip_int_vector;
+@MAIN.INSERT=
+	//
+	//
+	// The ZipCPU/ZipSystem BUS master
+	//
+	//
+	assign	zip_int_vector = { alt_int_vector[14:8], sys_int_vector[14:6] };
+	zipsystem #(RESET_ADDRESS,ZIP_ADDRESS_WIDTH,10,ZIP_START_HALTED,ZIP_INTS)
+		swic(i_clk, i_cpu_reset,
+			// Zippys wishbone interface
+			zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
+					zip_ack, zip_stall, zip_idata, zip_err,
+			zip_int_vector, zip_cpu_int,
+			// Debug wishbone interface
+			(wbu_cyc), ((wbu_stb)&&(zip_dbg_sel)),wbu_we,
+			wbu_addr[0],
+			wbu_data, zip_dbg_ack, zip_dbg_stall, zip_dbg_data,
+			zip_debug);
+	assign	zip_trigger = zip_debug[0];
+@BDEF.INCLUDE=
+#include <design.h>
+#include <cpudefs.h>
+#ifdef	INCLUDE_ZIPCPU
+#ifdef INCLUDE_DMA_CONTROLLER
+#define	_HAVE_ZIPSYS_DMA
+#endif	// INCLUDE_DMA_CONTROLLER
+#ifdef INCLUDE_ACCOUNTING_COUNTERS
+#define	_HAVE_ZIPSYS_PERFORMANCE_COUNTERS
+#endif	// INCLUDE_ACCOUNTING_COUNTERS
+#endif // INCLUDE_ZIPCPU
+@REGDEFS.H.INSERT=
+
+#define	CPU_GO		0x0000
+#define	CPU_RESET	0x0040
+#define	CPU_INT		0x0080
+#define	CPU_STEP	0x0100
+#define	CPU_STALL	0x0200
+#define	CPU_HALT	0x0400
+#define	CPU_CLRCACHE	0x0800
+#define	CPU_sR0		0x0000
+#define	CPU_sSP		0x000d
+#define	CPU_sCC		0x000e
+#define	CPU_sPC		0x000f
+#define	CPU_uR0		0x0010
+#define	CPU_uSP		0x001d
+#define	CPU_uCC		0x001e
+#define	CPU_uPC		0x001f
+
+
+@SIM.INCLUDE=
+#include "zipelf.h"
+
+@SIM.DEFINES=
+#define	cpu_break 	@$(VERILATOR_PREFIX)__DOT__swic__DOT__cpu_break
+#define	cpu_cmd_halt	@$(VERILATOR_PREFIX)__DOT__swic__DOT__cmd_halt
+#define	cpu_ipc		@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__ipc
+#define	cpu_upc		@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__r_upc
+#define	cpu_gie		@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__r_gie
+#define	cpu_iflags	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__w_iflags
+#define	cpu_uflags	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__w_uflags
+#define	cpu_regs	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__regset
+#define	cpu_cmd_addr	@$(VERILATOR_PREFIX)__DOT__swic__DOT__cmd_addr
+#define	cpu_bus_err	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__bus_err
+#define	cpu_ibus_err	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__ibus_err_flag
+#define	cpu_ubus_err	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__r_ubus_err_flag
+#define	cpu_mem_rdaddr	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__domem__DOT__rdaddr
+#define	cpu_mem_wraddr	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__domem__DOT__wraddr
+#define	cpu_op_sim	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__op_sim
+#define	cpu_op_valid	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__op_valid
+#define	cpu_alu_ce	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__alu_ce
+#define	cpu_new_pc	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__new_pc
+#define	cpu_sim_immv	@$(VERILATOR_PREFIX)__DOT__swic__DOT__thecpu__DOT__op_sim_immv
+
+@SIM.DEFNS=
+	int	m_cpu_bombed;
+@SIM.INIT=
+		m_cpu_bombed = 0;
+@SIM.SETRESET=
+		m_core->i_cpu_reset = 1;
+@SIM.CLRRESET=
+		m_core->i_cpu_reset = 0;
+@SIM.METHODS=
+
+	void	loadelf(const char *elfname) {
+		ELFSECTION	**secpp, *secp;
+		uint32_t	entry;
+
+		elfread(elfname, entry, secpp);
+
+		for(int s=0; secpp[s]->m_len; s++) {
+			secp = secpp[s];
+
+			load(secp->m_start, secp->m_data, secp->m_len);
+		}
+	}
+
+
+	bool	gie(void) {
+		return (m_core->cpu_gie);
+	}
+
+	void dump(const uint32_t *regp) {
+		uint32_t	uccv, iccv;
+		fflush(stderr);
+		fflush(stdout);
+		printf("ZIPM--DUMP: ");
+		if (gie())
+			printf("Interrupts-enabled\n");
+		else
+			printf("Supervisor mode\n");
+		printf("\n");
+
+		iccv = m_core->cpu_iflags;
+		uccv = m_core->cpu_uflags;
+
+		printf("sR0 : %08x ", regp[0]);
+		printf("sR1 : %08x ", regp[1]);
+		printf("sR2 : %08x ", regp[2]);
+		printf("sR3 : %08x\n",regp[3]);
+		printf("sR4 : %08x ", regp[4]);
+		printf("sR5 : %08x ", regp[5]);
+		printf("sR6 : %08x ", regp[6]);
+		printf("sR7 : %08x\n",regp[7]);
+		printf("sR8 : %08x ", regp[8]);
+		printf("sR9 : %08x ", regp[9]);
+		printf("sR10: %08x ", regp[10]);
+		printf("sR11: %08x\n",regp[11]);
+		printf("sR12: %08x ", regp[12]);
+		printf("sSP : %08x ", regp[13]);
+		printf("sCC : %08x ", iccv);
+		printf("sPC : %08x\n",regp[15]);
+
+		printf("\n");
+
+		printf("uR0 : %08x ", regp[16]);
+		printf("uR1 : %08x ", regp[17]);
+		printf("uR2 : %08x ", regp[18]);
+		printf("uR3 : %08x\n",regp[19]);
+		printf("uR4 : %08x ", regp[20]);
+		printf("uR5 : %08x ", regp[21]);
+		printf("uR6 : %08x ", regp[22]);
+		printf("uR7 : %08x\n",regp[23]);
+		printf("uR8 : %08x ", regp[24]);
+		printf("uR9 : %08x ", regp[25]);
+		printf("uR10: %08x ", regp[26]);
+		printf("uR11: %08x\n",regp[27]);
+		printf("uR12: %08x ", regp[28]);
+		printf("uSP : %08x ", regp[29]);
+		printf("uCC : %08x ", uccv);
+		printf("uPC : %08x\n",regp[31]);
+		printf("\n");
+		fflush(stderr);
+		fflush(stdout);
+	}
+
+
+	void	execsim(const uint32_t imm) {
+		uint32_t	*regp = m_core->cpu_regs;
+		int		rbase;
+		rbase = (gie())?16:0;
+
+		fflush(stdout);
+		if ((imm & 0x03fffff)==0)
+			return;
+		// fprintf(stderr, "SIM-INSN(0x%08x)\n", imm);
+		if ((imm & 0x0fffff)==0x00100) {
+			// SIM Exit(0)
+			close();
+			exit(0);
+		} else if ((imm & 0x0ffff0)==0x00310) {
+			// SIM Exit(User-Reg)
+			int	rcode;
+			rcode = regp[(imm&0x0f)+16] & 0x0ff;
+			close();
+			exit(rcode);
+		} else if ((imm & 0x0ffff0)==0x00300) {
+			// SIM Exit(Reg)
+			int	rcode;
+			rcode = regp[(imm&0x0f)+rbase] & 0x0ff;
+			close();
+			exit(rcode);
+		} else if ((imm & 0x0fff00)==0x00100) {
+			// SIM Exit(Imm)
+			int	rcode;
+			rcode = imm & 0x0ff;
+			close();
+			exit(rcode);
+		} else if ((imm & 0x0fffff)==0x002ff) {
+			// Full/unconditional dump
+			printf("SIM-DUMP\n");
+			dump(regp);
+		} else if ((imm & 0x0ffff0)==0x00200) {
+			// Dump a register
+			int rid = (imm&0x0f)+rbase;
+			printf("%8lu @%08x R[%2d] = 0x%08x\n", m_time_ps/1000,
+			m_core->cpu_ipc, rid, regp[rid]);
+		} else if ((imm & 0x0ffff0)==0x00210) {
+			// Dump a user register
+			int rid = (imm&0x0f);
+			printf("%8lu @%08x uR[%2d] = 0x%08x\n", m_time_ps/1000,
+				m_core->cpu_ipc,
+				rid, regp[rid+16]);
+		} else if ((imm & 0x0ffff0)==0x00230) {
+			// SOUT[User Reg]
+			int rid = (imm&0x0f)+16;
+			printf("%c", regp[rid]&0x0ff);
+		} else if ((imm & 0x0fffe0)==0x00220) {
+			// SOUT[User Reg]
+			int rid = (imm&0x0f)+rbase;
+			printf("%c", regp[rid]&0x0ff);
+		} else if ((imm & 0x0fff00)==0x00400) {
+			// SOUT[Imm]
+			printf("%c", imm&0x0ff);
+		} else { // if ((insn & 0x0f7c00000)==0x77800000)
+			uint32_t	immv = imm & 0x03fffff;
+			// Simm instruction that we dont recognize
+			// if (imm)
+			// printf("SIM 0x%08x\n", immv);
+			printf("SIM 0x%08x (ipc = %08x, upc = %08x)\n", immv,
+				m_core->cpu_ipc,
+				m_core->cpu_upc);
+		} fflush(stdout);
+	}
+
+@SIM.TICK=
+#ifdef	@$(ACCESS)
+		// ZipCPU Sim instruction support
+		if ((m_core->cpu_op_sim)
+			&&(m_core->cpu_op_valid)
+			&&(m_core->cpu_alu_ce)
+			&&(!m_core->cpu_new_pc)) {
+			//
+			execsim(m_core->cpu_sim_immv);
+		}
+
+		if (m_core->v__DOT__swic__DOT__cpu_break) {
+			printf("\n\nBOMB : CPU BREAK RECEIVED\n");
+			m_cpu_bombed++;
+			dump(m_core->cpu_regs);
+		} else if (m_cpu_bombed) {
+			if (m_cpu_bombed++ > 12)
+				m_done = true;
+		}
+#endif	// @$(ACCESS)
+
+#
+#
+#
+@RTL.MAKE.GROUP=ZIPCPU
+@RTL.MAKE.FILES= zipcpu.v cpuops.v pfcache.v pipemem.v pfcache.v idecode.v
+		wbpriarbiter.v zipsystem.v zipcounter.v zipjiffies.v ziptimer.v
+		wbdmac.v icontrol.v wbwatchdog.v busdelay.v cpudefs.v
+@RTL.MAKE.SUBD= cpu
+#
+#
+#
+@PREFIX=syspic
+@PIC.BUS= sys_int_vector
+@PIC.MAX=15
+@BDEF.DEFN=
+#define	SYSPIC(A)	(1<<(A))
+@PREFIX=zip_dmac
+@INT.DMAC.WIRE=
+@INT.DMAC.PIC= syspic
+@INT.DMAC.ID=0
+@PREFIX=zip_jiffies
+@INT.JIFFIES.WIRE=
+@INT.JIFFIES.PIC= syspic
+@INT.JIFFIES.ID=1
+@PREFIX=zip_tmc
+@INT.TMC.WIRE=
+@INT.TMC.PIC= syspic
+@INT.TMC.ID=2
+@PREFIX=zip_tmb
+@INT.TMB.WIRE=
+@INT.TMB.PIC= syspic
+@INT.TMB.ID=3
+@PREFIX=TMA
+@INT.TMA.WIRE=
+@INT.TMA.PIC= syspic
+@INT.TMA.ID=4
+@PREFIX=alt
+@INT.ALT.WIRE=
+@INT.ALT.PIC= syspic
+@INT.ALT.ID=5
+#
+@PREFIX=altpic
+@PIC.BUS= alt_int_vector
+@PIC.MAX=15
+@BDEF.DEFN=
+#define	ALTPIC(A)	(1<<(A))
+#
+# @PIC.ASSIGNED= UIC UOC UPC UTC MIC MOC MPC MTC
+#
+@PREFIX=zip_alt_uic
+@INT.UIC.WIRE=
+@INT.UIC.PIC=altpic
+@INT.UIC.ID=0
+#
+@PREFIX=zip_alt_uoc
+@INT.UOC.WIRE=
+@INT.UOC.PIC=altpic
+@INT.UOC.ID=1
+#
+@PREFIX=zip_alt_upc
+@INT.UPC.WIRE=
+@INT.UPC.PIC=altpic
+@INT.UPC.ID=2
+#
+@PREFIX=zip_alt_utc
+@INT.UTC.WIRE=
+@INT.UTC.PIC=altpic
+@INT.UTC.ID=3
+#
+@PREFIX=zip_alt_mic
+@INT.MIC.WIRE=
+@INT.MIC.PIC=altpic
+@INT.MIC.ID=4
+#
+@PREFIX=zip_alt_moc
+@INT.MOC.WIRE=
+@INT.MOC.PIC=altpic
+@INT.MOC.ID=5
+#
+@PREFIX=zip_alt_mpc
+@INT.MPC.WIRE=
+@INT.MPC.PIC=altpic
+@INT.MPC.ID=6
+#
+@PREFIX=zip_alt_mtc
+@INT.MTC.WIRE=
+@INT.MTC.PIC=altpic
+@INT.MTC.ID=7
+#
+#
+#
+@PREFIX=zip_dbg
+@SLAVE.TYPE=OTHER
+@SLAVE.BUS=wbu
+@SLAVE.ORDER=1000000
+@NADDR=2
