@@ -2,7 +2,7 @@
 ##
 ## Filename: 	busconsole.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	Provide access to both a debugging bus and a console port for
 ##		the CPU.  The debugging bus will be given 7-bit transfer codes
@@ -16,7 +16,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -91,10 +91,13 @@
 @$ZIP_DBGDATA=4+@$.ZIP_ADDRESS
 @ZIP_DBGDATA.FORMAT= 0x%08x
 @MAIN.INSERT=
+	localparam	BUSUART_BITS=$clog2(BUSUART);
 	// The Host USB interface, to be used by the WB-UART bus
-	rxuartlite	#(BUSUART) rcv(@$(CLOCK.WIRE), i_@$(PREFIX)_uart_rx,
+	rxuartlite	#(BUSUART_BITS[4:0],BUSUART[$clog2(BUSUART)-1:0])
+		rcv(@$(CLOCK.WIRE), i_@$(PREFIX)_uart_rx,
 				@$(PREFIX)_rx_stb, @$(PREFIX)_rx_data);
-	txuartlite	#(BUSUART) txv(@$(CLOCK.WIRE),
+	txuartlite	#(BUSUART_BITS[4:0],BUSUART[$clog2(BUSUART)-1:0])
+		txv(@$(CLOCK.WIRE),
 				@$(PREFIX)_tx_stb,
 				@$(PREFIX)_tx_data,
 				o_@$(PREFIX)_uart_tx,
@@ -126,7 +129,8 @@
 @REGDEFS.H.DEFNS=
 #define	R_ZIPCTRL	@$.ZIP_ADDRESS
 #define	R_ZIPDATA	@$.ZIP_DBGDATA
-#define	RESET_ADDRESS	@$[0x%08x](RESET_ADDRESS)
+// #define	RESET_ADDRESS	@$[0x%08x](RESET_ADDRESS)
+#define	BAUDRATE	@$(BAUDRATE)
 @RTL.MAKE.GROUP= WBUBUS
 @RTL.MAKE.FILES= wbuconsole.v wbufifo.v wbucompactlines.v wbucompress.v
 	wbudecompress.v wbudeword.v wbuexec.v wbuidleint.v wbuinput.v

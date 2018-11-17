@@ -92,7 +92,7 @@ module	ziptimer(i_clk, i_reset, i_ce,
 	wire	wb_write;
 	assign	wb_write = ((i_wb_stb)&&(i_wb_we));
 
-	wire	auto_reload;
+	wire			auto_reload;
 	wire	[(VW-1):0]	reload_value;
 
 	initial	r_running = 1'b0;
@@ -123,12 +123,9 @@ module	ziptimer(i_clk, i_reset, i_ce,
 
 		// If setting auto-reload mode, and the value to other
 		// than zero, set the auto-reload value
-		initial	r_reload_value = 0;
 		always @(posedge i_clk)
-			if (i_reset)
-				r_reload_value <= 0;
-			else if ((wb_write)&&(i_wb_data[(BW-1)]))
-				r_reload_value <= i_wb_data[(VW-1):0];
+		if (wb_write)
+			r_reload_value <= i_wb_data[(VW-1):0];
 		assign	reload_value = r_reload_value;
 	end else begin
 		assign	auto_reload = 1'b0;
@@ -146,13 +143,11 @@ module	ziptimer(i_clk, i_reset, i_ce,
 		else if ((i_ce)&&(r_running))
 		begin
 			if (!r_zero)
-				r_value <= r_value + {(VW){1'b1}};
-			else if ((auto_reload)&&(r_zero))
+				r_value <= r_value - 1'b1;
+			else if (auto_reload)
 				r_value <= reload_value;
 		end
 
-	// Set the interrupt on our last tick, as we transition from one to
-	// zero.
 	reg	r_zero  = 1'b1;
 	always @(posedge i_clk)
 		if (i_reset)
@@ -167,15 +162,14 @@ module	ziptimer(i_clk, i_reset, i_ce,
 				r_zero <= 1'b0;
 		end
 
+	// Set the interrupt on our last tick, as we transition from one to
+	// zero.
 	initial	o_int   = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(wb_write))
+		if ((i_reset)||(wb_write)||(!i_ce))
 			o_int <= 1'b0;
-		else if (i_ce)
-			o_int <= (!o_int)&&(r_running)
-				&&(r_value == { {(VW-1){1'b0}}, 1'b1 });
-		else
-			o_int <= 1'b0;
+		else // if (i_ce)
+			o_int <= (r_value == { {(VW-1){1'b0}}, 1'b1 });
 
 	initial	o_wb_ack = 1'b0;
 	always @(posedge i_clk)
@@ -196,86 +190,6 @@ module	ziptimer(i_clk, i_reset, i_ce,
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL
-	always @(*)
-		if (r_value != 0)
-			assert(r_running);
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset)))
-	begin
-		if ((!$past(wb_write))&&($past(i_ce)))
-			assert(o_int == ((r_running)&&(r_value == 0)));
-		else
-			assert(!o_int);
-	end
-
-	reg	f_past_valid;
-	initial	f_past_valid = 1'b0;
-	always @(posedge i_clk)
-		f_past_valid <= 1'b1;
-	initial	assume(i_reset);
-	always @(*)
-		if (!f_past_valid)
-			assume(i_reset);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(i_reset)))
-	begin
-		assert(r_value     == 0);
-		assert(auto_reload == 0);
-		assert(r_running   == 0);
-	end
-
-	always @(*)
-		if (auto_reload)
-			assert(reload_value != 0);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))
-			&&(!$past(wb_write))&&($past(r_value)==0)
-			&&(!$past(auto_reload)))
-		assert(r_value == 0);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))
-			&&(!$past(wb_write))&&($past(r_value)==0)
-			&&($past(auto_reload)))
-	begin
-		if ($past(i_ce))
-			assert(r_value == reload_value);
-		else
-			assert(r_value == $past(r_value));
-	end
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))
-			&&(!$past(wb_write))&&($past(r_value)!=0))
-	begin
-		if ($past(i_ce))
-			assert(r_value == $past(r_value)-1'b1);
-		else
-			assert(r_value == $past(r_value));
-	end
-
-	always @(posedge i_clk)
-		assert(r_zero == (r_value == 0));
-
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(wb_write)))
-		assert(r_value == $past(i_wb_data[(VW-1):0]));
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(wb_write))&&(RELOADABLE)
-		&&(|$past(i_wb_data[(VW-1):0])))
-		assert(auto_reload == $past(i_wb_data[(BW-1)]));
-	always @(*)
-		if (auto_reload)
-			assert(reload_value != 0);
-	always @(*)
-		if (!RELOADABLE)
-			assert(auto_reload == 0);
-
-	always @(*)
-		if (auto_reload)
-			assert(r_running);
+// Formal properties for this file are maintained elsewhere
 `endif
 endmodule

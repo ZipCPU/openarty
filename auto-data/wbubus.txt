@@ -2,7 +2,7 @@
 ##
 ## Filename: 	wbubus.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	To describe what needs to be done to make the UART to Wishbone
 ##		external bus master a part of the main .v and toplevel.v files.
@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published

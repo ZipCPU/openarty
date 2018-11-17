@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -49,6 +49,7 @@
 #include "llcomms.h"
 #include "regdefs.h"
 #include "scopecls.h"
+#include "ttybus.h"
 
 #define	WBSCOPE		R_CPUSCOPE
 #define	WBSCOPEDATA	R_CPUSCOPED
@@ -139,7 +140,7 @@ public:
 			if (halt)   printf(" I-HALT");
 			if (brk)    printf(" O-BREAK");
 			if (sleep)  printf(" SLP");
-			if (GIE)    printf(" GIE");
+			// if (GIE)    printf(" GIE");
 			if (buserr) printf(" BE");
 			if (trap)   printf(" TRAP");
 			if (ill)    printf(" ILL");
@@ -215,6 +216,9 @@ public:
 };
 
 int main(int argc, char **argv) {
+#ifndef	R_CPUSCOPE
+	printf("This design was not built with a CPU scope within it.\n");
+#else
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);
@@ -231,5 +235,6 @@ int main(int argc, char **argv) {
 		scope->read();
 	}
 	delete	m_fpga;
+#endif
 }
 

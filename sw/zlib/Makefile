@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -38,8 +38,8 @@
 CC := zip-gcc
 AR := zip-ar
 OBJDIR  := obj-zip
-CFLAGS  := -O3
-LIBSRCS := udiv.c umod.c artyboard.c crt0.c
+CFLAGS  := -O3 -I../../rtl
+LIBSRCS := udiv.c umod.c crt0.c
 LIBOBJS := $(addprefix $(OBJDIR)/,$(subst .c,.o,$(LIBSRCS)))
 all: libarty.a
 

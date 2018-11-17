@@ -2,7 +2,7 @@
 ##
 ## Filename: 	gps.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	This file describes the three interfaces created by the GPS:
 ##		1) a GPS-locked clock, 2) a "testbench" which is used to
@@ -15,7 +15,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -41,10 +41,13 @@
 ##
 @$GPSPORT_OFFSET=2
 @PREFIX=gck
+@DEVID=GPSTRK
+@ACCESS=@$(DEVID)_ACCESS
 @NADDR=4
 @SLAVE.TYPE=DOUBLE
 @SLAVE.BUS=wb
-@ACCESS=GPS_CLOCK
+@CLOCK.NAME=clk
+@$CLKFREQHZ=@$(CLOCK.FREQUENCY)
 @$GPS_STEP_EXPONENT=10
 @$GPS_STEP=((((1<<60)/@$CLKFREQHZ)>>(@$.GPS_STEP_EXPONENT-4))&0x0fffffff)|((@$.GPS_STEP_EXPONENT&0x0f)<<28)
 @GPS_STEP.FORMAT=32'h%08x
@@ -102,7 +105,7 @@ typedef	struct	GPSTRACKER_S	{
 @MAIN.DEFNS=
 	wire	tb_pps;
 @MAIN.INSERT=
-`ifdef	GPS_CLOCK
+`ifdef	GPSTRK_ACCESS
 	gpsclock_tb ppstb(i_clk, ck_pps, tb_pps,
 			(wb_stb)&&(gtb_sel), wb_we, wb_addr[2:0], wb_data,
 				gtb_ack, gtb_stall, gtb_data,
@@ -138,6 +141,8 @@ typedef	struct	GPSTB_S	{
 @PREFIX=gpsu
 @INCLUDEFILE=wbuart.txt
 @$BAUDRATE=9600
+@CLOCK.NAME=clk
+@$UARTSETUP=@$(CLOCK.FREQUENCY)/@$(BAUDRATE)
 @ACCESS=GPSUART_ACCESS
 @INT.INTLIST= GPSRX GPSTX GPSRXF GPSTXF
 @INT.GPSRX.WIRE=  gpsurx_int
@@ -183,8 +188,8 @@ typedef	struct	GPSTB_S	{
 @SIM.INIT=
 #ifdef	@$(ACCESS)
 		m_@$(PREFIX) = new UARTSIM(FPGAPORT+@$(SIM.PORTOFFSET));
-		m_@$(PREFIX)->setup(@$(SIM.UARTSETUP));
+		m_@$(PREFIX)->setup(@$[0x%08x](UARTSETUP));
 #endif
 #
-RTL.MAKE.GROUP=GPS
-RTL.MAKE.FILES=gpsglock_tb.v gpsclock.v bigadd.v bigsub.v bigsmpy.v
+@RTL.MAKE.GROUP=GPS
+@RTL.MAKE.FILES=gpsglock_tb.v gpsclock.v bigadd.v bigsub.v bigsmpy.v

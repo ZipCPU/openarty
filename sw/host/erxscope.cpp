@@ -48,6 +48,7 @@
 
 #include "port.h"
 #include "regdefs.h"
+#include "ttybus.h"
 #include "scopecls.h"
 
 #define	WBSCOPE		R_NETSCOPE
@@ -106,6 +107,9 @@ public:
 };
 
 int main(int argc, char **argv) {
+#ifndef	R_NETSCOPE
+	printf("This design was not built with a NET scope within it.\n");
+#else
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);
@@ -118,5 +122,6 @@ int main(int argc, char **argv) {
 	} else
 		scope->read();
 	delete	m_fpga;
+#endif
 }
 

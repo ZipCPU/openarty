@@ -51,6 +51,7 @@
 #include "port.h"
 #include "llcomms.h"
 #include "regdefs.h"
+#include "ttybus.h"
 
 FPGA	*m_fpga;
 void	closeup(int v) {

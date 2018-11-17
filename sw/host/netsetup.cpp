@@ -47,6 +47,7 @@
 
 #include "port.h"
 #include "regdefs.h"
+#include "ttybus.h"
 
 FPGA	*m_fpga;
 void	closeup(int v) {
@@ -70,6 +71,11 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+#ifndef	MDIO_ACCESS
+	printf(
+"This program depends upon the MDIO interface.  This interface was not\n"
+"built into your design.  Please add it in and try again.\n");
+#else
 	unsigned	v;
 	v = m_fpga->readio(R_MDIO_BMCR);
 	printf("    BMCR    %04x\tBasic Mode Control Register\n", v);
@@ -249,5 +255,6 @@ int main(int argc, char **argv) {
 	printf("            %04x\tEnergy detect data threshold\n", (v)&15);
 
 	delete	m_fpga;
+#endif
 }
 

@@ -1,8 +1,8 @@
 ################################################################################
 ##
-## Filename: 	sdramxclk.txt
+## Filename: 	sdram.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	To describe how to provide access to an SDRAM controller
 ##		from the Wishbone bus, where such SDRAM controller uses a
@@ -13,7 +13,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -55,7 +55,7 @@
 @CLOCK.NAME=clk
 @CLOCK.FREQUENCY = 81250000
 @BUS=wb
-@ERROR.WIRE=@$(PREFIX)_err;
+@ERROR.WIRE=@$(PREFIX)_err
 # 8-bit byte accesses
 @LD.PERM=wx
 @TOP.PORTLIST=

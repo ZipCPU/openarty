@@ -55,6 +55,7 @@
 #include "zopcodes.h"
 #include "devbus.h"
 #include "regdefs.h"
+#include "ttybus.h"
 
 #include "port.h"
 
@@ -597,9 +598,19 @@ void	stall_screen(void) {
 	mvprintw(0,0, "CPU is stalled.  (Q to quit)\n");
 }
 
+char	gbl_errstr[8192];
+void	eprintf(const char *fmt, ...) {
+	va_list	args;
+	unsigned ln = strlen(gbl_errstr);
+	va_start(args, fmt);
+	snprintf(&gbl_errstr[ln], sizeof(gbl_errstr)-ln-1, fmt, args);
+	va_end(args);
+}
+
 int	main(int argc, char **argv) {
 	// FPGAOPEN(m_fpga);
 	ZIPPY	*zip; //
+	gbl_errstr[0] = '\0';
 
 	FPGAOPEN(m_fpga);
 	zip = new ZIPPY(m_fpga);
@@ -684,16 +695,23 @@ int	main(int argc, char **argv) {
 				zip->read_state();
 		}
 	} catch(const char *err) {
-		fprintf(stderr, "ERR: Caught exception -- %s", err);
+		fprintf(stderr, "ERR: Caught exception -- %s\n", err);
+		eprintf("ERR: Caught exception -- %s\n", err);
 	} catch(...) {
 		fprintf(stderr, "ERR: Caught anonymous exception!!\n");
+		eprintf("ERR: Caught anonymous exception\n");
 	}
 
 	endwin();
 
 	if (gbl_err) {
 		printf("Killed on error: could not access bus!\n");
+		printf("%s", gbl_errstr);
 		exit(-2);
-	}
+	} else if (gbl_errstr[0]) {
+		printf("ERR str, but no err code\n%s\n", gbl_errstr);
+	} else
+		printf("SUCCESS\n");
+
 }
 

@@ -176,7 +176,7 @@ module	zipsystem(i_clk, i_reset,
 		, o_cpu_debug
 `endif
 		);
-	parameter	RESET_ADDRESS=32'h0100000, ADDRESS_WIDTH=30,
+	parameter	RESET_ADDRESS=32'h1000_0000, ADDRESS_WIDTH=30,
 			LGICACHE=10;
 	parameter [0:0]	START_HALTED=1;
 	parameter	EXTERNAL_INTERRUPTS=1,
@@ -622,13 +622,12 @@ module	zipsystem(i_clk, i_reset,
 	//
 	// Counter Interrupt controller
 	//
-	generate
-	if (EXTERNAL_INTERRUPTS <= 9)
-	begin
+	generate if (EXTERNAL_INTERRUPTS <= 9)
+	begin : ALT_PIC
 		icontrol #(8)	ctri(i_clk, cpu_reset, (ctri_sel),
 					sys_data, ctri_data, alt_int_vector[7:0],
 					ctri_int);
-	end else begin
+	end else begin : ALT_PIC
 		icontrol #(8+(EXTERNAL_INTERRUPTS-9))
 				ctri(i_clk, cpu_reset, (ctri_sel),
 					sys_data, ctri_data,
@@ -638,13 +637,12 @@ module	zipsystem(i_clk, i_reset,
 
 `else	//	INCLUDE_ACCOUNTING_COUNTERS
 
-	generate
-	if (EXTERNAL_INTERRUPTS <= 9)
-	begin
+	generate if (EXTERNAL_INTERRUPTS <= 9)
+	begin : ALT_PIC
 		assign	ctri_stall = 1'b0;
 		assign	ctri_data  = 32'h0000;
 		assign	ctri_int   = 1'b0;
-	end else begin
+	end else begin : ALT_PIC
 		icontrol #(EXTERNAL_INTERRUPTS-9)
 				ctri(i_clk, cpu_reset, (ctri_sel),
 					sys_data, ctri_data,
@@ -660,9 +658,9 @@ module	zipsystem(i_clk, i_reset,
 	wire		tma_ack, tma_stall;
 	wire	[31:0]	tma_data;
 	ziptimer timer_a(i_clk, cpu_reset, !cmd_halt,
-			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b00), sys_we,
-				sys_data,
-			tma_ack, tma_stall, tma_data, tma_int);
+		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b00),
+			sys_we, sys_data,
+		tma_ack, tma_stall, tma_data, tma_int);
 
 	//
 	// Timer B
@@ -670,9 +668,9 @@ module	zipsystem(i_clk, i_reset,
 	wire		tmb_ack, tmb_stall;
 	wire	[31:0]	tmb_data;
 	ziptimer timer_b(i_clk, cpu_reset, !cmd_halt,
-			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b01), sys_we,
-				sys_data,
-			tmb_ack, tmb_stall, tmb_data, tmb_int);
+		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b01),
+			sys_we, sys_data,
+		tmb_ack, tmb_stall, tmb_data, tmb_int);
 
 	//
 	// Timer C
@@ -680,9 +678,9 @@ module	zipsystem(i_clk, i_reset,
 	wire		tmc_ack, tmc_stall;
 	wire	[31:0]	tmc_data;
 	ziptimer timer_c(i_clk, cpu_reset, !cmd_halt,
-			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0]==2'b10), sys_we,
-				sys_data,
-			tmc_ack, tmc_stall, tmc_data, tmc_int);
+		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0]==2'b10),
+			sys_we, sys_data,
+		tmc_ack, tmc_stall, tmc_data, tmc_int);
 
 	//
 	// JIFFIES
@@ -698,15 +696,14 @@ module	zipsystem(i_clk, i_reset,
 	// The programmable interrupt controller peripheral
 	//
 	wire		pic_interrupt;
-	generate
-	if (EXTERNAL_INTERRUPTS < 9)
-	begin
+	generate if (EXTERNAL_INTERRUPTS < 9)
+	begin : MAIN_PIC
 		icontrol #(6+EXTERNAL_INTERRUPTS)	pic(i_clk, cpu_reset,
 					(sys_cyc)&&(sys_stb)&&(sys_we)
 						&&(sel_pic),
 					sys_data, pic_data,
 					main_int_vector[(6+EXTERNAL_INTERRUPTS-1):0], pic_interrupt);
-	end else begin
+	end else begin : MAIN_PIC
 		icontrol #(15)	pic(i_clk, cpu_reset,
 					(sys_cyc)&&(sys_stb)&&(sys_we)
 						&&(sel_pic),
@@ -955,8 +952,12 @@ module	zipsystem(i_clk, i_reset,
 		endcase
 
 	always @(posedge i_clk)
+	if ((i_reset)||(!sys_cyc))
+		sys_ack <= 1'b0;
+	else
 		sys_ack <= (|{	mmu_ack, tmr_ack, wdt_ack, actr_ack,
-				dmac_ack, pic_ack, ctri_ack, wdbus_ack, mmus_ack });
+				dmac_ack, pic_ack, ctri_ack, wdbus_ack,
+				mmus_ack });
 		
 	assign	sys_stall = (tma_stall | tmb_stall | tmc_stall | jif_stall
 				| wdt_stall | ctri_stall | actr_stall 

@@ -73,6 +73,7 @@ private:
 	BUSW	m_readtbl[1024], m_writetbl[512];
 
 	void	init(void) {
+		m_total_nread = 0;
 		m_interrupt_flag = false;
 		m_buflen = 0; m_buf = NULL;
 		m_addr_set = false;
@@ -126,5 +127,7 @@ public:
 	void	reset_err(void) { m_bus_err = false; }
 	void	clear(void) { m_interrupt_flag = false; }
 };
+
+typedef	TTYBUS	FPGA;
 
 #endif

@@ -48,6 +48,7 @@
 
 #include "port.h"
 #include "llcomms.h"
+#include "ttybus.h"
 #include "regdefs.h"
 #include "flashdrvr.h"
 #include "byteswap.h"
@@ -106,6 +107,14 @@ void	skip_bitfile_header(FILE *fp) {
 }
 
 int main(int argc, char **argv) {
+#ifndef	FLASH_ACCESS
+	fprintf(stderr,
+"wbprogram is designed to place a design, and optionally a user flash image\n"
+"onto an onboard flash.  Your design does not appear to have such a flash\n"
+"defined.  Please adjust your design (in AutoFPGA), and then rebuild this\n"
+"program (and others in this directory)\n");
+	exit(EXIT_FAILURE);
+#else
 	FILE	*fp;
 	DEVBUS::BUSW	addr = EQSPIFLASH;
 	char		*buf = new char[FLASHLEN];
@@ -185,6 +194,5 @@ int main(int argc, char **argv) {
 
 	printf("ALL-DONE\n");
 	delete	m_fpga;
+#endif
 }
-
-

@@ -9,16 +9,16 @@
 //	write on the same clock, while maintaining the correct output FIFO
 //	parameters.  Two versions of the FIFO exist within this file, separated
 //	by the RXFIFO parameter's value.  One, where RXFIFO = 1, produces status
-//	values appropriate for reading and checking a read FIFO from logic, whereas
-//	the RXFIFO = 0 applies to writing to the FIFO from bus logic and reading
-//	it automatically any time the transmit UART is idle.
+//	values appropriate for reading and checking a read FIFO from logic,
+//	whereas the RXFIFO = 0 applies to writing to the FIFO from bus logic
+//	and reading it automatically any time the transmit UART is idle.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -118,7 +118,7 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 		if (i_rst)
 			will_underflow <= 1'b1;
 		else if (i_wr)
-			will_underflow <= (will_underflow)&&(i_rd);
+			will_underflow <= 1'b0;
 		else if (i_rd)
 			will_underflow <= (will_underflow)||(w_last_plus_one == r_first);
 		else
@@ -132,6 +132,7 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 	// reg		r_unfl;
 	// initial	r_unfl = 1'b0;
 	initial	r_last = 0;
+	initial	r_next = { {(LGFLEN-1){1'b0}}, 1'b1 };
 	always @(posedge i_clk)
 		if (i_rst)
 		begin
@@ -140,7 +141,7 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 			// r_unfl <= 1'b0;
 		end else if (i_rd)
 		begin
-			if ((i_wr)||(!will_underflow)) // (r_first != r_last)
+			if (!will_underflow) // (r_first != r_last)
 			begin
 				r_last <= r_next;
 				r_next <= r_last +{{(LGFLEN-2){1'b0}},2'b10};
@@ -183,10 +184,10 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 			r_empty_n <= 1'b0;
 		else casez({i_wr, i_rd, will_underflow})
 			3'b00?: r_empty_n <= (r_first != r_last);
-			3'b11?: r_empty_n <= (r_first != r_last);
-			3'b10?: r_empty_n <= 1'b1;
 			3'b010: r_empty_n <= (r_first != w_last_plus_one);
-			// 3'b001: r_empty_n <= 1'b0;
+			3'b10?: r_empty_n <= 1'b1;
+			3'b110: r_empty_n <= (r_first != r_last);
+			3'b111: r_empty_n <= 1'b1;
 			default: begin end
 		endcase
 
@@ -201,7 +202,13 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 	//
 	// Adjust for these differences here.
 	reg	[(LGFLEN-1):0]	r_fill;
-	initial	r_fill = 0;
+	generate
+	if (RXFIFO != 0)
+		initial	r_fill = 0;
+	else
+		initial	r_fill = -1;
+	endgenerate
+
 	always @(posedge i_clk)
 		if (RXFIFO!=0) begin
 			// Calculate the number of elements in our FIFO
@@ -211,9 +218,10 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 			// another context.
 			if (i_rst)
 				r_fill <= 0;
-			else case({(i_wr)&&(!will_overflow), (i_rd)&&(!will_underflow)})
-			2'b01:   r_fill <= r_first - r_next;
-			2'b10:   r_fill <= r_first - r_last + 1'b1;
+			else casez({(i_wr), (!will_overflow), (i_rd)&&(!will_underflow)})
+			3'b0?1:   r_fill <= r_first - r_next;
+			3'b110:   r_fill <= r_first - r_last + 1'b1;
+			3'b1?1:   r_fill <= r_first - r_last;
 			default: r_fill <= r_first - r_last;
 			endcase
 		end else begin
@@ -222,10 +230,10 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 			// not the fill, but (SIZE-1)-fill.
 			if (i_rst)
 				r_fill <= { (LGFLEN){1'b1} };
-			else case({i_wr, i_rd})
-			2'b01:   r_fill <= r_last - r_first;
-			2'b10:   r_fill <= r_last - w_first_plus_two;
-			default: r_fill <= r_last - w_first_plus_one;
+			else casez({i_wr, (!will_overflow), (i_rd)&&(!will_underflow)})
+			3'b0?1:   r_fill <= r_fill + 1'b1;
+			3'b110:   r_fill <= r_fill - 1'b1;
+			default: r_fill  <= r_fill;
 			endcase
 		end
 
@@ -235,13 +243,13 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 	wire	[3:0]	lglen;
 	assign lglen = LGFLEN;
 
+	wire	w_half_full;
 	wire	[9:0]	w_fill;
 	assign	w_fill[(LGFLEN-1):0] = r_fill;
 	generate if (LGFLEN < 10)
 		assign w_fill[9:(LGFLEN)] = 0;
 	endgenerate
 
-	wire	w_half_full;
 	assign	w_half_full = r_fill[(LGFLEN-1)];
 
 	assign	o_status = {
@@ -260,7 +268,7 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 		(RXFIFO!=0)?w_half_full:w_half_full,
 		// A '1' here means the FIFO can be read from (if it is a
 		// receive FIFO), or be written to (if it isn't).
-		(RXFIFO!=0)?r_empty_n:w_full_n
+		(RXFIFO!=0)?r_empty_n:!w_full_n
 	};
 
 	assign	o_empty_n = r_empty_n;

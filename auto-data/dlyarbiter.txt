@@ -2,7 +2,7 @@
 ##
 ## Filename: 	dlyarbiter.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	
 ##
@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -41,6 +41,8 @@
 @SLAVE.TYPE=BUS
 @SLAVE.BUS.NAME=zip
 @SLAVE.BUS.WIDTH=32
+@MASTER.TYPE=ARBITER
+@MASTER.BUS=wb
 @BUS.NAME=wb
 ##
 @PREFIX=wbu_dwb
@@ -113,7 +115,7 @@
 `endif
 `endif
 `ifdef	BUS_DELAY_NEEDED
-	busdelay #(@$(AWID))	@$(PREFIX)i_delay(i_clk,
+	busdelay #(@$(AWID))	@$(PREFIX)i_delay(i_clk, i_reset,
 		@$(PREFIX)i_cyc, @$(PREFIX)i_stb, @$(PREFIX)i_we, @$(PREFIX)i_addr, @$(PREFIX)i_odata, @$(PREFIX)i_sel,
 			@$(PREFIX)i_ack, @$(PREFIX)i_stall, @$(PREFIX)i_idata, @$(PREFIX)i_err,
 		wb_cyc, wb_stb, wb_we, wb_addr, wb_data, wb_sel,

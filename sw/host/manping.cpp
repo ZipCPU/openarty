@@ -47,6 +47,7 @@
 
 #include "port.h"
 #include "regdefs.h"
+#include "ttybus.h"
 
 #define	TXGO		0x04000
 #define	NOHWCRC		0x08000
@@ -208,15 +209,24 @@ void	ipchecksum(unsigned *packet) {
 }
 
 void	clear_scope(FPGA *fpga) {
+#ifdef	R_NETSCOPE
 	unsigned	scopev;
 
 	scopev = m_fpga->readio(R_NETSCOPE);
 	int delay = (scopev>>20)&0x0f;
 	delay = (1<<(delay))-32;
 	m_fpga->writeio(R_NETSCOPE, (delay));
+#endif
 }
 
 int main(int argc, char **argv) {
+#ifndef	ENET_ACCESS
+	fprintf(stderr,
+"The ethernet core was not included in this design.  Reconfigure your\n"
+"autofpga settings, and build this again if you want to test your network\n"
+"access\n\n");
+	exit(EXIT_FAILURE);
+#else
 	bool	config_hw_mac = true, config_hw_crc = true;
 	FPGA::BUSW	txstat;
 	int	argn;
@@ -439,5 +449,6 @@ int main(int argc, char **argv) {
 
 	
 	delete	m_fpga;
+#endif
 }
 

@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2016, Gisselquist Technology, LLC
+## Copyright (C) 2015-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -54,9 +54,9 @@ SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 HEADERS := llcomms.h ttybus.h devbus.h
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES)))
 BUSOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(BUSSRCS)))
-CFLAGS := -g -Wall -I.
+CFLAGS := -g -Wall -I. -I../../rtl
 LIBS :=
-SUBMAKE := $(MAKE) --no-print-directory
+SUBMAKE := $(MAKE) --no-print-directory -C
 
 %.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
@@ -68,7 +68,7 @@ $(OBJDIR)/%.o: %.c
 
 .PHONY: gps
 gps: $(BUSOBJS) $(OBJDIR)/scopecls.o
-	@bash -c "if [[ -e gps/Makefile ]]; then $(SUBMAKE) --directory=gps; fi"
+	@bash -c "if [[ -e gps/Makefile ]]; then $(SUBMAKE) gps; fi"
 
 $(OBJDIR)/hsnetuart.o: netuart.cpp
 	$(CXX) $(CFLAGS) -c -DHIGH_SPEED $< -o $@
@@ -163,4 +163,6 @@ depends: tags
 $(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
 	$(build-depends)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
+endif

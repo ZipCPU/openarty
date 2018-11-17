@@ -1,3 +1,5 @@
 busmaster_tb
 enetctrl_tb
 eqspiflash_tb
+sdcard.img
+pfile.bin

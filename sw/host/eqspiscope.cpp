@@ -51,6 +51,7 @@
 #include "port.h"
 #include "regdefs.h"
 #include "scopecls.h"
+#include "ttybus.h"
 
 #define	WBSCOPE		R_QSCOPE
 #define	WBSCOPEDATA	R_QSCOPED
@@ -120,6 +121,15 @@ public:
 };
 
 int main(int argc, char **argv) {
+#ifndef	R_QSCOPE
+	printf(
+"This design was not built with a flash scope attached to the EQSPI port.\n"
+"\n"
+"To use this design, create and enable a flash, and the EQSPI scope from\n"
+"that.  To do this, you'll need to add a configuration file for the EQSPI \n"
+"scope to the auto-data/ directory, and then include it within the Makefile\n"
+"of the same directory.\n");
+#else
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);
@@ -132,5 +142,6 @@ int main(int argc, char **argv) {
 	} else
 		scope->read();
 	delete	m_fpga;
+#endif
 }
 

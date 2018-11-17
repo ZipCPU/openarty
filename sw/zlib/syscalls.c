@@ -39,7 +39,7 @@
 #include <sys/times.h>
 #include <reent.h>
 #include <stdio.h>
-#include "artyboard.h"
+#include "board.h"
 #include "bootloader.h"
 #include "zipcpu.h"
 

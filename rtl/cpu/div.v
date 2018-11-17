@@ -115,10 +115,10 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	// before we are valid, so it can't be o_busy ...
 	//
 	reg			r_busy;
-	reg	[(2*BW-2):0]	r_divisor;
-	reg	[(BW-1):0]	r_dividend;
+	reg	[BW-1:0]	r_divisor;
+	reg	[(2*BW-2):0]	r_dividend;
 	wire	[(BW):0]	diff; // , xdiff[(BW-1):0];
-	assign	diff = r_dividend - r_divisor[(BW-1):0];
+	assign	diff = r_dividend[2*BW-2:BW-1] - r_divisor;
 
 	reg		r_sign, pre_sign, r_z, r_c, last_bit;
 	reg	[(LGBW-1):0]	r_bit;
@@ -131,12 +131,12 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	// or equivalently when we discover we are dividing by zero.
 	initial	r_busy = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			r_busy <= 1'b0;
-		else if (i_wr)
-			r_busy <= 1'b1;
-		else if ((last_bit)||(zero_divisor))
-			r_busy <= 1'b0;
+	if (i_reset)
+		r_busy <= 1'b0;
+	else if (i_wr)
+		r_busy <= 1'b1;
+	else if ((last_bit)||(zero_divisor))
+		r_busy <= 1'b0;
 
 	// o_busy is very similar to r_busy, save for some key differences.
 	// Primary among them is that o_busy needs to (possibly) be true
@@ -146,32 +146,18 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	// identical.
 	initial	o_busy = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			o_busy <= 1'b0;
-		else if (i_wr)
-			o_busy <= 1'b1;
-		else if (((last_bit)&&(!r_sign))||(zero_divisor))
-			o_busy <= 1'b0;
-		else if (!r_busy)
-			o_busy <= 1'b0;
+	if (i_reset)
+		o_busy <= 1'b0;
+	else if (i_wr)
+		o_busy <= 1'b1;
+	else if (((last_bit)&&(!r_sign))||(zero_divisor))
+		o_busy <= 1'b0;
+	else if (!r_busy)
+		o_busy <= 1'b0;
 
-	// If we are asked to divide by zero, we need to halt.  The sooner
-	// we halt and report the error, the better.  Hence, here we look
-	// for a zero divisor while being busy.  The always above us will then
-	// look at this and halt a divide in the middle if we are trying to
-	// divide by zero.
-	//
-	// Note that this works off of the 2BW-1 length vector.  If we can
-	// simplify that, it should simplify our logic as well.
-	initial	zero_divisor = 1'b0;
 	always @(posedge i_clk)
-		// zero_divisor <= (r_divisor == 0)&&(r_busy);
-		if (i_reset)
-			zero_divisor <= 1'b0;
-		else if (i_wr)
-			zero_divisor <= (i_denominator == 0);
-		else if (!r_busy)
-			zero_divisor <= 1'b0;
+	if (i_wr)
+		zero_divisor <= (i_denominator == 0);
 
 	// o_valid is part of the ZipCPU protocol.  It will be set to true
 	// anytime our answer is valid and may be used by the calling module.
@@ -184,15 +170,17 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	// it on an i_wr signal.
 	initial	o_valid = 1'b0;
 	always @(posedge i_clk)
-	if (i_reset)
+	if ((i_reset)||(o_valid))
 		o_valid <= 1'b0;
+	else if ((r_busy)&&(zero_divisor))
+		o_valid <= 1'b1;
 	else if (r_busy)
 	begin
-		if ((last_bit)||(zero_divisor))
-			o_valid <= (zero_divisor)||(!r_sign);
+		if (last_bit)
+			o_valid <= (!r_sign);
 	end else if (r_sign)
 	begin
-		o_valid <= (!zero_divisor); // 1'b1;
+		o_valid <= 1'b1;
 	end else
 		o_valid <= 1'b0;
 
@@ -203,9 +191,9 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	always @(posedge i_clk)
 	if (i_reset)
 		o_err <= 1'b0;
-	else if (o_valid)
-		o_err <= 1'b0;
-	else if (((r_busy)||(r_sign))&&(zero_divisor))
+//	else if (o_valid)
+//		o_err <= 1'b0;
+	else if ((r_busy)&&(zero_divisor))
 		o_err <= 1'b1;
 	else
 		o_err <= 1'b0;
@@ -229,9 +217,9 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	//
 	// This logic replaces a lot of logic that was inside our giant state
 	// machine with ... something simpler.  In particular, we'll use this
-	// logic to determine we are processing our last bit.  The only trick
-	// is, this bit needs to be set whenever (r_busy) and (r_bit == 0),
-	// hence we need to set on (r_busy) and (r_bit == 1) so as to be set
+	// logic to determine if we are processing our last bit.  The only trick
+	// is, this bit needs to be set whenever (r_busy) and (r_bit == -1),
+	// hence we need to set on (r_busy) and (r_bit == -2) so as to be set
 	// when (r_bit == 0).
 	initial	last_bit = 1'b0;
 	always @(posedge i_clk)
@@ -251,75 +239,57 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	always @(posedge i_clk)
 	if (i_reset)
 		pre_sign <= 1'b0;
-	else if (i_wr)
-		pre_sign <= (i_signed)&&((i_numerator[BW-1])||(i_denominator[BW-1]));
 	else
-		pre_sign <= 1'b0;
+		pre_sign <= (i_wr)&&(i_signed)&&((i_numerator[BW-1])||(i_denominator[BW-1]));
 
 	// As a result of our operation, we need to set the flags.  The most
 	// difficult of these is the "Z" flag indicating that the result is
 	// zero.  Here, we'll use the same logic that sets the low-order
 	// bit to clear our zero flag, and leave the zero flag set in all
-	// other cases.  Well ... not quite.  If we need to flip the sign of
-	// our value, then we can't quite clear the zero flag ... yet.
-	initial	r_z = 1'b0;
+	// other cases.
 	always @(posedge i_clk)
-	if (i_reset)
-		r_z <= 1'b0;
-	else if((r_busy)&&(r_divisor[(2*BW-2):(BW)] == 0)&&(!diff[BW]))
-			// If we are busy, the upper bits of our divisor are
-			// zero (i.e., we got the shift right), and the top
-			// (carry) bit of the difference is zero (no overflow),
-			// then we could subtract our divisor from our dividend
-			// and hence we add a '1' to the quotient, while setting
-			// the zero flag to false.
-		r_z <= 1'b0;
-	else if (i_wr)
+	if (i_wr)
 		r_z <= 1'b1;
+	else if ((r_busy)&&(!pre_sign)&&(!diff[BW]))
+		r_z <= 1'b0;
 
 	// r_dividend
 	// This is initially the numerator.  On a signed divide, it then becomes
 	// the absolute value of the numerator.  We'll subtract from this value
-	// the divisor shifted as appropriate for every output bit we are
-	// looking for--just as with traditional long division.
-	initial	r_dividend = 0;
+	// the divisor for every output bit we are looking for--just as with
+	// traditional long division.
 	always @(posedge i_clk)
-	if (i_reset)
-		r_dividend <= 0;
-	else if (pre_sign)
+	if (pre_sign)
 	begin
 		// If we are doing a signed divide, then take the
 		// absolute value of the dividend
 		if (r_dividend[BW-1])
-			r_dividend <= -r_dividend;
-		// The begin/end block is important so we don't lose
-		// the fact that on an else we don't do anything.
-	end else if((r_busy)&&(r_divisor[(2*BW-2):(BW)]==0)&&(!diff[BW]))
-		// This is the condition whereby we set a '1' in our
-		// output quotient, and we subtract the (current)
-		// divisor from our dividend.  (The difference is
-		// already kept in the diff vector above.)
-		r_dividend <= diff[(BW-1):0];
-	else if (!r_busy)
+		begin
+			r_dividend[2*BW-2:0] <= {(2*BW-1){1'b1}};
+			r_dividend[BW-1:0] <= -r_dividend[BW-1:0];
+		end
+	end else if (r_busy)
+	begin
+		r_dividend <= { r_dividend[2*BW-3:0], 1'b0 };
+		if (!diff[BW])
+			r_dividend[2*BW-2:BW] <= diff[(BW-2):0];
+	end else if (!r_busy)
 		// Once we are done, and r_busy is no longer high, we'll
 		// always accept new values into our dividend.  This
 		// guarantees that, when i_wr is set, the new value
 		// is already set as desired.
-		r_dividend <=  i_numerator;
+		r_dividend <=  { 31'h0, i_numerator };
 
 	initial	r_divisor = 0;
 	always @(posedge i_clk)
 	if (i_reset)
 		r_divisor <= 0;
-	else if (pre_sign)
+	else if ((pre_sign)&&(r_busy))
 	begin
-		if (r_divisor[(2*BW-2)])
-			r_divisor[(2*BW-2):(BW-1)]
-				<= -r_divisor[(2*BW-2):(BW-1)];
-	end else if (r_busy)
-		r_divisor <= { 1'b0, r_divisor[(2*BW-2):1] };
-	else
-		r_divisor <= {  i_denominator, {(BW-1){1'b0}} };
+		if (r_divisor[BW-1])
+			r_divisor <= -r_divisor;
+	end else if (!r_busy)
+		r_divisor <= i_denominator;
 
 	// r_sign
 	// is a flag for our state machine control(s).  r_sign will be set to
@@ -335,7 +305,7 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	if (i_reset)
 		r_sign <= 1'b0;
 	else if (pre_sign)
-		r_sign <= ((r_divisor[(2*BW-2)])^(r_dividend[(BW-1)]));
+		r_sign <= ((r_divisor[(BW-1)])^(r_dividend[(BW-1)]));
 	else if (r_busy)
 		r_sign <= (r_sign)&&(!zero_divisor);
 	else
@@ -348,7 +318,7 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	else if (r_busy)
 	begin
 		o_quotient <= { o_quotient[(BW-2):0], 1'b0 };
-		if ((r_divisor[(2*BW-2):(BW)] == 0)&&(!diff[BW]))
+		if (!diff[BW])
 			o_quotient[0] <= 1'b1;
 	end else if (r_sign)
 		o_quotient <= -o_quotient;
@@ -363,7 +333,7 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	if (i_reset)
 		r_c <= 1'b0;
 	else
-		r_c <= (r_busy)&&((diff == 0)||(r_dividend == 0));
+		r_c <= (r_busy)&&(diff == 0);
 
 	// The last flag: Negative.  This flag is set assuming that the result
 	// of the divide was negative (i.e., the high order bit is set).  This
@@ -376,145 +346,6 @@ module	div(i_clk, i_reset, i_wr, i_signed, i_numerator, i_denominator,
 	assign o_flags = { 1'b0, w_n, r_c, r_z };
 
 `ifdef	FORMAL
-	reg	f_past_valid;
-	initial	f_past_valid = 0;
-	always @(posedge i_clk)
-		f_past_valid <= 1'b1;
-
-`ifdef	DIV
-`define	ASSUME	assume
-`else
-`define	ASSUME	assert
-`endif
-
-	initial	`ASSUME(i_reset);
-	always @(*)
-	if (!f_past_valid)
-		`ASSUME(i_reset);
-
-	always @(posedge i_clk)
-	if ((!f_past_valid)||($past(i_reset)))
-	begin
-		assert(!o_busy);
-		assert(!o_valid);
-		assert(!o_err);
-		//
-		assert(!r_busy);
-		assert(!zero_divisor);
-		assert(r_bit==0);
-		assert(!last_bit);
-		assert(!pre_sign);
-		assert(!r_z);
-		assert(r_dividend==0);
-		assert(o_quotient==0);
-		assert(!r_c);
-		assert(r_divisor==0);
-
-		`ASSUME(!i_wr);
-	end
-
-	always @(*)
-	if (o_busy)
-		`ASSUME(!i_wr);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_busy))&&(!o_busy))
-	begin
-		assert(o_valid);
-	end
-
-	// A formal methods section
-	//
-	// This section isn't yet complete.  For now, it is just
-	// a description of things I think should be in here ... not
-	// yet a description of what it would take to prove
-	// this divide (yet).
-	always @(*)
-	if (o_err)
-		assert(o_valid);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_wr)))
-		assert(!pre_sign);
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_wr))&&($past(i_signed))
-			&&(|$past({i_numerator[BW-1],i_denominator[BW-1]})))
-		assert(pre_sign);
-
-	// always @(posedge i_clk)
-	// if ((f_past_valid)&&(!$past(pre_sign)))
-		// assert(!r_sign);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_wr)))
-		assert(o_busy);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(o_valid)))
-		assert(!o_valid);
-
-	always @(*)
-	if ((o_valid)&&(!o_err))
-		assert(r_z == ((o_quotient == 0)? 1'b1:1'b0));
-
-	always @(*)
-	if ((o_valid)&&(!o_err))
-		assert(w_n == o_quotient[BW-1]);
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(r_busy))&&(!$past(i_wr)))
-		assert(!o_busy);
-	always @(posedge i_clk)
-		assert((!o_busy)||(!o_valid));
-	always @(posedge i_clk)
-	if(o_busy) `ASSUME(!i_wr);
-	always @(*)
-		if(r_busy) assert(o_busy);
-
-	reg	[BW:0]	f_bits_set;
-	always @(posedge i_clk)
-	if (i_reset)
-		f_bits_set <= 0;
-	else if (i_wr)
-		f_bits_set <= 0;
-	else if ((r_busy)&&(!pre_sign))
-		f_bits_set <= { f_bits_set[BW-1:0], 1'b1 };
-
-	always @(*)
-	if ((o_valid)&&(!o_err))
-		assert((!f_bits_set[BW])&&(&f_bits_set[BW-1:0]));
-
-
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(r_busy))
-		&&($past(r_divisor[2*BW-2:BW])==0))
-	begin
-		if ($past(r_divisor) == 0)
-			assert(o_err);
-		else if ($past(pre_sign))
-		begin
-			if ($past(r_dividend[BW-1]))
-				assert(r_dividend == -$past(r_dividend));
-			if ($past(r_divisor[(2*BW-2)]))
-			begin
-				assert(r_divisor[(2*BW-2):(BW-1)]
-					== -$past(r_divisor[(2*BW-2):(BW-1)]));
-				assert(r_divisor[BW-2:0] == 0);
-			end
-		end else begin
-			if (o_quotient[0])
-				assert(r_dividend == $past(diff));
-			else
-				assert(r_dividend == $past(r_dividend));
-
-			// r_divisor should shift down on every step
-			assert(r_divisor[2*BW-2]==0);
-			assert(r_divisor[2*BW-3:0]==$past(r_divisor[2*BW-2:1]));
-		end
-		if ($past(r_dividend) >= $past(r_divisor[BW-1:0]))
-			assert(o_quotient[0]);
-		else
-			assert(!o_quotient[0]);
-	end
+// Formal properties for this module are maintained elsewhere
 `endif
 endmodule

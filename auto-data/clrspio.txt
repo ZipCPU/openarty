@@ -1,8 +1,8 @@
 ################################################################################
 ##
-## Filename: 	spio.txt
+## Filename: 	clrspio.txt
 ##
-## Project:	AutoFPGA, a utility for composing FPGA designs from peripherals
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	To describe how to interact with the special purpose device
 ##		controller (spio) for the Nexys Video Board (SW, BTN, LEDs)
@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2017-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -36,41 +36,64 @@
 ################################################################################
 ##
 ##
-@PREFIX=spio
-@NADDR=1
+@PREFIX=clrled
+@DEVID=CLRLED
+@NADDR=4
 @SLAVE.TYPE=SINGLE
 @SLAVE.BUS=wb
-@ACCESS=SPIO_ACCESS
-@INT.SPIO.WIRE=spio_int
-@INT.SPIO.PIC=buspic
+@ACCESS=@$(DEVID)_ACCESS
 @MAIN.PORTLIST=
-		// SPIO interface
-		i_sw, i_btnc, i_btnd, i_btnl, i_btnr, i_btnu, o_led
+		// @$(DEVID) interface
+		o_clr_ledr, o_clr_ledg, o_clr_ledb
 @MAIN.IODECL=
 	// SPIO interface
-	input	wire	[7:0]	i_sw;
-	input	wire		i_btnc, i_btnd, i_btnl, i_btnr, i_btnu;
-	output	wire	[7:0]	o_led;
+	output	wire	[3:0]	o_clr_ledr, o_clr_ledg, o_clr_ledb;
 @MAIN.DEFNS=
-	wire	[4:0]	w_btn;
+`ifndef	PWRCOUNT_ACCESS
+	reg	[8:0]	@$(PREFIX)_counter;
+`else
+	wire	[8:0]	@$(PREFIX)_counter;
+`endif
 @MAIN.INSERT=
-	assign	w_btn = { i_btnc, i_btnd, i_btnl, i_btnr, i_btnu };
-	spio #(.NBTN(5), .NLEDS(8)) thespio(i_clk,
-		wb_cyc, (wb_stb)&&(spio_sel), wb_we, wb_data, wb_sel,
-			spio_ack, spio_stall, spio_data,
-		i_sw, w_btn, o_led, spio_int);
+`ifdef	PWRCOUNT_ACCESS
+	assign	@$(PREFIX)_counter = pwrcount_data[8:0];
+`else
+	always @(posedge i_clk)
+		@$(PREFIX)_counter <= @$(PREFIX)_counter + 1;
+`endif
+	clrled @$(PREFIX)0(i_clk,
+		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b00)&&(wb_we)),
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+			{ o_clr_ledr[0], o_clr_ledg[0], o_clr_ledb[0] });
+	clrled @$(PREFIX)1(i_clk,
+		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b01)&&(wb_we)),
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+			{ o_clr_ledr[1], o_clr_ledg[1], o_clr_ledb[1] });
+	clrled @$(PREFIX)2(i_clk,
+		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b10)&&(wb_we)),
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+			{ o_clr_ledr[2], o_clr_ledg[2], o_clr_ledb[2] });
+	clrled @$(PREFIX)3(i_clk,
+		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b11)&&(wb_we)),
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+			{ o_clr_ledr[3], o_clr_ledg[3], o_clr_ledb[3] });
 @MAIN.ALT=
-	assign	w_btn    = h0;
-	assign	o_led_cs_n    = 8'h0;
-@REGS.N=1
-@REGS.0= 0 R_SPIO		SPIO
+	assign	o_clr_ledr = 0;
+	assign	o_clr_ledg = 0;
+	assign	o_clr_ledb = 0;
+@REGS.N=5
+@REGS.0= 0 R_@$(DEVID)	@$(DEVID)
+@REGS.1= 0 R_@$(DEVID)0	@$(DEVID)0 CLR0
+@REGS.2= 1 R_@$(DEVID)1	@$(DEVID)1 CLR1
+@REGS.3= 2 R_@$(DEVID)2	@$(DEVID)2 CLR2
+@REGS.4= 3 R_@$(DEVID)3	@$(DEVID)3 CLR3
 @BDEF.DEFN=
-#define	SPIO_BTNC	0x01000
-#define	SPIO_BTND	0x00800
-#define	SPIO_BTNL	0x00400
-#define	SPIO_BTNR	0x00200
-#define	SPIO_BTNU	0x00100
-@BDEF.IONAME=io_spio
+#define	@$(DEVID)_RED	0x0ff0000
+#define	@$(DEVID)_GREEN	0x000ff00
+#define	@$(DEVID)_BLUE	0x00000ff
+@BDEF.IONAME=io_@$(PREFIX)
 @BDEF.IOTYPE=unsigned
-@BDEF.OSDEF= _BOARD_HAS_SPIO
-@BDEF.OSVAL= static volatile @$THIS.BDEF.IOTYPE *const _spio = ((@$THIS.BDEF.IOTYPE *)@$.REGBASE);
+@BDEF.OSDEF= _BOARD_HAS_@$(DEVID)
+@BDEF.OSVAL= static volatile @$(BDEF.IOTYPE) *const _@$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x%08x](REGBASE));
+@MAKE.GROUP= @$(DEVID)
+@MAKE.FILES=clrled.v

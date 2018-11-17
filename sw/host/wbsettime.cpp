@@ -52,6 +52,7 @@
 
 #include "port.h"
 #include "llcomms.h"
+#include "ttybus.h"
 #include "regdefs.h"
 
 DEVBUS	*m_fpga;

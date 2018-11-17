@@ -135,7 +135,7 @@ void	SDSPISIM::load(const char *fname) {
 
 		m_devblocks = devln>>9;
 
-		if (m_debug) printf("SDCARD: NBLOCKS = %ld\n", m_devblocks);
+		if (m_debug) printf("SDCARD: On load, NBLOCKS = %ld\n", m_devblocks);
 	}
 }
 
@@ -183,17 +183,17 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 	// Only change our output on the falling edge
 
 	m_last_sck = sck;
-	if (m_debug) printf("SDSPI: (%3d) [%d,%d,%d] ", m_delay, csn, sck, m_mosi);
+	// if (m_debug) printf("SDSPI: (%3d) [%d,%d,%d] ", m_delay, csn, sck, m_mosi);
 	// assert(m_delay > 20);
 
 	m_bitpos++;
 	m_dat_in = (m_dat_in<<1)|m_mosi;
 
 
-	if (m_debug) printf("(bitpos=%d,dat_in=%02x)\n", m_bitpos&7, m_dat_in&0x0ff);
+	// if (m_debug) printf("(bitpos=%d,dat_in=%02x)\n", m_bitpos&7, m_dat_in&0x0ff);
 
 	if ((m_bitpos&7)==0) {
-		if (m_debug) printf("SDSPI--RX BYTE %02x\n", m_dat_in&0x0ff);
+		// if (m_debug) printf("SDSPI--RX BYTE %02x\n", m_dat_in&0x0ff);
 		m_dat_out = 0xff;
 		if (m_reading_data) {
 			if (m_have_token) {
@@ -227,7 +227,7 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 					printf("SDSPI: waiting on token\n");
 			}
 		} else if (m_cmdidx < 6) {
-			if (m_debug) printf("SDSPI: CMDIDX = %d\n", m_cmdidx);
+			// if (m_debug) printf("SDSPI: CMDIDX = %d\n", m_cmdidx);
 			// All commands *must* start with a 01... pair of bits.
 			if (m_cmdidx == 0)
 				assert((m_dat_in&0xc0)==0x40);
@@ -240,7 +240,7 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 			m_blkdly = 0;
 			m_blkidx = SDSPI_MAXBLKLEN;
 			if (m_debug) {
-				printf("SDSPI: CMDIDX = %d -- WE HAVE A COMMAND! [ ", m_cmdidx);
+				printf("SDSPI: CMDIDX = %d -- WE HAVE A COMMAND #%2d! [ ", m_cmdidx, m_cmdbuf[0]&0x3f);
 				for(int i=0; i<6; i++)
 					printf("%02x ", m_cmdbuf[i] & 0xff);
 				printf("]\n"); fflush(stdout);
@@ -490,10 +490,17 @@ bool	SDSPISIM::check_cmdcrc(char *buf) const {
 
 unsigned SDSPISIM::blockcrc(int len, char *buf) const {
 	unsigned int fill = 0, taps = 0x1021;
-	bool	dbg = (len == 512);
+	bool	dbg = (len == 512)&&(m_debug);
 
+	if (dbg) {
+		for(int i=0; i<len; i+=16) {
+			printf("SDSPISIM::BUF[%3d] ", i);
+			for(int k=0; (k<16)&&(k+i<len); k++)
+				printf("%02x ", buf[i+k]&0x0ff);
+			printf("\n");
+		}
+	}
 	for(int i=0; i<len; i++) {
-		if (dbg) { printf("BUF[%3d] = %02x\n", i, buf[i]&0x0ff); }
 		fill ^= ((buf[i]&0x0ff) << 8);
 		for(int j=0; j<8; j++) {
 			if (fill&0x8000)
@@ -504,7 +511,7 @@ unsigned SDSPISIM::blockcrc(int len, char *buf) const {
 	}
 
 	fill &= 0x0ffff;
-	if (dbg) { printf("BLOCKCRC(%d,??) = %04x\n", len, fill); }
+	if (dbg) { printf("BLOCKCRC(%d,...) = %04x\n", len, fill); }
 	return fill;
 }
 

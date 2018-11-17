@@ -52,8 +52,13 @@
 
 #include "port.h"
 #include "llcomms.h"
+#include "ttybus.h"
+#include <design.h>
 #include "regdefs.h"
+
+#ifdef	FLASH_ACCESS
 #include "flashdrvr.h"
+#endif
 #include "zipelf.h"
 #include "byteswap.h"
 
@@ -67,10 +72,16 @@ void	usage(void) {
 }
 
 int main(int argc, char **argv) {
+#ifndef	R_ZIPCTRL
+	fprintf(stderr, "This design doesn\'t seem to contain a ZipCPU\n");
+	return	EXIT_FAILURE;
+#else
 	int		skp=0;
 	bool		start_when_finished = false, verbose = false;
 	unsigned	entry = 0;
+#ifdef	FLASH_ACCESS
 	FLASHDRVR	*flash = NULL;
+#endif
 	const char	*bitfile = NULL, *altbitfile = NULL, *execfile = NULL;
 
 	if (argc < 2) {
@@ -152,11 +163,15 @@ int main(int argc, char **argv) {
 	}
 
 	const char *codef = (argc>0)?argv[0]:NULL;
+#ifdef	FLASH_ACCESS
 	char	*fbuf = new char[FLASHLEN];
 
 	// Set the flash buffer to all ones
 	memset(fbuf, -1, FLASHLEN);
+#endif
 
+	if (verbose)
+		fprintf(stderr, "ZipLoad: Verbose mode on\n");
 	FPGAOPEN(m_fpga);
 
 	// Make certain we can talk to the FPGA
@@ -180,7 +195,9 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef	FLASH_ACCESS
 	flash = new FLASHDRVR(m_fpga);
+#endif
 
 	if (codef) try {
 		ELFSECTION	**secpp = NULL, *secp;
@@ -200,22 +217,28 @@ int main(int argc, char **argv) {
 			secp=  secpp[i];
 
 			// Make sure our section is either within block RAM
-			if ((secp->m_start >= MEMBASE)
+#ifdef	BLKRAM_ACCESS
+			if ((secp->m_start >= BKMEMBASE)
 				&&(secp->m_start+secp->m_len
-						<= MEMBASE+MEMLEN))
+						<= BKMEMBASE+BKMEMLEN))
 				valid = true;
+#endif
 
+#ifdef	FLASH_ACCESS
 			// Flash
 			if ((secp->m_start >= RESET_ADDRESS)
 				&&(secp->m_start+secp->m_len
-						<= EQSPIFLASH+FLASHLEN))
+						<= FLASHBASE+FLASHLEN))
 				valid = true;
+#endif
 
+#ifdef	SDRAM_ACCESS
 			// Or SDRAM
 			if ((secp->m_start >= RAMBASE)
 				&&(secp->m_start+secp->m_len
 						<= RAMBASE+RAMLEN))
 				valid = true;
+#endif
 			if (!valid) {
 				fprintf(stderr, "No such memory on board: 0x%08x - %08x\n",
 					secp->m_start, secp->m_start+secp->m_len);
@@ -223,15 +246,33 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		unsigned	startaddr = RESET_ADDRESS, codelen = 0;
 		for(int i=0; secpp[i]->m_len; i++) {
 			secp = secpp[i];
-			if ( ((secp->m_start >= RAMBASE)
+
+#ifdef	SDRAM_ACCESS
+			if ((secp->m_start >= RAMBASE)
 				&&(secp->m_start+secp->m_len
-						<= RAMBASE+RAMLEN))
-				||((secp->m_start >= MEMBASE)
+						<= RAMBASE+RAMLEN)) {
+				if (verbose)
+					printf("Writing to SDRAM: %08x-%08x\n",
+						secp->m_start,
+						secp->m_start+secp->m_len);
+				unsigned ln = (secp->m_len+3)&-4;
+				uint32_t	*bswapd = new uint32_t[ln>>2];
+				if (ln != (secp->m_len&-4))
+					memset(bswapd, 0, ln);
+				memcpy(bswapd, secp->m_data,  ln);
+				byteswapbuf(ln>>2, bswapd);
+				m_fpga->writei(secp->m_start, ln>>2, bswapd);
+
+				continue;
+			}
+#endif
+
+#ifdef	BLKRAM_ACCESS
+			if ((secp->m_start >= BKMEMBASE)
 				  &&(secp->m_start+secp->m_len
-						<= MEMBASE+MEMLEN)) ) {
+						<= BKMEMBASE+BKMEMLEN)) {
 				if (verbose)
 					printf("Writing to MEM: %08x-%08x\n",
 						secp->m_start,
@@ -243,7 +284,17 @@ int main(int argc, char **argv) {
 				memcpy(bswapd, secp->m_data,  ln);
 				byteswapbuf(ln>>2, bswapd);
 				m_fpga->writei(secp->m_start, ln>>2, bswapd);
-			} else {
+				continue;
+			}
+#endif
+
+#ifdef	FLASH_ACCESS
+			unsigned	startaddr = RESET_ADDRESS;
+			unsigned	codelen = 0;
+
+			if ((secp->m_start >= FLASHBASE)
+				  &&(secp->m_start+secp->m_len
+						<= FLASHBASE+FLASHLEN)) {
 				// Otherwise writing to flash
 				if (secp->m_start < startaddr) {
 					// Keep track of the first address in
@@ -260,12 +311,14 @@ int main(int argc, char **argv) {
 
 				// Copy this data into our copy of what we want
 				// the flash to look like.
-				memcpy(&fbuf[secp->m_start-EQSPIFLASH],
+				memcpy(&fbuf[secp->m_start-FLASHBASE],
 					secp->m_data, secp->m_len);
 			}
+#endif
 		}
 
-		if ((flash)&&(codelen>0)&&(!flash->write(startaddr, codelen, &fbuf[startaddr-EQSPIFLASH], true))) {
+#ifdef	FLASH_ACCESS
+		if ((flash)&&(codelen>0)&&(!flash->write(startaddr, codelen, &fbuf[startaddr-FLASHBASE], true))) {
 			fprintf(stderr, "ERR: Could not write program to flash\n");
 			exit(EXIT_FAILURE);
 		} else if ((!flash)&&(codelen > 0)) {
@@ -273,27 +326,29 @@ int main(int argc, char **argv) {
 			// fprintf(stderr, "flash->write(%08x, %d, ... );\n", startaddr,
 			//	codelen);
 		}
+#endif
+
 		if (m_fpga) m_fpga->readio(R_VERSION); // Check for bus errors
 
 		// Now ... how shall we start this CPU?
+		printf("Clearing the CPUs registers\n");
+		for(int i=0; i<32; i++) {
+			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|i);
+			m_fpga->writeio(R_ZIPDATA, 0);
+		}
+
+		m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_CLRCACHE);
+		printf("Setting PC to %08x\n", entry);
+		m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_sPC);
+		m_fpga->writeio(R_ZIPDATA, entry);
+
 		if (start_when_finished) {
-			printf("Clearing the CPUs registers\n");
-			for(int i=0; i<32; i++) {
-				m_fpga->writeio(R_ZIPCTRL, CPU_HALT|i);
-				m_fpga->writeio(R_ZIPDATA, 0);
-			}
-
-			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_CLRCACHE);
-			printf("Setting PC to %08x\n", entry);
-			m_fpga->writeio(R_ZIPCTRL, CPU_HALT|CPU_sPC);
-			m_fpga->writeio(R_ZIPDATA, entry);
-
 			printf("Starting the CPU\n");
 			m_fpga->writeio(R_ZIPCTRL, CPU_GO|CPU_sPC);
 		} else {
 			printf("The CPU should be fully loaded, you may now\n");
 			printf("start it (from reset/reboot) with:\n");
-			printf("> wbregs cpu 0x40\n");
+			printf("> wbregs cpu 0x0f\n");
 			printf("\n");
 		}
 	} catch(BUSERR a) {
@@ -305,5 +360,5 @@ int main(int argc, char **argv) {
 	if (m_fpga) delete	m_fpga;
 
 	return EXIT_SUCCESS;
+#endif
 }
-

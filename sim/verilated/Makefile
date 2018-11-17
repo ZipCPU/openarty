@@ -4,14 +4,18 @@
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	
+## Purpose:	To coordinate the build of a cycle accurate, Verilator based,
+##		simulation of the main module.  Access to the simulation is
+##	provided via the same software commands that will access the board, save
+##	that the parameters are a touch different.  (See the access software for
+##	more information ...)
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2017, Gisselquist Technology, LLC
+## Copyright (C) 2015-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -35,10 +39,13 @@
 ################################################################################
 ##
 ##
+.PHONY: all
+# Make certain the "all" target is the first and therefore the default target
 all:
 CXX	:= g++
-OBJDIR  := obj-pc
+OBJDIR	:= obj-pc
 RTLD	:= ../../rtl
+VOBJDR	:= $(RTLD)/obj_dir
 ifneq ($(VERILATOR_ROOT),)
 VERILATOR:=$(VERILATOR_ROOT)/bin/verilator
 else
@@ -51,22 +58,25 @@ GFXFLAGS:= `pkg-config gtkmm-3.0 --cflags`
 GFXLIBS := `pkg-config gtkmm-3.0 --cflags --libs`
 FLAGS	:= -Wall -Og -g $(VDEFS)
 VINCD   := $(VROOT)/include
-INCS	:= -I$(RTLD)/obj_dir/ -I$(RTLD) -I$(VINCD) -I$(VINCD)/vltstd
-SOURCES := fastmaster_tb.cpp eqspiflashsim.cpp eqspiflash_tb.cpp	\
-	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp		\
-	memsim.cpp sdspisim.cpp uartsim.cpp ddrsdramsim.cpp
-HEADERS := ddrsdramsim.h enetctrlsim.h eqspiflashsim.h memsim.h	\
+VINC	:= -I$(VINCD) -I$(VINCD)/vltstd -I$(VOBJDR)
+INCS	:= -I../../sw/host -I$(RTLD) $(VINC)
+SOURCES := automaster_tb.cpp main_tb.cpp			\
+	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp	\
+	memsim.cpp sdspisim.cpp uartsim.cpp
+	## eqspiflashsim.cpp ddrsdramsim.cpp
+HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
 	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h
+	## eqspiflashsim.h
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
-SIMSRCS := enetctrlsim.cpp eqspiflashsim.cpp zipelf.cpp		\
+VMAIN	:= $(VOBJDR)/Vmain__ALL.a
+SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp		\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
-PROGRAMS := busmaster_tb eqspiflash_tb enetctrl_tb
+PROGRAMS := main_tb enetctrl_tb
 all:	$(PROGRAMS)
 
-%.o: $(OBJDIR)/%.o
 $(OBJDIR)/%.o: %.cpp
 	$(mk-objdir)
 	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
@@ -79,19 +89,39 @@ $(OBJDIR)/%.o: $(VINCD)/%.cpp
 oledsim.o: $(OBJDIR)/oledsim.o
 $(OBJDIR)/oledsim.o: oledsim.cpp
 	$(CXX) $(FLAGS) $(GFXFLAGS) -c $< -o $@
-
-# While busmaster_tb.o isnt really dependent upon fastmaster_tb.o, this
-# makes certain that all of the dependencies of fastmaster_tb are captured
-# in busmaster.  Hence, if fastmaster_tb is remade/rebuilt because one of
-# its dependencies change, so too is busmaster_tb.
 #
-$(OBJDIR)/busmaster_tb.o: fastmaster_tb.cpp
+$(OBJDIR)/main_tb.o: automaster_tb.cpp
 	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
 
-# $(OBJDIR)/fastmaster_tb.o: fastmaster_tb.cpp
-#	$(CXX) -DFASTCLK $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
+main_tb: $(OBJDIR)/main_tb.o $(OBJDIR)/zipelf.o $(SIMOBJS) $(VMAIN) $(VOBJS)
+	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) $^ $(GFXLIBS) -lelf -o $@
 
+#
+# The "clean" target, removing any and all remaining build products
+#
+.PHONY: clean
+clean:
+	rm -f *.vcd
+	rm -f $(PROGRAMS)
+	rm -rf $(OBJDIR)/
 
+#
+# The "depends" target, to know what files things depend upon.  The depends
+# file itself is kept in $(OBJDIR)/depends.txt
+#
+define build-depends
+	$(mk-objdir)
+	@echo "Building dependency file"
+	@$(CXX) $(VDEFS) $(GFXFLAGS) $(INCS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
+	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt > $(OBJDIR)/depends.txt
+	@rm $(OBJDIR)/xdepends.txt
+endef
+
+.PHONY: depends
+depends: tags
+	$(build-depends)
+
+$(OBJDIR)/depends.txt: depends
 
 eqspiflash_tb: $(OBJDIR)/eqspiflash_tb.o $(OBJDIR)/eqspiflashsim.o
 eqspiflash_tb: $(VOBJS) $(VOBJDR)/Veqspiflash__ALL.a
@@ -100,44 +130,20 @@ eqspiflash_tb: $(VOBJS) $(VOBJDR)/Veqspiflash__ALL.a
 enetctrl_tb: enetctrl_tb.cpp $(OBJDIR)/enetctrlsim.o
 enetctrl_tb: $(VOBJS) $(VOBJDR)/Venetctrl__ALL.a
 	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Venetctrl__ALL.a -o $@
-
-fastmaster_tb: $(OBJDIR)/fastmaster_tb.o $(SIMOBJS)
-fastmaster_tb: $(VOBJS) $(VOBJDR)/Vfastmaster__ALL.a
-	$(CXX) $(GFXLIBS) $^ $(VOBJDR)/Vfastmaster__ALL.a -lelf -o $@
-busmaster_tb: $(OBJDIR)/busmaster_tb.o $(SIMOBJS)
-busmaster_tb: $(VOBJS) $(VOBJDR)/Vbusmaster__ALL.a
-	$(CXX) $(GFXLIBS) $(INCS) $^ $(VOBJDR)/Vbusmaster__ALL.a $(GFXLIBS) -lelf -o $@
-
+#
 define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
 endef
 
-define	build-depends
-	@echo "Building dependency file(s)"
-	$(mk-objdir)
-	@$(CXX) $(VDEFS) $(GFXFLAGS) $(INCS) -MM $(SOURCES) > $(OBJDIR)/xdepends.txt
-	@sed -e 's/^.*.o: /$(OBJDIR)\/&/' < $(OBJDIR)/xdepends.txt	\
-		| sed -e 's/fastmaster_tb.o/busmaster_tb.o/g' 		\
-		> $(OBJDIR)/depends.txt
-	@rm $(OBJDIR)/xdepends.txt
-endef
 
-tags: $(SOURCES) $(HEADERS)
+#
+# The "tags" target
+#
+tags:	$(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
 
-.PHONY: clean
-clean:
-	rm -f *.vcd
-	rm -rf $(OBJDIR)/
-	rm -f $(PROGRAMS)
-	# rm -f ./fastmaster_tb
 
-.PHONY: depends
-depends: tags
-	$(build-depends)
-
-$(OBJDIR)/depends.txt: $(SOURCES) $(HEADERS)
-	$(build-depends)
-
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
+endif
