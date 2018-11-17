@@ -48,7 +48,7 @@ all:	data
 # main project files.
 #
 DATA := global.txt bkram.txt buserr.txt	dlyarbiter.txt	clock.txt	\
-	gpio.txt spio.txt icape.txt mdio.txt gps.txt		\
+	gpio.txt spio.txt icape.txt mdio.txt gps.txt eqspi.txt		\
 	pic.txt pwrcount.txt rtcdate.txt rtcgps.txt clrspio.txt	\
 	version.txt wbuconsole.txt zipmaster.txt sdspi.txt
 	## flash.txt
@@ -58,7 +58,7 @@ $(AUTOFPGA):
 
 .PHONY: data
 data: $(AUTOFPGA) $(DATA)
-	$(AUTOFPGA) -o . $(DATA)
+	$(AUTOFPGA) -d -o . $(DATA)
 
 define	notify-on-change
 	@bash -c 'cmp $(1) $(2)/$(1); if [[ $$? != 0 ]]; then echo "Files $(1) and $(2)/$(1) differ"; fi'

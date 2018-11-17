@@ -62,14 +62,14 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 
 ##Pmod Header JB: OLEDrgb
 
-set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports o_oled_cs_n]
-set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports o_oled_mosi]
-#set_property -dict { PACKAGE_PIN D15   IOSTANDARD LVCMOS33 } [get_ports { i_oled_nc }]; #IO_L12P_T1_MRCC_15 Sch=jb_p[2]
-set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports o_oled_sck]
-set_property -dict { PACKAGE_PIN J17 IOSTANDARD LVCMOS33 } [get_ports o_oled_dcn]
-set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports o_oled_reset_n]
-set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 } [get_ports o_oled_vccen]
-set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports o_oled_pmoden]
+# set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_cs_n]
+# set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_mosi]
+#set_property -dict { PACKAGE_PIN D15   IOSTANDARD LVCMOS33 } [get_ports { i_oled_nc }]; #IO_L12P_T1_MRCC_15 Sch=jb_p[2], no connection
+# set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_sck]
+# set_property -dict { PACKAGE_PIN J17 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_dcn]
+# set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_reset_n]
+# set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_vccen]
+# set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_pmoden]
 
 ##Pmod Header JC: GPS (top), UART (bottom)
 

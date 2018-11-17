@@ -1,10 +1,10 @@
 ################################################################################
 ##
-## Filename: 	flash.txt
+## Filename: 	eqspi.txt
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	Describes the flash in our new data format.
+## Purpose:	Describes the old Artix-7 flash device and controller
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -44,6 +44,15 @@
 @ACCESS= FLASH_ACCESS
 @SLAVE.TYPE=MEMORY
 @SLAVE.BUS=wb
+@INT.FLASH.WIRE=flash_int
+@INT.FLASH.PIC=buspic
+## Create some constants for our interrupt controller, based upon the interrupt
+## assignment
+# Clear the flash interrupt
+@$ISPIF_CLR=(1<<(@$INT.FLASH.buspic.ID))
+# Disable the flash interrupt
+@$ISPIF_DIS=(@$ISPIF_CLR)|(@$ISPIF_CLR << 16)
+@$ISPIF_EN=(@$ISPIF_DIS|0x800000000)
 @TOP.PORTLIST=
 		// Top level Quad-SPI I/O ports
 		o_qspi_cs_n, o_qspi_sck, io_qspi_dat
@@ -83,24 +92,38 @@
 	output	wire	[3:0]	o_qspi_dat;
 	input	wire	[3:0]	i_qspi_dat;
 	output	wire	[1:0]	o_qspi_mod;
+@MAIN.DEFNS=
+	// Flash signals used for the scope, if so enabled
+	//	ignored otherwise
+	wire		flash_trigger;
+	wire	[31:0]	flash_debug;
 @MAIN.INSERT=
-	qflexpress #(@$LGFLASHSZ)
-		flashmem(i_clk, i_reset,
+	eqspiflash flashmem(i_clk, i_reset,
 			(wb_cyc), (wb_stb)&&(@$(PREFIX)_sel), (wb_stb)&&(flctl_sel),
 				wb_we,
 			wb_addr[(@$LGFLASHSZ-3):0], wb_data,
-			flash_ack, flash_stall, flash_data,
+			@$(PREFIX)_ack, @$(PREFIX)_stall, @$(PREFIX)_data,
 			o_qspi_sck, o_qspi_cs_n, o_qspi_mod,
-				o_qspi_dat, i_qspi_dat);
+				o_qspi_dat, i_qspi_dat,
+			flash_int,
+			flash_trigger, flash_debug);
 @MAIN.ALT=
 	assign	o_qspi_sck  = 1'b1;
 	assign	o_qspi_cs_n = 1'b1;
 	assign	o_qspi_mod  = 2'b01;
 	assign	o_qspi_dat  = 4'b1111;
+	assign	flash_triggerr  = 0;
+	assign	flash_debug     = 0;
 @MEM.NAME= flash
 @MEM.ACCESS = rx
 @REGS.N= 1
+@REGS.0= 0 R_FLASH FLASH EQSPIFLASH
 @REGDEFS.H.DEFNS=
+#define	R_ICONTROL	R_PIC
+#define	ISPIF_EN	@$[0x%08x](ISPIF_EN)
+#define	ISPIF_DIS	@$[0x%08x](ISPIF_DIS)
+#define	ISPIF_CLR	@$[0x%08x](ISPIF_CLR)
+
 #define	@$(DEVID)BASE	@$[0x%08x](REGBASE)
 #define	@$(DEVID)LEN	@$NBYTES
 #define	@$(DEVID)LGLEN	@$LGFLASHSZ
@@ -111,41 +134,20 @@
 @LD.NAME=	flash
 @REGDEFS.H.INSERT=
 @SIM.INCLUDE+=
-#include "flashsim.h"
+#include "eqspiflashsim.h"
 @SIM.DEFNS+=
 #ifdef	@$(ACCESS)
-	FLASHSIM	*m_@$(MEM.NAME);
+	EQSPIFLASHSIM	*m_@$(MEM.NAME);
 #endif // @$(ACCESS)
 @SIM.INIT+=
 #ifdef	@$(ACCESS)
-		m_@$(MEM.NAME) = new FLASHSIM(FLASHLGLEN);
+		m_@$(MEM.NAME) = new EQSPIFLASHSIM(FLASHLGLEN);
 #endif // @$(ACCESS)
 @SIM.TICK +=
 #ifdef	@$(ACCESS)
-		{ static int lastsck = 0; int idspi;
-
-			if (lastsck)
-				(*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
-					0, m_core->o_qspi_dat);
-
-			idspi = (*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
-				1, m_core->o_qspi_dat);
-
-
-			if (m_core->o_qspi_mod&2) {
-				if (m_core->o_qspi_mod&1)
-					;
-				else
-					idspi = m_core->o_qspi_dat;
-			} else {
-				idspi &= 0x002;
-				idspi |= m_core->o_qspi_dat&1;
-				idspi |= 0x0c;
-			}
-
-			m_core->i_qspi_dat = idspi;
-			lastsck = m_core->o_qspi_sck;
-		}
+			m_core->i_qspi_dat = (*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
+				m_core->o_qspi_sck,
+				m_core->o_qspi_dat);
 #endif // @$(ACCESS)
 @SIM.LOAD +=
 			m_@$(MEM.NAME)->load(start, &buf[offset], wlen);
@@ -156,7 +158,7 @@
 ##
 # Now, the control interface
 @PREFIX= flctl
-@NADDR= 1
+@NADDR= 32
 @ACCESS= FLASH_ACCESS
 # This cannot be a DOUBLE peripheral type, since our response may take more
 # than two clock cycles.
@@ -169,11 +171,29 @@
 	assign	flctl_stall = 1'b0;
 	assign	flctl_data  = 0;
 @REGS.NOTE= // FLASH erase/program configuration registers
-@REGS.N= 1
-@REGS.0= 0 R_FLASHCFG FLASHCFG
+@REGS.N= 14
+@REGS.0 = 0 R_QSPI_EREG	QSPIEREG QSPIE
+@REGS.1 = 1 R_QSPI_STAT	QSPIS
+@REGS.2 = 2 R_QSPI_NVCONF	QSPIINVCF QSPIINV
+@REGS.3 = 3 R_QSPI_VCONF	QSPIVCNF  QSPIV
+@REGS.4 = 4 R_QSPI_EVCONF	QSPIEVCF  QSPIEV
+@REGS.5 = 5 R_QSPI_LOCK		QSPILOCK
+@REGS.6 = 6 R_QSPI_FLAG		QSPIFLAG
+# @REGS.14= 7 QSPI_ASYNC	QSPIASYNC
+@REGS.7 = 8 R_QSPI_ID		QSPIID
+@REGS.8 = 9 R_QSPI_IDA		QSPIIDA
+@REGS.9 = 10 R_QSPI_IDB		QSPIIDB
+@REGS.10= 11 R_QSPI_IDC		QSPIIDC
+@REGS.11= 12 R_QSPI_IDD		QSPIIDD
+@REGS.12= 15 R_QSPI_OTPWP	QSPIOTPWP
+@REGS.13= 16 R_QSPI_OTP		QSPIOTP
 @BDEF.DEFN=
 @REGDEFS.H.INSERT=
-#define	QSPI_FLASH	// This core and hardware support a Quad SPI flash
+// Flash control constants
+#define	ERASEFLAG	0xc00001be
+#define	DISABLEWP	0x40000000
+#define	ENABLEWP	0x00000000
+
 #define	SZPAGEB		256
 #define	PGLENB		256
 #define	SZPAGEW		64
@@ -186,8 +206,8 @@
 #define	SUBSECTOROF(A)	((A) & (-1<<12))
 #define	PAGEOF(A)	((A) & (-1<<8))
 
-@BDEF.IONAME= io_flctl
+@BDEF.IONAME=_io_flctl
 @BDEF.IOTYPE=unsigned
 @BDEF.OSVAL=static volatile @$(BDEF.IOTYPE) * const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)(@$[0x%08x](REGBASE)));
-@RTL.MAKE.GROUP= FLASH
-@RTL.MAKE.FILES= qflexpress.v
+@RTL.MAKE.GROUP= EQSPI
+@RTL.MAKE.FILES= eqspiflash.v ctrlspi.v readqspi.v writeqspi.v qspibus.v idotpqspi.v lleqspi.v

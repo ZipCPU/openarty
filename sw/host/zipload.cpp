@@ -201,6 +201,11 @@ int main(int argc, char **argv) {
 
 	if (codef) try {
 		ELFSECTION	**secpp = NULL, *secp;
+#ifdef	FLASH_ACCESS
+		unsigned	startaddr = RESET_ADDRESS;
+		unsigned	codelen = 0;
+#endif
+
 
 		if(iself(codef)) {
 			// zip-readelf will help with both of these ...
@@ -289,9 +294,6 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef	FLASH_ACCESS
-			unsigned	startaddr = RESET_ADDRESS;
-			unsigned	codelen = 0;
-
 			if ((secp->m_start >= FLASHBASE)
 				  &&(secp->m_start+secp->m_len
 						<= FLASHBASE+FLASHLEN)) {

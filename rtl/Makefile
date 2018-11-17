@@ -100,6 +100,7 @@ design.h: main.v
 		| grep -v include				\
 		| grep -v timescale				\
 		| sed -e '{ s/^`/#/ }'				\
+		| sed -e ' s/^#elsif/#elif/'			\
 		| sed -e ' s/main.v/design.h/' >> $@
 	@echo >> $@
 	@echo "#endif // DESIGN_H" >> $@

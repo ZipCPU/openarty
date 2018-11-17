@@ -51,9 +51,11 @@
 @BUS.CLOCK=clk
 @SCOPE.TRIGGER=zip_trigger
 @SCOPE.DATA=zip_debug
+@$RESET_ADDRESS=@$(flash.REGBASE)+(4<<20)
 @INT.ZIP.WIRE=zip_cpu_int
 @INT.ZIP.BUS=buspic
 @LD.FILE=board.ld
+@LD.DEFNS=_top_of_stack = ORIGIN(bkram) + LENGTH(bkram) - 4;
 @LD.SCRIPT=
 SECTIONS
 {
@@ -72,7 +74,7 @@ SECTIONS
                *(.text*)
                *(.rodata*) *(.strings)
                *(.data) *(COMMON)
-               }> hyperram AT> flash
+               }> bkram AT> flash
        _ram_image_end = . ;
        .bss : ALIGN_WITH_INPUT {
                *(.bss)
@@ -150,7 +152,7 @@ SECTIONS
 #include <cpudefs.h>
 
 #define	_HAVE_ZIPSYS
-#define	PIC	_zip->z_pic
+#define	PIC	zip->z_pic
 
 #ifdef	INCLUDE_ZIPCPU
 #ifdef INCLUDE_DMA_CONTROLLER
@@ -179,11 +181,11 @@ SECTIONS
 #define	CPU_uPC		0x001f
 
 #ifdef	FLASH_ACCESS
-#define	RESET_ADDRESS = @$[0x%08x](RESET_ADDRESS)
-#elsif	SDRAM_ACCESS
-#define	RESET_ADDRESS = @$[0x%08x](sdram.REGBASE)
-#elsif	BKRAM_ACCESS
-#define	RESET_ADDRESS = @$[0x%08x](bkram.REGBASE)
+#define	RESET_ADDRESS @$[0x%08x](RESET_ADDRESS)
+#elif	defined(SDRAM_ACCESS)
+#define	RESET_ADDRESS @$[0x%08x](sdram.REGBASE)
+#elif	defined(BKRAM_ACCESS)
+#define	RESET_ADDRESS @$[0x%08x](bkram.REGBASE)
 #endif
 
 @SIM.INCLUDE=

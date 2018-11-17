@@ -82,7 +82,7 @@ static const unsigned	F_RESET = (CFG_USERMODE|0x0ff),
 
 const	bool	HIGH_SPEED = false;
 
-#ifdef	R_QSCOPE
+#ifdef	R_QSCOPE // Scope for the eqspi flash driver
 # define SETSCOPE m_fpga->writeio(R_QSCOPE, 8180)
 #else
 # define SETSCOPE
@@ -138,9 +138,9 @@ void	FLASHDRVR::take_offline(DEVBUS *fpga) {
 void	FLASHDRVR::place_online(DEVBUS *fpga) {
 #ifdef	QSPI_FLASH
 	restore_quadio(fpga);
-#elsif	defined(DSPI_FLASH)
+#elif	defined(DSPI_FLASH)
 	restore_dualio(fpga);
-// elsif
+// elif
 //	No action required for normal SPI devices
 #endif
 }
@@ -389,14 +389,17 @@ bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 #endif
 }
 
+#ifdef	R_QSPI_VCONF
+#define	VCONF_VALUE	0x8b
+#define	VCONF_VALUE_ALT	0x83
+#endif
+
 bool	FLASHDRVR::verify_config(void) {
 #ifndef	FLASH_ACCESS
 	return false;
 #elif	!define(R_QSPI_VCONF)
 	return true;
 #else
-#define	VCONF_VALUE	0x8b
-#define	VCONF_VALUE_ALT	0x83
 
 	unsigned cfg = m_fpga->readio(R_QSPI_VCONF);
 	if (cfg != VCONF_VALUE)

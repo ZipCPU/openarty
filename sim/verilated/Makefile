@@ -62,7 +62,7 @@ VINC	:= -I$(VINCD) -I$(VINCD)/vltstd -I$(VOBJDR)
 INCS	:= -I../../sw/host -I$(RTLD) $(VINC)
 SOURCES := automaster_tb.cpp main_tb.cpp			\
 	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp	\
-	memsim.cpp sdspisim.cpp uartsim.cpp
+	memsim.cpp sdspisim.cpp uartsim.cpp eqspiflashsim.cpp
 	## eqspiflashsim.cpp ddrsdramsim.cpp
 HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
 	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h
@@ -70,7 +70,7 @@ HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
 VMAIN	:= $(VOBJDR)/Vmain__ALL.a
-SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp		\
+SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp eqspiflashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
