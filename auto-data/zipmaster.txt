@@ -57,20 +57,22 @@
 @LD.FILE=board.ld
 @LD.DEFNS=_top_of_stack = ORIGIN(bkram) + LENGTH(bkram) - 4;
 @LD.SCRIPT=
+_rom  = ORIGIN(flash);
+/* _kram = ORIGIN(bkram); */
+_kram = 0;
+_ram = ORIGIN(bkram);
 SECTIONS
 {
        .rocode @$[0x%08x](RESET_ADDRESS) : ALIGN(4) {
                _boot_address = .;
                *(.start) *(.boot)
        } > flash
-       _kernel_image_start = . ;
+       _kram_start = . ;
+       _kram_end = . ;
+       _ram_image_start = . ;
        .kernel : ALIGN_WITH_INPUT {
                *(.kernel)
                *(.text.startup)
-		}> bkram AT> flash
-       _kernel_image_end = . ;
-       _ram_image_start = . ;
-	.ramcode : ALIGN_WITH_INPUT {
                *(.text*)
                *(.rodata*) *(.strings)
                *(.data) *(COMMON)

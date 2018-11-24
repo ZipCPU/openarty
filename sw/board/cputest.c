@@ -33,7 +33,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
 
@@ -43,16 +43,20 @@
 
 #define	UARTTX		_uart->u_tx
 #define	UART_CTRL	_uart->u_setup
-#define	PIC		SYSPIC
-#define	TIMER		SYSTIMER
+#undef PIC
+#define	PIC		zip->z_pic
+#define	TIMER		zip->z_tma
 #define	COUNTER		zip->z_m.ac_ck
 
 // #define	HAVE_COUNTER
-#define	HAVE_SCOPE
+// #define	HAVE_SCOPE
+#ifdef	HAVE_SCOPE
 #define	SCOPEc			_sys->io_scope[0].s_ctrl
 #define	SCOPE_DELAY		4
 #define	TRIGGER_SCOPE_NOW	(WBSCOPE_TRIGGER|SCOPE_DELAY)
 #define	PREPARE_SCOPE		SCOPE_DELAY
+#else
+#endif
 
 unsigned	zip_ucc(void);
 unsigned	zip_cc(void);
@@ -1103,6 +1107,10 @@ void	txchr(char v) {
 	*UARTTX = v;
 */
 }
+
+#ifdef	_BOARD_HAS_BUSCONSOLE
+#define	_ZIP_HAS_WBUART
+#endif
 
 void	wait_for_uart_idle(void) {
 #ifdef	_ZIP_HAS_WBUART

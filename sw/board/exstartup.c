@@ -39,11 +39,9 @@
 //
 #include <stdio.h>
 
-#include "artyboard.h"
+#include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
-
-#define	sys	_sys
 
 void	idle_task(void) {
 	while(1)
@@ -59,7 +57,7 @@ void	wait_on_interrupt(int mask) {
 void	main(int argc, char **argv) {
 	const unsigned red = 0x0ff0000, green = 0x0ff00, blue = 0x0ff,
 		white = 0x070707, black = 0, dimgreen = 0x1f00,
-		second = CLOCKFREQHZ;
+		second = CLKFREQHZ;
 	int	i, sw;
 
 	int	user_context[16];
@@ -69,59 +67,59 @@ void	main(int argc, char **argv) {
 	zip_restore_context(user_context);
 
 	for(i=0; i<4; i++)
-		_sys->io_b.i_clrled[i] = red;
-	sys->io_b.i_leds = 0x0ff;
+		_io_clrled[i] = red;
+	*_io_spio = 0x0ff;
 
 	// Clear the PIC
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
 	zip->z_pic = CLEARPIC;
-	while(sys->io_b.i_pwrcount < (second >> 4))
+	while(*_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
 	zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[0] = green;
-	sys->io_b.i_leds = 0x010;
+	_io_clrled[0] = green;
+	*_io_spio = 0x010;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[0] = dimgreen;
-	sys->io_b.i_clrled[1] = green;
-	sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
-	sys->io_b.i_leds = 0x020;
+	_io_clrled[0] = dimgreen;
+	_io_clrled[1] = green;
+	// sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
+	*_io_spio = 0x020;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[1] = dimgreen;
-	sys->io_b.i_clrled[2] = green;
-	sys->io_b.i_leds = 0x040;
+	_io_clrled[1] = dimgreen;
+	_io_clrled[2] = green;
+	*_io_spio = 0x040;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[2] = dimgreen;
-	sys->io_b.i_clrled[3] = green;
-	sys->io_b.i_leds = 0x080;
+	_io_clrled[2] = dimgreen;
+	_io_clrled[3] = green;
+	*_io_spio = 0x080;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[3] = dimgreen;
+	_io_clrled[3] = dimgreen;
 
 	wait_on_interrupt(SYSINT_TMA);
 
 	for(i=0; i<4; i++)
-		sys->io_b.i_clrled[i] = black;
+		_io_clrled[i] = black;
 
 	// Wait one second ...
 	for(i=0; i<4; i++)
 		wait_on_interrupt(SYSINT_TMA);
 
-	sw = sys->io_b.i_btnsw & 0x0f;
+	sw = (*_io_spio>>4) & 0x0f;
 	for(int i=0; i<4; i++)
-		sys->io_b.i_clrled[i] = (sw & (1<<i)) ? white : black;
+		_io_clrled[i] = (sw & (1<<i)) ? white : black;
 
 
 	// Wait another two seconds ...
@@ -130,11 +128,11 @@ void	main(int argc, char **argv) {
 
 	// Blink all the LEDs
 	//	First turn them on
-	sys->io_b.i_leds = 0x0ff;
+	*_io_spio = 0x0ffff;
 	// Then wait a quarter second
 	wait_on_interrupt(SYSINT_TMA);
 	// Then turn the back off
-	sys->io_b.i_leds = 0x0f0;
+	*_io_spio = 0x0f0;
 	// and wait another quarter second
 	wait_on_interrupt(SYSINT_TMA);
 
@@ -150,24 +148,24 @@ void	main(int argc, char **argv) {
 		// Otherwise, turn the LED off.
 		//
 		// First, get all the pressed buttons
-		btn = (sys->io_b.i_btnsw >> 4) & 0x0f;
+		btn = (*_io_spio >> 8) & 0x0f;
 		// Now, acknowledge the button presses that we just read
-		sys->io_b.i_btnsw = (btn<<4);
+		*_io_spio = (btn<<8);
 
 		// Of any LEDs that are on, or buttons on, toggle their values
-		ledc = (sys->io_b.i_leds)&0x0f;
+		ledc = (*_io_spio)&0x00f;
 		ledc = (ledc | btn)&0x0f ^ ledc;
 		// Make sure we set everything
-		ledc |= 0x0f0;
+		ledc |= 0x0f00;
 		// Now issue the command
-		sys->io_b.i_leds = ledc;
+		*_io_spio = ledc;
 		// That way, at the end, the toggle will leave them in the
 		// off position.
-		// sys->io_b.i_leds = 0xf0 | ((sys->io_b.i_leds&1)^1);
+		// _io_spio = 0xf0 | ((_io_spio&1)^1);
 
-		sw = sys->io_b.i_btnsw & 0x0f;
+		sw = (*_io_spio>>16) & 0x0f;
 		for(int i=0; i<4; i++)
-			sys->io_b.i_clrled[i] = (sw & (1<<i)) ? white : black;
+			_io_clrled[i] = (sw & (1<<i)) ? white : black;
 
 	}
 

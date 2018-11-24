@@ -37,7 +37,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
 #include <stdio.h>
@@ -80,11 +80,11 @@ void	user_task(void) {
 		// Now, use the time as the toggle function.
 		btn = (subnow ^ btn)&btn & 0x07;
 
-		sys->io_b.i_leds = btn | 0x070;
+		*_spio = btn | 0x070;
 
 		sw = sys->io_b.i_btnsw & 0x0f;
 		for(int i=0; i<4; i++)
-			sys->io_b.i_clrled[i] = (sw & (1<<i)) ? white : black;
+			_io_clrled[i] = (sw & (1<<i)) ? white : black;
 
 	}
 }
@@ -183,7 +183,7 @@ char	errstring[128];
 void	main(int argc, char **argv) {
 	const unsigned red = 0x0ff0000, green = 0x0ff00, blue = 0x0ff,
 		white = 0x070707, black = 0, dimgreen = 0x1f00,
-		second = CLOCKFREQHZ;
+		second = CLKFREQHZ;
 	int	i, sw;
 
 	// Start the GPS converging ...
@@ -279,8 +279,8 @@ void	main(int argc, char **argv) {
 	while(1) {
 		char	*s = errstring;
 
-		zip->z_wdt = CLOCKFREQ_HZ*4;
-		sys->io_b.i_leds = 0x088;
+		zip->z_wdt = CLKFREQHZ*4;
+		*_spio = 0x0808;
 
 		// 1. Read and report the GPS tracking err
 
@@ -302,7 +302,7 @@ void	main(int argc, char **argv) {
 
 
 
-		sys->io_b.i_leds = 0x080;
+		*_spio = 0x0800;
 
 		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS | SYSINT_TMA;
 		{

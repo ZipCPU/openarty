@@ -91,12 +91,21 @@
 @$ZIP_DBGDATA=4+@$.ZIP_ADDRESS
 @ZIP_DBGDATA.FORMAT= 0x%08x
 @MAIN.INSERT=
-	localparam	BUSUART_BITS=$clog2(BUSUART);
+	localparam	BUSUART_BITS=(BUSUART > 4095) ? 24
+				: (BUSUART > 2047) ? 12
+				: (BUSUART > 1023) ? 11
+				: (BUSUART >  511) ? 10
+				: (BUSUART >  255) ?  9
+				: (BUSUART >  127) ?  8
+				: (BUSUART >   63) ?  7
+				: (BUSUART >   31) ?  6
+				: (BUSUART >   15) ?  5
+				: (BUSUART >    7) ?  4 : 3;
 	// The Host USB interface, to be used by the WB-UART bus
-	rxuartlite	#(BUSUART_BITS[4:0],BUSUART[$clog2(BUSUART)-1:0])
+	rxuartlite	#(BUSUART_BITS[4:0],BUSUART[BUSUART_BITS-1:0])
 		rcv(@$(CLOCK.WIRE), i_@$(PREFIX)_uart_rx,
 				@$(PREFIX)_rx_stb, @$(PREFIX)_rx_data);
-	txuartlite	#(BUSUART_BITS[4:0],BUSUART[$clog2(BUSUART)-1:0])
+	txuartlite	#(BUSUART_BITS[4:0],BUSUART[BUSUART_BITS-1:0])
 		txv(@$(CLOCK.WIRE),
 				@$(PREFIX)_tx_stb,
 				@$(PREFIX)_tx_data,

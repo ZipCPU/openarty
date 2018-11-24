@@ -39,11 +39,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
 
-#define	sys	_sys
+#ifdef	_BOARD_HAS_OLEDRGB
 
 void	idle_task(void) {
 	while(1)
@@ -52,9 +52,8 @@ void	idle_task(void) {
 
 extern short	splash[], mug[];
 
-#define	OLED_DISPLAYON		0x0af
 #define	MICROSECOND		(CLOCKFREQ_HZ/1000000)
-#define	OLED_DISPLAY_OFF
+#define	OLEDRGB_DISPLAY_OFF
 
 
 
@@ -161,9 +160,9 @@ void	oled_init(void) {
 	int	i;
 
 	for(i=0; i<num_init_items; i++) {
-		while(OLED_BUSY(sys->io_oled))
+		while(OLEDRGB_BUSY(_oledrgb))
 			;
-		sys->io_oled.o_ctrl = init_sequence[i];
+		_oledrgb->o_ctrl = init_sequence[i];
 	}
 
 	oled_clear();
@@ -172,12 +171,12 @@ void	oled_init(void) {
 	timer_delay(CLOCKFREQ_HZ/200);
 
 	// Turn on VCC and wait 100ms
-	sys->io_oled.o_data = OLED_VCCEN;
+	_oledrgb->o_data = OLEDRGB_VCCEN;
 	// Wait 100 ms
 	timer_delay(CLOCKFREQ_HZ/10);
 
 	// Send Display On command
-	sys->io_oled.o_ctrl = OLED_DISPLAYON;
+	_oledrgb->o_ctrl = OLEDRGB_DISPLAYON;
 }
 
 /*
@@ -195,11 +194,11 @@ void	oled_init(void) {
  * (4+5), so the OLEDrgb should see: 0x25,0x00,0x00,0x5f,0x3f.
  */
 void	oled_clear(void) {
-	while(OLED_BUSY(sys->io_oled))
+	while(OLEDRGB_BUSY(_oledrgb))
 		;
-	sys->io_oled.o_a = 0x5f3f0000;
-	sys->io_oled.o_ctrl = 0x40250000;
-	while(OLED_BUSY(sys->io_oled))
+	_oledrgb->o_a = 0x5f3f0000;
+	_oledrgb->o_ctrl = 0x40250000;
+	while(OLEDRGB_BUSY(_oledrgb))
 		;
 }
 
@@ -221,9 +220,9 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	if (r+h > 63) h = 63-r;
 
 	// Enable the fill rectangle function, rather than just the outline
-	while(OLED_BUSY(sys->io_oled))
+	while(OLEDRGB_BUSY(_oledrgb))
 		;
-	sys->io_oled.o_ctrl = 0x12601;
+	_oledrgb->o_ctrl = 0x12601;
 
 	//
 	// Now, let's build the actual copy command
@@ -235,26 +234,26 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
 	// Here, we set both colors to be identical.
 	// 
 	ctrl = 0xa0220000 | ((c&0x07f)<<8) | (r&0x03f);
-	sys->io_oled.o_a = (((c+w)&0x07f)<<24) | (((r+h)&0x03f)<<16);
-	sys->io_oled.o_a|= ((pix >> 11) & 0x01f)<< 9;
-	sys->io_oled.o_a|= ((pix >>  5) & 0x03f)    ;
-	sys->io_oled.o_b = ((pix      ) & 0x01f)<<25;
-	sys->io_oled.o_b|= ((pix >> 11) & 0x01f)<<17;
-	sys->io_oled.o_b|= ((pix >>  5) & 0x03f)<< 8;
-	sys->io_oled.o_b|= ((pix      ) & 0x01f)<< 1;
+	_oledrgb->o_a = (((c+w)&0x07f)<<24) | (((r+h)&0x03f)<<16);
+	_oledrgb->o_a|= ((pix >> 11) & 0x01f)<< 9;
+	_oledrgb->o_a|= ((pix >>  5) & 0x03f)    ;
+	_oledrgb->o_b = ((pix      ) & 0x01f)<<25;
+	_oledrgb->o_b|= ((pix >> 11) & 0x01f)<<17;
+	_oledrgb->o_b|= ((pix >>  5) & 0x03f)<< 8;
+	_oledrgb->o_b|= ((pix      ) & 0x01f)<< 1;
 
 	// Make certain we had finished with the port
-	while(OLED_BUSY(sys->io_oled))
+	while(OLEDRGB_BUSY(_oledrgb))
 		;
 
 	// and send our new command.  Note that o_a and o_b were already set
 	// ahead of time, and are only now being sent together with this
 	// command.
-	sys->io_oled.o_ctrl = ctrl;
+	_oledrgb->o_ctrl = ctrl;
 
 	// To be nice to whatever routine follows, we'll wait 'til the port
 	// is clear again.
-	while(OLED_BUSY(sys->io_oled))
+	while(OLEDRGB_BUSY(_oledrgb))
 		;
 }
 
@@ -274,9 +273,9 @@ void	oled_fill(int c, int r, int w, int h, int pix) {
  */
 void	oled_show_image(unsigned short *img) {
 	for(int i=0; i<6144; i++) {
-		while(OLED_BUSY(sys->io_oled))
+		while(OLEDRGB_BUSY(_oledrgb))
 			;
-		sys->io_oled.o_data = (unsigned)img[i];
+		_oledrgb->o_data = (unsigned)img[i];
 	}
 }
 
@@ -327,12 +326,12 @@ void	main(int argc, char **argv) {
 
 	// If the OLED is already powered, such as might be the case if
 	// we rebooted but the board was still hot, shut it down
-	if (sys->io_oled.o_data & 0x07) {
-		sys->io_oled.o_data = OLED_VCC_DISABLE;
+	if (_oledrgb->o_data & 0x07) {
+		_oledrgb->o_data = OLEDRGB_VCC_DISABLE;
 		// Wait 100 ms
 		timer_delay(CLOCKFREQ_HZ/10);
 		// Shutdown the entire devices power
-		sys->io_oled.o_data = OLED_POWER_DOWN;
+		_oledrgb->o_data = OLEDRGB_POWER_DOWN;
 		// Wait 100 ms
 		timer_delay(CLOCKFREQ_HZ/10);
 
@@ -343,15 +342,15 @@ void	main(int argc, char **argv) {
 	//	This means we need to apply power to both the VCCEN line as well
 	//	as the PMODEN line.  We'll also set the reset line low, so the
 	//	device starts in a reset condition.
-	sys->io_oled.o_data = OLED_PMODEN|OLED_RESET_CLR;
+	_oledrgb->o_data = OLEDRGB_PMODEN|OLEDRGB_RESET_CLR;
 	timer_delay(4*MICROSECOND);
-	sys->io_oled.o_data = OLED_RESET;
+	_oledrgb->o_data = OLEDRGB_RESET;
 	timer_delay(4*MICROSECOND);
 
 	// 2. Send the Display OFF command
 	//	This isn't necessary, since we already pulled RESET low.
 	//
-	// sys->io_oled.o_ctrl = OLED_DISPLAY_OFF;
+	// _oledrgb->o_ctrl = OLEDRGB_DISPLAY_OFF;
 	//
 
 	// However, we must hold the reset line low for at least 3us, as per
@@ -360,7 +359,7 @@ void	main(int argc, char **argv) {
 	timer_delay(4*MICROSECOND);
 
 	// Clear the reset condition.
-	sys->io_oled.o_data = OLED_RESET_CLR;
+	_oledrgb->o_data = OLEDRGB_RESET_CLR;
 	// Wait another 4us.
 	timer_delay(4*MICROSECOND);
 
@@ -379,20 +378,20 @@ void	main(int argc, char **argv) {
 	while(1) {
 		sys->io_b.i_leds = 0x0f0;
 
-		sys->io_oled.o_ctrl = OLED_DISPLAYON;
+		_oledrgb->o_ctrl = OLEDRGB_DISPLAYON;
 
 		oled_clear();
 
 		// Let's start our writes at the top left of the GDDRAM
 		// (screen memory)
-		while(OLED_BUSY(sys->io_oled))
+		while(OLEDRGB_BUSY(_oledrgb))
 			;
-		sys->io_oled.o_ctrl = 0x2015005f; // Sets column min/max address
+		_oledrgb->o_ctrl = 0x2015005f; // Sets column min/max address
 
-		while(OLED_BUSY(sys->io_oled))
+		while(OLEDRGB_BUSY(_oledrgb))
 			;
-		sys->io_oled.o_ctrl = 0x2075003f; // Sets row min/max address
-		while(OLED_BUSY(sys->io_oled))
+		_oledrgb->o_ctrl = 0x2075003f; // Sets row min/max address
+		while(OLEDRGB_BUSY(_oledrgb))
 			;
 
 		// Now ... finally ... we can send our image.
@@ -426,3 +425,11 @@ void	main(int argc, char **argv) {
 	zip_halt();
 }
 
+#else
+void	main(int argc, char **argv) {
+	_io_clrled[0] = 0xff0000;
+	_io_clrled[1] = 0xff0000;
+	_io_clrled[2] = 0xff0000;
+	_io_clrled[3] = 0xff0000;
+}
+#endif

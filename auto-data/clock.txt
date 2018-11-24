@@ -37,8 +37,10 @@
 ##
 @PREFIX=clock
 @DEVID=CLOCK
+@TOP.DEFNS=
+	wire	s_clk, s_reset;
 @TOP.INSERT=
-	assign	s_clk = i_clk;
+	assign	s_clk = i_clk; // sys_clk_i;
 	assign	s_reset = 1'b0;
 @CLOCK.NAME=clk
 @CLOCK.FREQUENCY=100000000

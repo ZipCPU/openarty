@@ -179,8 +179,8 @@ module	mpyop(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_valid, o_busy, o_result, o_
 `endif
 
 		always @(posedge i_clk)
-			if (i_stb)
-				o_hi  <= i_op[1];
+		if (i_stb)
+			o_hi  <= i_op[1];
 		assign	o_busy  = mpypipe[0];
 		assign	o_result = (r_sgn[1])?r_smpy_result:r_umpy_result;
 		assign	o_valid = mpypipe[1];

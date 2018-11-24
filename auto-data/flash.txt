@@ -37,6 +37,7 @@
 ##
 @PREFIX= flash
 @DEVID=FLASH
+@ACCESS= FLASH_ACCESS
 @$LGFLASHSZ=24
 @$NADDR=(1<<(@$LGFLASHSZ-2))
 @$NBYTES=(1<<@$LGFLASHSZ)
@@ -69,11 +70,11 @@
 	//	0?	Normal serial mode, one bit in one bit out
 	//	10	Quad SPI mode, going out
 	//	11	Quad SPI mode coming from the device (read mode)
-	assign io_qspi_dat = (~qspi_bmod[1])?({2'b11,1'bz,qspi_dat[0]})
+	assign io_qspi_dat = (!qspi_bmod[1])?({2'b11,1'bz,qspi_dat[0]})
 				:((qspi_bmod[0])?(4'bzzzz):(qspi_dat[3:0]));
 	assign	o_qspi_cs_n = w_qspi_cs_n;
 
-	xoddr	xqspi_sck(i_clk, { !w_qspi_sck, 1'b1}, o_qspi_sck);
+	xoddr	xqspi_sck(s_clk, { !w_qspi_sck, 1'b1}, o_qspi_sck);
 @MAIN.PORTLIST=
 		// The QSPI Flash
 		o_qspi_cs_n, o_qspi_sck, o_qspi_dat, i_qspi_dat, o_qspi_mod
@@ -84,14 +85,19 @@
 	input	wire	[3:0]	i_qspi_dat;
 	output	wire	[1:0]	o_qspi_mod;
 @MAIN.INSERT=
-	qflexpress #(@$LGFLASHSZ)
-		flashmem(i_clk, i_reset,
-			(wb_cyc), (wb_stb)&&(@$(PREFIX)_sel), (wb_stb)&&(flctl_sel),
-				wb_we,
+	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ)
+`ifdef	FLASHCFG_ACCESS
+		, .OPT_CFG(1'b1)
+`else
+		, .OPT_CFG(1'b0)
+`endif
+		)
+		@$(PREFIX)i(i_clk, i_reset,
+			(wb_cyc), (wb_stb)&&(@$(PREFIX)_sel),
+			(wb_stb)&&(flashcfg_sel), wb_we,
 			wb_addr[(@$LGFLASHSZ-3):0], wb_data,
-			flash_ack, flash_stall, flash_data,
-			o_qspi_sck, o_qspi_cs_n, o_qspi_mod,
-				o_qspi_dat, i_qspi_dat);
+			@$(PREFIX)_ack, @$(PREFIX)_stall, @$(PREFIX)_data,
+			o_qspi_sck, o_qspi_cs_n, o_qspi_mod, o_qspi_dat, i_qspi_dat);
 @MAIN.ALT=
 	assign	o_qspi_sck  = 1'b1;
 	assign	o_qspi_cs_n = 1'b1;
@@ -104,12 +110,11 @@
 #define	@$(DEVID)BASE	@$[0x%08x](REGBASE)
 #define	@$(DEVID)LEN	@$NBYTES
 #define	@$(DEVID)LGLEN	@$LGFLASHSZ
-@REGS.0= 0 R_@$(DEVID) FLASH
-@BDEF.OSDEF=_BOARD_HAS_FLASH
-@BDEF.OSVAL=extern int _flash[1];
+@REGS.0= 0 R_@$(DEVID) @$(DEVID)
+@BDEF.OSDEF=_BOARD_HAS_@$(DEVID)
+@BDEF.OSVAL=extern int _@$(PREFIX)[1];
 @LD.PERM=	rx
 @LD.NAME=	flash
-@REGDEFS.H.INSERT=
 @SIM.INCLUDE+=
 #include "flashsim.h"
 @SIM.DEFNS+=
@@ -122,13 +127,13 @@
 #endif // @$(ACCESS)
 @SIM.TICK +=
 #ifdef	@$(ACCESS)
-		{ static int lastsck = 0; int idspi;
+		{ static int lastsck = 0; int iqspi;
 
 			if (lastsck)
 				(*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
 					0, m_core->o_qspi_dat);
 
-			idspi = (*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
+			iqspi = (*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
 				1, m_core->o_qspi_dat);
 
 
@@ -136,28 +141,31 @@
 				if (m_core->o_qspi_mod&1)
 					;
 				else
-					idspi = m_core->o_qspi_dat;
+					iqspi = m_core->o_qspi_dat;
 			} else {
-				idspi &= 0x002;
-				idspi |= m_core->o_qspi_dat&1;
-				idspi |= 0x0c;
+				iqspi &= 0x002;
+				iqspi |= m_core->o_qspi_dat&1;
+				iqspi |= 0x0c;
 			}
 
-			m_core->i_qspi_dat = idspi;
+			m_core->i_qspi_dat = iqspi;
 			lastsck = m_core->o_qspi_sck;
 		}
 #endif // @$(ACCESS)
 @SIM.LOAD +=
+#ifdef	@$(ACCESS)
 			m_@$(MEM.NAME)->load(start, &buf[offset], wlen);
+#endif // @$(ACCESS)
 ##
 ##
 ##
 ##
-##
-# Now, the control interface
-@PREFIX= flctl
+## Now the control interface
+@PREFIX=flashcfg
 @NADDR= 1
-@ACCESS= FLASH_ACCESS
+@ACCESS=FLASHCFG_ACCESS
+@DEPENDS= FLASH_ACCESS
+@DEVID=FLASHCFG
 # This cannot be a DOUBLE peripheral type, since our response may take more
 # than two clock cycles.
 @SLAVE.TYPE=OTHER
@@ -165,14 +173,14 @@
 @MAIN.INSERT=
 	// The Flash control interface result comes back together with the
 	// flash interface itself.  Hence, we always return zero here.
-	assign	flctl_ack   = 1'b0;
-	assign	flctl_stall = 1'b0;
-	assign	flctl_data  = 0;
+	assign	@$(PREFIX)_ack   = 1'b0;
+	assign	@$(PREFIX)_stall = 1'b0;
+	assign	@$(PREFIX)_data  = 0;
 @REGS.NOTE= // FLASH erase/program configuration registers
-@REGS.N= 1
-@REGS.0= 0 R_FLASHCFG FLASHCFG
-@BDEF.DEFN=
+@REGS.N=1
+@REGS.0= 0 R_FLASHCFG FLASHCFG QSPIC
 @REGDEFS.H.INSERT=
+// Flash control constants
 #define	QSPI_FLASH	// This core and hardware support a Quad SPI flash
 #define	SZPAGEB		256
 #define	PGLENB		256
@@ -187,6 +195,7 @@
 #define	PAGEOF(A)	((A) & (-1<<8))
 
 @BDEF.IONAME= io_flctl
+@BDEF.OSDEF= _BOARD_HAS_@$(DEVID)
 @BDEF.IOTYPE=unsigned
 @BDEF.OSVAL=static volatile @$(BDEF.IOTYPE) * const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)(@$[0x%08x](REGBASE)));
 @RTL.MAKE.GROUP= FLASH

@@ -74,9 +74,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include "artyboard.h"
+#include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
+#include <stdio.h>
 #define	KTRAPID_SENDPKT	0
 #include "etcnet.h"
 #include "protoconst.h"
@@ -141,6 +142,7 @@ int	user_stack[USER_STACK_SIZE];
 const int *user_sp = &user_stack[USER_STACK_SIZE];
 
 
+#ifdef	_BOARD_HAS_ENETP
 void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 	unsigned	pkt[2048];
 	unsigned long	hwaddr;
@@ -343,10 +345,13 @@ void	send_ping(void) {
 
 	ping_tx_count++;
 }
-
+#endif
 
 int	heartbeats = 0, subbeats = 0, gbl_picv = 0;
 int main(int argc, char **argv) {
+#ifndef _BOARD_HAS_ENETP
+	printf("This program requires the ethernet port\n");
+#else // _BOARD_HAS_ENET
 	unsigned	user_context[16];
 	int		lastpps;
 
@@ -509,4 +514,5 @@ int main(int argc, char **argv) {
 			zip->z_tma = CLOCKFREQ_HZ | TMR_INTERVAL;
 		}
 	}
+#endif // _BOARD_HAS_ENET
 }

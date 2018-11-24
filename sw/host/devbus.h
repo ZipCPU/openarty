@@ -91,7 +91,7 @@ public:
 	// only it's faster in our implementation.
 	virtual	void	readi(const BUSW a, const int len, BUSW *buf) = 0;
 
-	// Read a series of values from the same address in memory.  This 
+	// Read a series of values from the same address in memory.  This
 	// call is identical to readi, save that the address is not incremented
 	// from one read to the next.  It is equivalent to:
 	//	for(int i=0; i<len; i++)

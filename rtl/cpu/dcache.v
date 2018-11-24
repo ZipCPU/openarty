@@ -98,13 +98,13 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	localparam	LS = CS-LGNLINES; // Bits to spec position w/in cline
 	localparam	LGAUX = 3; // log_2 of the maximum number of piped data
 	localparam	DW = 32; // Bus data width
-	input			i_clk, i_reset;
+	input	wire		i_clk, i_reset;
 	// Interface from the CPU
-	input			i_pipe_stb, i_lock;
-	input	[2:0]		i_op;
-	input	[(DW-1):0]	i_addr;
-	input	[(DW-1):0]	i_data;
-	input	[(NAUX-1):0]	i_oreg;	// Aux data, such as reg to write to
+	input	wire		i_pipe_stb, i_lock;
+	input	wire [2:0]		i_op;
+	input	wire [(DW-1):0]	i_addr;
+	input	wire [(DW-1):0]	i_data;
+	input	wire [(NAUX-1):0] i_oreg; // Aux data, such as reg to write to
 	// Outputs, going back to the CPU
 	output	reg		o_busy;
 	output	reg		o_pipe_stalled;
@@ -119,8 +119,8 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	output	reg [(DW-1):0]	o_wb_data;
 	output	wire [(DW/8-1):0] o_wb_sel;
 	// Wishbone bus slave response inputs
-	input				i_wb_ack, i_wb_stall, i_wb_err;
-	input		[(DW-1):0]	i_wb_data;
+	input	wire			i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire	[(DW-1):0]	i_wb_data;
 `ifdef FORMAL
 	output	wire [(F_LGDEPTH-1):0]	f_nreqs, f_nacks, f_outstanding;
 	output	wire			f_pc;

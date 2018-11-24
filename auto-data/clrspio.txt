@@ -38,8 +38,8 @@
 ##
 @PREFIX=clrled
 @DEVID=CLRLED
-@NADDR=4
-@SLAVE.TYPE=SINGLE
+@NADDR=1
+@SLAVE.TYPE=DOUBLE
 @SLAVE.BUS=wb
 @ACCESS=@$(DEVID)_ACCESS
 @MAIN.PORTLIST=
@@ -54,6 +54,10 @@
 `else
 	wire	[8:0]	@$(PREFIX)_counter;
 `endif
+	wire	[31:0]	@$(PREFIX)0_data, @$(PREFIX)1_data,
+			@$(PREFIX)2_data, @$(PREFIX)3_data;
+	reg		r_@$(PREFIX)_ack;
+	reg	[31:0]	r_@$(PREFIX)_data;
 @MAIN.INSERT=
 `ifdef	PWRCOUNT_ACCESS
 	assign	@$(PREFIX)_counter = pwrcount_data[8:0];
@@ -63,20 +67,37 @@
 `endif
 	clrled @$(PREFIX)0(i_clk,
 		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b00)&&(wb_we)),
-		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)0_data,
 			{ o_clr_ledr[0], o_clr_ledg[0], o_clr_ledb[0] });
 	clrled @$(PREFIX)1(i_clk,
 		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b01)&&(wb_we)),
-		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)1_data,
 			{ o_clr_ledr[1], o_clr_ledg[1], o_clr_ledb[1] });
 	clrled @$(PREFIX)2(i_clk,
 		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b10)&&(wb_we)),
-		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)2_data,
 			{ o_clr_ledr[2], o_clr_ledg[2], o_clr_ledb[2] });
 	clrled @$(PREFIX)3(i_clk,
 		((wb_stb)&(@$(PREFIX)_sel)&&(wb_addr[1:0]==2'b11)&&(wb_we)),
-		wb_data, @$(PREFIX)_counter, @$(PREFIX)_data,
+		wb_data, @$(PREFIX)_counter, @$(PREFIX)3_data,
 			{ o_clr_ledr[3], o_clr_ledg[3], o_clr_ledb[3] });
+
+	initial	r_@$(PREFIX)_ack = 1'b0;
+	always @(posedge i_clk)
+		r_@$(PREFIX)_ack <= ((wb_stb)&&(@$(PREFIX)_sel));
+
+	always @(posedge i_clk)
+	case(wb_addr[1:0])
+	2'b00: r_@$(PREFIX)_data <= @$(PREFIX)0_data;
+	2'b01: r_@$(PREFIX)_data <= @$(PREFIX)1_data;
+	2'b10: r_@$(PREFIX)_data <= @$(PREFIX)2_data;
+	2'b11: r_@$(PREFIX)_data <= @$(PREFIX)3_data;
+	endcase
+
+	assign	@$(PREFIX)_ack = r_@$(PREFIX)_ack;
+	assign	@$(PREFIX)_stall = 1'b0;
+	assign	@$(PREFIX)_data = r_@$(PREFIX)_data;
+
 @MAIN.ALT=
 	assign	o_clr_ledr = 0;
 	assign	o_clr_ledg = 0;

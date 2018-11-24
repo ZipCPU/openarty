@@ -47,8 +47,8 @@ SOURCES := exstartup.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cp
 HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
-LFLAGS  := -T arty.ld -L../zlib -Wl,--start-group -larty
-CFLAGS  := -O3 -I../zlib
+LFLAGS  := -T board.ld -L../zlib -Wl,--start-group -larty
+CFLAGS  := -O3 -I../zlib -I../../rtl
 #
 # For source analysis, the following macros are defined:
 
@@ -98,19 +98,19 @@ cputestcis: $(OBJDIR)/cputestcis.o artyram.ld
 
 #
 # Other programs are much simpler
-exstartup: $(OBJDIR)/exstartup.o arty.ld
+exstartup: $(OBJDIR)/exstartup.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/exstartup.o -o $@
 
-exmulti: $(OBJDIR)/exmulti.o arty.ld
+exmulti: $(OBJDIR)/exmulti.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/exmulti.o -o $@
 
-gpsdump: $(OBJDIR)/gpsdump.o arty.ld
+gpsdump: $(OBJDIR)/gpsdump.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gpsdump.o -o $@
 
-hello: $(OBJDIR)/hello.o arty.ld
+hello: $(OBJDIR)/hello.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/hello.o -o $@
 
-gettysburg: $(OBJDIR)/gettysburg.o arty.ld
+gettysburg: $(OBJDIR)/gettysburg.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gettysburg.o -o $@
 
 oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
@@ -155,4 +155,6 @@ $(OBJDIR)/depends.txt: tags
 depends:
 	$(build-depends)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
+endif

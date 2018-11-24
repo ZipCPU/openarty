@@ -239,9 +239,9 @@ int main(int argc, char **argv) {
 
 #ifdef	SDRAM_ACCESS
 			// Or SDRAM
-			if ((secp->m_start >= RAMBASE)
+			if ((secp->m_start >= SDRAMBASE)
 				&&(secp->m_start+secp->m_len
-						<= RAMBASE+RAMLEN))
+						<= SDRAMBASE+SDRAMLEN))
 				valid = true;
 #endif
 			if (!valid) {
@@ -255,9 +255,9 @@ int main(int argc, char **argv) {
 			secp = secpp[i];
 
 #ifdef	SDRAM_ACCESS
-			if ((secp->m_start >= RAMBASE)
+			if ((secp->m_start >= SDRAMBASE)
 				&&(secp->m_start+secp->m_len
-						<= RAMBASE+RAMLEN)) {
+						<= SDRAMBASE+SDRAMLEN)) {
 				if (verbose)
 					printf("Writing to SDRAM: %08x-%08x\n",
 						secp->m_start,

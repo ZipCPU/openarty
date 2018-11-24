@@ -36,11 +36,11 @@
 
 extern	int	_top_of_heap[1], _top_of_stack[1];
 
-extern	int	_sdram[1], _flash[1], _blkram[1];
+extern	int	_ram[1], _rom[1], _kram[1];
 
 extern	int	_boot_address[1],
-		_kernel_image_start[1], _kernel_image_end[1],
-		_sdram_image_start[1], _sdram_image_end[1],
+		_kram_start[1], _kram_end[1],
+		_ram_image_start[1], _ram_image_end[1],
 		_bss_image_end[1];
 
 #endif

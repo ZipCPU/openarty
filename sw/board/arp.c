@@ -40,7 +40,7 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 #define	KTRAPID_SENDPKT	0
-#include "artyboard.h"
+#include "board.h"
 #include "etcnet.h"
 #include "protoconst.h"
 #include "ipcksum.h"

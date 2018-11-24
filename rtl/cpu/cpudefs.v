@@ -75,7 +75,7 @@
 // have two delay cycles, and 4 (or more) will have 3 delay cycles.
 //
 //
-`define	OPT_MULTIPLY	3
+`define	OPT_MULTIPLY	4
 //
 //
 //

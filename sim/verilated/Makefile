@@ -59,18 +59,18 @@ GFXLIBS := `pkg-config gtkmm-3.0 --cflags --libs`
 FLAGS	:= -Wall -Og -g $(VDEFS)
 VINCD   := $(VROOT)/include
 VINC	:= -I$(VINCD) -I$(VINCD)/vltstd -I$(VOBJDR)
-INCS	:= -I../../sw/host -I$(RTLD) $(VINC)
+INCS	:= -I. -I../../sw/host -I$(RTLD) $(VINC)
 SOURCES := automaster_tb.cpp main_tb.cpp			\
 	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp	\
-	memsim.cpp sdspisim.cpp uartsim.cpp eqspiflashsim.cpp
+	memsim.cpp sdspisim.cpp uartsim.cpp flashsim.cpp
 	## eqspiflashsim.cpp ddrsdramsim.cpp
 HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
-	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h
-	## eqspiflashsim.h
+	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h \
+	flashsim.h
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
 VMAIN	:= $(VOBJDR)/Vmain__ALL.a
-SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp eqspiflashsim.cpp	\
+SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp flashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
@@ -122,10 +122,6 @@ depends: tags
 	$(build-depends)
 
 $(OBJDIR)/depends.txt: depends
-
-eqspiflash_tb: $(OBJDIR)/eqspiflash_tb.o $(OBJDIR)/eqspiflashsim.o
-eqspiflash_tb: $(VOBJS) $(VOBJDR)/Veqspiflash__ALL.a
-	$(CXX) $(FLAGS) $(INCS) $^ $(VOBJDR)/Veqspiflash__ALL.a -o $@
 
 enetctrl_tb: enetctrl_tb.cpp $(OBJDIR)/enetctrlsim.o
 enetctrl_tb: $(VOBJS) $(VOBJDR)/Venetctrl__ALL.a

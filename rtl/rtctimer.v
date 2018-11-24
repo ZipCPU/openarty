@@ -53,7 +53,7 @@ module	rtctimer(i_clk, i_reset,
 	input	wire	[24:0]	i_data;
 	input	wire	[2:0]	i_valid;
 	input	wire		i_zero;
-	output	reg	[31:0]	o_data;
+	output	wire	[31:0]	o_data;
 	output	wire		o_interrupt;
 
 	reg	[23:0]	bcd_timer;
