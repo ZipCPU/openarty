@@ -32,7 +32,7 @@
 //			beginning of the buffer
 //
 //	Although the data width DW is parameterized, it is not very changable,
-//	since the width is tied to the width of the data bus, as is the 
+//	since the width is tied to the width of the data bus, as is the
 //	control word.  Therefore changing the data width would require changing
 //	the interface.  It's doable, but it would be a change to the interface.
 //
@@ -104,7 +104,7 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	output	wire			o_wb_ack, o_wb_stall;
 	output	wire	[(BUSW-1):0]	o_wb_data;
 	// And, finally, for a final flair --- offer to interrupt the CPU after
-	// our trigger has gone off.  This line is equivalent to the scope 
+	// our trigger has gone off.  This line is equivalent to the scope
 	// being stopped.  It is not maskable here.
 	output	wire			o_interrupt;
 
@@ -266,13 +266,7 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 			// mem[waddr] <= i_data;
 			waddr <= waddr + {{(LGMEM-1){1'b0}},1'b1};
 			if (!dr_primed)
-			begin
-				//if (br_holdoff[(HOLDOFFBITS-1):LGMEM]==0)
-				//	dr_primed <= (waddr >= br_holdoff[(LGMEM-1):0]);
-				// else
-				
-					dr_primed <= (&waddr);
-			end
+				dr_primed <= (&waddr);
 		end
 
 	// Delay the incoming data so that we can get our trigger

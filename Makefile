@@ -99,8 +99,9 @@ check-gpp:
 #
 .PHONY: datestamp
 datestamp: check-perl
-	@bash -c 'if [ ! -e $(YYMMDD)-build.v ]; then rm -f 20??????-build.v; perl mkdatev.pl > $(YYMMDD)-build.v; rm -f rtl/builddate.v; fi'
-	@bash -c 'if [ ! -e rtl/builddate.v ]; then cd rtl; cp ../$(YYMMDD)-build.v builddate.v; fi'
+	@bash -c 'perl mkdatev.pl > lastbuild.v'
+	$(call copyif-changed,lastbuild.v,rtl/builddate.v)
+	@grep "^.define" rtl/builddate.v
 
 #
 #

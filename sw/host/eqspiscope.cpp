@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
 	} else
-		scope->read();
+		scope->print();
 	delete	m_fpga;
 #endif
 }

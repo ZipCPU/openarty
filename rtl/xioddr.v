@@ -80,6 +80,10 @@ module	xioddr(i_clk, i_oe, i_v, o_v, io_pin);
 		.R(1'b0),
 		.S(1'b0));
 
-	assign	io_pin = (i_oe) ? w_internal:1'bz;
+	reg	[1:0]	oedelay;
+	initial	oedelay = 0;
+	always @(posedge i_clk)
+		oedelay = { oedelay[0], i_oe };
+	assign	io_pin = (oedelay[0]) ? w_internal:1'bz;
 
 endmodule

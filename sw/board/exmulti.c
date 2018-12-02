@@ -43,8 +43,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define	sys	_sys
-
 void	idle_task(void) {
 	while(1)
 		zip_idle();
@@ -63,29 +61,35 @@ int	user_stack[256];
 void	user_task(void) {
 	const unsigned white = 0x070707, black = 0;
 	while(1) {
+#ifdef	_BOARD_HAS_SPIO
+#ifdef	_BOARD_HAS_CLRLED
 		unsigned	btn, subnow, sw;
 
-		subnow = (sys->io_b.i_tim.sub >> 28)&0x0f;
+#ifdef	_BOARD_HAS_GPSTB
+		subnow = ((*(unsigned *)(&_gpstb->tb_count)) >> 28)&0x0f;
+#endif
 
 		// If the button is pressed, toggle the LED
 		// Otherwise, turn the LED off.
 		//
 
 		// First, get all the pressed buttons
-		btn = (sys->io_b.i_btnsw) & 0x0f0;
+		btn = *_spio && 0x0ff0000;
 		// Now, acknowledge the button presses that we just read
-		sys->io_b.i_btnsw = btn;
-		btn >>= 4;
+		*_spio = btn;
+		btn >>= 16;
 
 		// Now, use the time as the toggle function.
 		btn = (subnow ^ btn)&btn & 0x07;
 
-		*_spio = btn | 0x070;
+		// *_spio = (btn << 24);
 
-		sw = sys->io_b.i_btnsw & 0x0f;
+		sw = (*_spio & 0x0ff00)>>8;
 		for(int i=0; i<4; i++)
-			_io_clrled[i] = (sw & (1<<i)) ? white : black;
+			_clrled[i] = (sw & (1<<i)) ? white : black;
 
+#endif
+#endif
 	}
 }
 
@@ -187,9 +191,9 @@ void	main(int argc, char **argv) {
 	int	i, sw;
 
 	// Start the GPS converging ...
-	sys->io_gps.g_alpha = 2;
-	sys->io_gps.g_beta  = 0x14bda12f;
-	sys->io_gps.g_gamma = 0x1f533ae8;
+	_gps->g_alpha = 2;
+	_gps->g_beta  = 0x14bda12f;
+	_gps->g_gamma = 0x1f533ae8;
 
 	// 
 	int	user_context[16];
@@ -199,51 +203,51 @@ void	main(int argc, char **argv) {
 	zip_restore_context(user_context);
 
 	for(i=0; i<4; i++)
-		sys->io_b.i_clrled[i] = red;
-	sys->io_b.i_leds = 0x0ff;
+		_clrled[i] = red;
+	*_spio = 0x0ffff;
 
 	// Clear the PIC
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
 	zip->z_pic = CLEARPIC;
-	while(sys->io_b.i_pwrcount < (second >> 4))
+	while(*_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
 	zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[0] = green;
-	sys->io_b.i_leds = 0x010;
+	_clrled[0] = green;
+	*_spio = 0x0100;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[0] = dimgreen;
-	sys->io_b.i_clrled[1] = green;
-	sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
-	sys->io_b.i_leds = 0x020;
+	_clrled[0] = dimgreen;
+	_clrled[1] = green;
+	// sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
+	*_spio = 0x0200;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[1] = dimgreen;
-	sys->io_b.i_clrled[2] = green;
-	sys->io_b.i_leds = 0x040;
+	_clrled[1] = dimgreen;
+	_clrled[2] = green;
+	*_spio = 0x0400;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[2] = dimgreen;
-	sys->io_b.i_clrled[3] = green;
-	sys->io_b.i_leds = 0x080;
+	_clrled[2] = dimgreen;
+	_clrled[3] = green;
+	*_spio = 0x0800;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	sys->io_b.i_clrled[3] = dimgreen;
+	_clrled[3] = dimgreen;
 
 	wait_on_interrupt(SYSINT_TMA);
 
 	for(i=0; i<4; i++)
-		sys->io_b.i_clrled[i] = black;
+		_clrled[i] = black;
 
 	// Wait one second ...
 	for(i=0; i<4; i++)
@@ -251,11 +255,11 @@ void	main(int argc, char **argv) {
 
 	// Blink all the LEDs
 	//	First turn them on
-	sys->io_b.i_leds = 0x0ff;
+	*_spio = 0x0ffff;
 	// Then wait a quarter second
 	wait_on_interrupt(SYSINT_TMA);
 	// Then turn the back off
-	sys->io_b.i_leds = 0x0f0;
+	*_spio = 0x0f00;
 	// and wait another quarter second
 	wait_on_interrupt(SYSINT_TMA);
 
@@ -275,7 +279,7 @@ void	main(int argc, char **argv) {
 
 	zip->z_tma = TMR_INTERVAL | (second/1000);
 	wait_on_interrupt(SYSINT_TMA);
-	sys->io_gpsu.u_rx = 0x01000;
+	_gpsu->u_rx = 0x01000;
 	while(1) {
 		char	*s = errstring;
 
@@ -285,7 +289,7 @@ void	main(int argc, char **argv) {
 		// 1. Read and report the GPS tracking err
 
 		// Get the upper 32-bits of the error;
-		int	err = *(int *)(&sys->io_gpstb.tb_err);
+		int	err = *(int *)(&_gpstb->tb_err);
 		int	err_in_ns, err_in_us;
 		int	err_sgn = (err < 0)?1:0, err_in_ns_rem;
 
@@ -312,7 +316,7 @@ void	main(int argc, char **argv) {
 				int	v;
 				wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF|SYSINT_TMA);
 
-				while(((v = sys->io_gpsu.u_rx)&0x100)==0) {
+				while(((v = _gpsu->u_rx)&0x100)==0) {
 					v &= 0x0ff;
 					// putchar(v);
 					// sys->io_uart.u_tx = v;

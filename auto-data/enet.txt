@@ -67,6 +67,16 @@
 @REGS.N=2
 @REGS.0= 0	R_NET_RXBUF NETRXB
 @REGS.1= 0x800	R_NET_TXBUF NETTXB
+## @BDEF.DEFN=
+## struct	NETBUFFER
+@BDEF.IONAME=_netb
+@BDEF.OSDEF=_BOARD_HAS_ENETB
+@BDEF.OSVAL=
+static volatile unsigned *const @$(BDEF.IONAME)rx = ((unsigned *)@$[0x%08x](REGBASE));
+static volatile unsigned *const @$(BDEF.IONAME)tx = ((unsigned *)@$[0x%08x](REGBASE) + (@$[0x%04x](NADDR)<<1));
+##
+##
+##
 @PREFIX=netp
 @INT.NETRX.WIRE=netrx_int
 @INT.NETTX.WIRE=nettx_int
@@ -104,6 +114,42 @@
 				i_eth_rxerr,
 			i_eth_tx_clk, o_eth_tx_en, o_eth_txd,
 			netrx_int, nettx_int, netp_debug);
+@XDC.INSERT=
+# Ethernet generated clocks from the chip
+create_clock -period 40.000 -name eth_tx_pin -add [get_ports {i_eth_tx_clk}]
+create_clock -period 40.000 -name eth_rx_pin -add [get_ports {i_eth_rx_clk}]
+
+# Ethernet clock crossing information
+#
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/o_net_reset*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_tx_busy*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_len*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/config_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cm*}]     -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cm*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cancel*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cancel*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/txmaci/r_hw*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rxmaci/r_hw*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_holdoff*}] -to [get_cells -hier -filter {NAME =~ *net_scope/dr_stopped*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txmaci/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txcrci/o_v*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_val*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_val*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_busy*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_len*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_len*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_miss*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_miss_pi*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/p_rx_cle*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_crce*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_crc_pip*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_err*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_err_pip*}] 12.3;
+
+
+
 @REGS.N=8
 @REGS.0= 0 R_NET_RXCMD	RXCMD,NETRX
 @REGS.1= 1 R_NET_TXCMD	TXCMD,NETTX

@@ -40,10 +40,13 @@
 @TOP.DEFNS=
 	wire	s_clk, s_reset;
 @TOP.INSERT=
-	assign	s_clk = i_clk; // sys_clk_i;
+	assign	s_clk = sys_clk_i;
 	assign	s_reset = 1'b0;
 @CLOCK.NAME=clk
+@CLOCK.TOP=sys_clk_i
 @CLOCK.FREQUENCY=100000000
 @CLOCK.WIRE=i_clk
+@REGDEFS.H.DEFNS=
+#define	CLKFREQHZ	@$(CLOCK.FREQUENCY)
 @BDEF.DEFN=
 #define	CLKFREQHZ	@$(CLOCK.FREQUENCY)

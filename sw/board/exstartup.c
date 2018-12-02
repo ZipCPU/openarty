@@ -67,8 +67,8 @@ void	main(int argc, char **argv) {
 	zip_restore_context(user_context);
 
 	for(i=0; i<4; i++)
-		_io_clrled[i] = red;
-	*_io_spio = 0x0ff;
+		_clrled[i] = red;
+	*_spio = 0x0ff;
 
 	// Clear the PIC
 	//
@@ -82,44 +82,44 @@ void	main(int argc, char **argv) {
 	zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
-	_io_clrled[0] = green;
-	*_io_spio = 0x010;
+	_clrled[0] = green;
+	*_spio = 0x010;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	_io_clrled[0] = dimgreen;
-	_io_clrled[1] = green;
+	_clrled[0] = dimgreen;
+	_clrled[1] = green;
 	// sys->io_scope[0].s_ctrl = WBSCOPE_NO_RESET | 32;
-	*_io_spio = 0x020;
+	*_spio = 0x020;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	_io_clrled[1] = dimgreen;
-	_io_clrled[2] = green;
-	*_io_spio = 0x040;
+	_clrled[1] = dimgreen;
+	_clrled[2] = green;
+	*_spio = 0x040;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	_io_clrled[2] = dimgreen;
-	_io_clrled[3] = green;
-	*_io_spio = 0x080;
+	_clrled[2] = dimgreen;
+	_clrled[3] = green;
+	*_spio = 0x080;
 
 	wait_on_interrupt(SYSINT_TMA);
 
-	_io_clrled[3] = dimgreen;
+	_clrled[3] = dimgreen;
 
 	wait_on_interrupt(SYSINT_TMA);
 
 	for(i=0; i<4; i++)
-		_io_clrled[i] = black;
+		_clrled[i] = black;
 
 	// Wait one second ...
 	for(i=0; i<4; i++)
 		wait_on_interrupt(SYSINT_TMA);
 
-	sw = (*_io_spio>>4) & 0x0f;
+	sw = (*_spio>>4) & 0x0f;
 	for(int i=0; i<4; i++)
-		_io_clrled[i] = (sw & (1<<i)) ? white : black;
+		_clrled[i] = (sw & (1<<i)) ? white : black;
 
 
 	// Wait another two seconds ...
@@ -128,11 +128,11 @@ void	main(int argc, char **argv) {
 
 	// Blink all the LEDs
 	//	First turn them on
-	*_io_spio = 0x0ffff;
+	*_spio = 0x0ffff;
 	// Then wait a quarter second
 	wait_on_interrupt(SYSINT_TMA);
 	// Then turn the back off
-	*_io_spio = 0x0f0;
+	*_spio = 0x0f0;
 	// and wait another quarter second
 	wait_on_interrupt(SYSINT_TMA);
 
@@ -148,24 +148,24 @@ void	main(int argc, char **argv) {
 		// Otherwise, turn the LED off.
 		//
 		// First, get all the pressed buttons
-		btn = (*_io_spio >> 8) & 0x0f;
+		btn = (*_spio >> 8) & 0x0f;
 		// Now, acknowledge the button presses that we just read
-		*_io_spio = (btn<<8);
+		*_spio = (btn<<8);
 
 		// Of any LEDs that are on, or buttons on, toggle their values
-		ledc = (*_io_spio)&0x00f;
+		ledc = (*_spio)&0x00f;
 		ledc = (ledc | btn)&0x0f ^ ledc;
 		// Make sure we set everything
 		ledc |= 0x0f00;
 		// Now issue the command
-		*_io_spio = ledc;
+		*_spio = ledc;
 		// That way, at the end, the toggle will leave them in the
 		// off position.
-		// _io_spio = 0xf0 | ((_io_spio&1)^1);
+		// _spio = 0xf0 | ((_spio&1)^1);
 
-		sw = (*_io_spio>>16) & 0x0f;
+		sw = (*_spio>>16) & 0x0f;
 		for(int i=0; i<4; i++)
-			_io_clrled[i] = (sw & (1<<i)) ? white : black;
+			_clrled[i] = (sw & (1<<i)) ? white : black;
 
 	}
 

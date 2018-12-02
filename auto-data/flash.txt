@@ -57,9 +57,10 @@
 	wire		w_qspi_sck, w_qspi_cs_n;
 	wire	[1:0]	qspi_bmod;
 	wire	[3:0]	qspi_dat;
+	wire	[3:0]	i_qspi_dat, i_qspi_pedge, i_qspi_nedge;
 @TOP.MAIN=
 		// Quad SPI flash
-		w_qspi_cs_n, w_qspi_sck, qspi_dat, io_qspi_dat, qspi_bmod
+		w_qspi_cs_n, w_qspi_sck, qspi_dat, i_qspi_dat, qspi_bmod
 @TOP.INSERT=
 	//
 	//
@@ -70,11 +71,26 @@
 	//	0?	Normal serial mode, one bit in one bit out
 	//	10	Quad SPI mode, going out
 	//	11	Quad SPI mode coming from the device (read mode)
-	assign io_qspi_dat = (!qspi_bmod[1])?({2'b11,1'bz,qspi_dat[0]})
-				:((qspi_bmod[0])?(4'bzzzz):(qspi_dat[3:0]));
-	assign	o_qspi_cs_n = w_qspi_cs_n;
+	xoddr   xqspi_sck( s_clk, { 1'b1, !w_qspi_sck }, o_qspi_sck);
+	xoddr   xqspi_csn( s_clk, { w_qspi_cs_n, w_qspi_cs_n },o_qspi_cs_n);
+	//
+	xioddr  xqspi_d0(  s_clk, (qspi_bmod != 2'b11), { (2){qspi_dat[0]}},
+		{ i_qspi_pedge[0], i_qspi_nedge[0] }, io_qspi_dat[0]);
+	xioddr  xqspi_d1(  s_clk, (qspi_bmod == 2'b10), { (2){qspi_dat[1]}},
+		{ i_qspi_pedge[1], i_qspi_nedge[1] }, io_qspi_dat[1]);
+	xioddr  xqspi_d2(  s_clk, (qspi_bmod != 2'b11),
+		qspi_bmod[1] ? { (2){qspi_dat[2]}} : 2'b11,
+		{ i_qspi_pedge[2], i_qspi_nedge[2] }, io_qspi_dat[2]);
+	xioddr  xqspi_d3(  s_clk, (qspi_bmod != 2'b11),
+		qspi_bmod[1] ? { (2){qspi_dat[3]}} : 2'b11,
+		{ i_qspi_pedge[3], i_qspi_nedge[3] }, io_qspi_dat[3]);
 
-	xoddr	xqspi_sck(s_clk, { !w_qspi_sck, 1'b1}, o_qspi_sck);
+	assign	i_qspi_dat = i_qspi_pedge;
+##
+##
+##
+##
+##
 @MAIN.PORTLIST=
 		// The QSPI Flash
 		o_qspi_cs_n, o_qspi_sck, o_qspi_dat, i_qspi_dat, o_qspi_mod
@@ -84,8 +100,13 @@
 	output	wire	[3:0]	o_qspi_dat;
 	input	wire	[3:0]	i_qspi_dat;
 	output	wire	[1:0]	o_qspi_mod;
+@MAIN.DEFNS=
+	// Definitions for the @$(PREFIX) debug port
+	wire		@$(PREFIX)_dbg_trigger;
+	wire	[31:0]	@$(PREFIX)_debug;
 @MAIN.INSERT=
-	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ)
+	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ),
+		.CKDELAY(0), .RDDELAY(2)
 `ifdef	FLASHCFG_ACCESS
 		, .OPT_CFG(1'b1)
 `else
@@ -97,7 +118,8 @@
 			(wb_stb)&&(flashcfg_sel), wb_we,
 			wb_addr[(@$LGFLASHSZ-3):0], wb_data,
 			@$(PREFIX)_ack, @$(PREFIX)_stall, @$(PREFIX)_data,
-			o_qspi_sck, o_qspi_cs_n, o_qspi_mod, o_qspi_dat, i_qspi_dat);
+			o_qspi_sck, o_qspi_cs_n, o_qspi_mod, o_qspi_dat, i_qspi_dat,
+			@$(PREFIX)_dbg_trigger, @$(PREFIX)_debug);
 @MAIN.ALT=
 	assign	o_qspi_sck  = 1'b1;
 	assign	o_qspi_cs_n = 1'b1;
@@ -200,3 +222,29 @@
 @BDEF.OSVAL=static volatile @$(BDEF.IOTYPE) * const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)(@$[0x%08x](REGBASE)));
 @RTL.MAKE.GROUP= FLASH
 @RTL.MAKE.FILES= qflexpress.v
+#
+#
+#
+# Flash debug
+@PREFIX=flashdbg
+@NADDR=2
+@ACCESS=FLASH_SCOPE
+@DEPENDS=FLASH_ACCESS
+@SLAVE.TYPE=OTHER
+@SLAVE.BUS=wb
+@MAIN.INSERT=
+	wbscopc
+	@$(PREFIX)i(i_clk, 1'b1, flash_dbg_trigger, flash_debug[30:0],
+		i_clk, wb_cyc, (wb_stb)&&(@$(PREFIX)_sel), wb_we,
+		wb_addr[0], wb_data, @$(PREFIX)_ack, @$(PREFIX)_stall,
+		@$(PREFIX)_data, @$(PREFIX)_int);
+@MAIN.ALT=
+	assign	@$(PREFIX)_int = 0;
+@INT.FLASHDBG.WIRE=@$(PREFIX)_int
+@INT.FLASHDBG.PIC=buspic
+@REGS.NOTE=// Flash debug / scope
+@REGS.N=1
+@REGS.0=0 R_QSCOPE  QSCOPE
+@REGS.1=1 R_QSCOPED QSCOPED
+@RTL.MAKE.GROUP=FLASHDBG
+@RTL.MAKE.FILES=wbscopc.v

@@ -112,9 +112,9 @@
 #define	@$(DEVID)_RED	0x0ff0000
 #define	@$(DEVID)_GREEN	0x000ff00
 #define	@$(DEVID)_BLUE	0x00000ff
-@BDEF.IONAME=io_@$(PREFIX)
+@BDEF.IONAME=_@$(PREFIX)
 @BDEF.IOTYPE=unsigned
 @BDEF.OSDEF= _BOARD_HAS_@$(DEVID)
-@BDEF.OSVAL= static volatile @$(BDEF.IOTYPE) *const _@$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x%08x](REGBASE));
+@BDEF.OSVAL= static volatile @$(BDEF.IOTYPE) *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x%08x](REGBASE));
 @MAKE.GROUP= @$(DEVID)
 @MAKE.FILES=clrled.v

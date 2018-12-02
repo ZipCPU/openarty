@@ -47,12 +47,18 @@ all:	data
 # of parts and pieces of our project that autofpga will copy/paste into our
 # main project files.
 #
-DATA := global.txt bkram.txt buserr.txt	dlyarbiter.txt allclocks.txt	\
-	spio.txt icape.txt mdio.txt gps.txt				\
-	pic.txt pwrcount.txt rtcdate.txt rtcgps.txt clrspio.txt		\
-	version.txt wbuconsole.txt zipmaster.txt sdspi.txt		\
-	enet.txt flash.txt sdram.txt
-	## eqspi.txt gpio.txt
+BASE    := global.txt dlyarbiter.txt icape.txt
+AUX     := version.txt buserr.txt pic.txt pwrcount.txt
+IO      := spio.txt clrspio.txt # gpio.txt
+RTC     := rtcgps.txt
+NETWORK := mdio.txt  enet.txt
+MEMORY  := bkram.txt flash.txt # sdram.txt # wbhyperram.txt
+GPS     := gps.txt
+CPU     := zipmaster.txt
+DBGBUS  := wbuconsole.txt
+SDCARD  := sdspi.txt
+DATA := clock.txt $(BASE) $(AUX) $(IO) $(RTC) $(GPS)	\
+	$(MEMORY) $(DBGBUS) $(CPU)
 
 AUTOFPGA := autofpga
 $(AUTOFPGA):

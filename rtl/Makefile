@@ -56,12 +56,12 @@ VERILATOR := verilator
 else
 VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
-VFLAGS := -Wall --MMD --trace -cc -y $(CPUDR)
+VFLAGS = -Wall --MMD --trace $(AUTOVDIRS) -cc
 
 $(VOBJ)/V$(BASE)__ALL.a: $(VOBJ)/V$(BASE).h
 $(VOBJ)/V$(BASE).mk:  $(VOBJ)/V$(BASE).cpp
 $(VOBJ)/V$(BASE).cpp: $(VOBJ)/V$(BASE).h
-$(VOBJ)/V$(BASE).h: main.v
+$(VOBJ)/V$(BASE).h: $(VFLIST)
 	$(VERILATOR) $(VFLAGS) $(BASE).v
 
 $(VOBJ)/Venetctrl__ALL.a: $(VOBJ)/Venetctrl.h
@@ -121,7 +121,8 @@ clean:
 # can
 DEPS := $(wildcard $(VOBJ)/*.d)
 
-ifneq ($(MAKECMDGOALS),)
+ifneq ($(MAKECMDGOALS),clean)
+include make.inc
 ifneq ($(DEPS),)
 include $(DEPS)
 endif

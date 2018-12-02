@@ -39,13 +39,13 @@
 .PHONY: all
 PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping	\
 	zipload zipstate zipdbg divutb dumpflash
-SCOPES := eqspiscope etxscope erxscope cpuscope
+SCOPES := flashscope etxscope erxscope cpuscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
 OBJDIR := obj-pc
 BUSSRCS := ttybus.cpp llcomms.cpp regdefs.cpp byteswap.cpp
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
-	dumpflash.cpp eqspiscope.cpp flashdrvr.cpp 			\
+	dumpflash.cpp flashscope.cpp flashdrvr.cpp 			\
 	scopecls.cpp sdramscope.cpp					\
 	zipload.cpp zipstate.cpp zipdbg.cpp		\
 	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp		\
@@ -78,7 +78,7 @@ clean:
 	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out
 
 $(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h
-$(OBJDIR)/eqspiscope.o: eqspiscope.cpp scopecls.h
+$(OBJDIR)/flashscope.o: flashscope.cpp scopecls.h
 $(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h
 
 netuart: $(OBJDIR)/netuart.o
@@ -117,7 +117,7 @@ zipload: $(OBJDIR)/zipload.o $(OBJDIR)/flashdrvr.o $(BUSOBJS) $(OBJDIR)/zipelf.o
 ## SCOPES
 # These depend upon the scopecls.o, the bus objects, as well as their
 # main file(s).
-eqspiscope: $(OBJDIR)/eqspiscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+flashscope: $(OBJDIR)/flashscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@

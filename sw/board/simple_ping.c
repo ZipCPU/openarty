@@ -85,8 +85,6 @@
 #include "ipcksum.h"
 #include "arp.h"
 
-#define	sys	_sys
-
 unsigned	pkts_received = 0, replies_received=0, arp_requests_received=0,
 		arp_pkt_count =0, arp_pkt_invalid =0,
 		arp_missed_ip = 0, arp_non_broadcast = 0,
@@ -148,7 +146,7 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 	unsigned long	hwaddr;
 	int		maxsz = 2048;
 
-	maxsz = 1<<((sys->io_enet.n_rxcmd>>24)&0x0f);
+	maxsz = 1<<((_netp->n_rxcmd>>24)&0x0f);
 	if (maxsz > 2048)
 		maxsz = 2048;
 	int pktln = (icmp_request[0] & 0x0ffff)+8, pktlnw = (pktln+3)>>2;
@@ -167,7 +165,7 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 		pkt[0] = (unsigned)(hwaddr>>16);
 		pkt[1] = ((unsigned)(hwaddr<<16))|ETHERTYPE_IP;
 		pkt[2] = icmp_request[0] & 0xff00ffff;
-		id = pkt_id + sys->io_b.i_tim.sub;
+		id = pkt_id + _subseconds;
 		pkt[3] = (id&0x0ffff)<<16; // no fragments
 		pkt[4] = 0xff010000;//No flags,frag offset=0,ttl=0,proto=1(ICMP)
 		pkt[5] = icmp_request[4];	// Swap sender and receiver
@@ -194,34 +192,34 @@ void	uping_reply(unsigned ipaddr, unsigned *icmp_request) {
 
 unsigned	rxpkt[2048];
 void	user_task(void) {
-	unsigned	rtc = sys->io_rtc.r_clock;
+	unsigned	rtc = _rtc->r_clock;
 
 	while(1) {
 		do {
 			unsigned long	mac;
 
 			// Rate limit our ARP searching to one Hz
-			rtc = sys->io_rtc.r_clock;
+			rtc = _rtc->r_clock;
 
 			if (arp_lookup(ping_ip_addr, &ping_mac_addr) == 0)
 				arp_lookup(my_ip_router, &mac);
 
-			while(((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0)
-					&&(sys->io_rtc.r_clock == rtc))
+			while(((_netp->n_rxcmd & ENET_RXAVAIL)==0)
+					&&(_rtc->r_clock == rtc))
 				user_heartbeats++;
-		} while((sys->io_enet.n_rxcmd & ENET_RXAVAIL)==0);
+		} while((_netp->n_rxcmd & ENET_RXAVAIL)==0);
 
 		// Okay, now we have a receive packet ... let's process it
-		int	etype = sys->io_enet_rx[1] & 0x0ffff;
+		int	etype = _netbrx[1] & 0x0ffff;
 		unsigned *epayload; //  = (unsigned *)&sys->io_enet_rx[2];
 		int	invalid = 0;
-		int	ln, rxcmd = sys->io_enet.n_rxcmd;
+		int	ln, rxcmd = _netp->n_rxcmd;
 
-		ln = sys->io_enet.n_rxcmd & 0x07ff;
+		ln = _netp->n_rxcmd & 0x07ff;
 		for(int k=0; k<(ln+3)>>2; k++)
-			rxpkt[k] = sys->io_enet_rx[k];
+			rxpkt[k] = _netbrx[k];
 		epayload = &rxpkt[2];
-		sys->io_enet.n_rxcmd = ENET_RXCLR|ENET_RXCLRERR;
+		_netp->n_rxcmd = ENET_RXCLR|ENET_RXCLRERR;
 
 		pkts_received++;
 
@@ -245,8 +243,8 @@ void	user_task(void) {
 				unsigned icmp_type = ippayload[0]>>24;
 				if (icmp_type == ICMP_ECHOREPLY) {
 					// We got our ping response
-					sys->io_b.i_clrled[3] = LEDC_GREEN;
-					sys->io_b.i_leds = 0x80;
+					_clrled[3] = LEDC_GREEN;
+					*_spio = 0x800;
 					ping_rx_count++;
 				} else if (icmp_type == ICMP_ECHO) {
 					// Someone is pinging us
@@ -306,18 +304,18 @@ void	send_ping(void) {
 
 	// If we don't know our destination MAC address yet, just return
 	if (ping_mac_addr==0) {
-		sys->io_b.i_clrled[1] = LEDC_YELLOW;
+		_clrled[1] = LEDC_YELLOW;
 		return;
 	}
 
 	// If the network is busy transmitting, wait for it to finish
-	if (sys->io_enet.n_txcmd & ENET_TXBUSY) {
-		while(sys->io_enet.n_txcmd & ENET_TXBUSY)
+	if (_netp->n_txcmd & ENET_TXBUSY) {
+		while(_netp->n_txcmd & ENET_TXBUSY)
 			;
 	}
 
 	// Form a packet to transmit
-	pkt = (unsigned *)&sys->io_enet_tx;
+	pkt = (unsigned *)_netbtx;
 	pkt[0] = (ping_mac_addr>>16);
 	pkt[1] = ((unsigned)(ping_mac_addr<<16))|ETHERTYPE_IP;
 	pkt[2] = 0x4500001c;
@@ -341,7 +339,7 @@ void	send_ping(void) {
 	pkt[7] |= ipcksum(2, &pkt[7]);
 
 	// Finally, send the packet -- 9*4 = our total number of octets
-	sys->io_enet.n_txcmd = ENET_TXCMD(9*4);
+	_netp->n_txcmd = ENET_TXCMD(9*4);
 
 	ping_tx_count++;
 }
@@ -364,26 +362,27 @@ int main(int argc, char **argv) {
 	init_arp_table();
 
 	for(int i=0; i<4; i++)
-		sys->io_b.i_clrled[i] = LEDC_BRIGHTRED;
-	sys->io_b.i_leds = 0x0ff;
+		_clrled[i] = LEDC_BRIGHTRED;
+	*_spio = 0x0f0f;
 
 	// Start up the network interface
-	if ((sys->io_enet.n_txcmd & ENET_RESET)!=0)
-		sys->io_enet.n_txcmd = 0; // Turn on all our features
+	if ((_netp->n_txcmd & ENET_RESET)!=0)
+		_netp->n_txcmd = 0; // Turn on all our features
 	{
-		volatile unsigned long *emac = (volatile unsigned long *)&sys->io_enet.n_mac;
+		volatile unsigned long *emac
+			= (volatile unsigned long *)_netp->n_mac;
 		*emac = my_mac_addr;
 	}
 
 	// Turn off our right-hand LED, first part of startup is complete
-	sys->io_b.i_leds = 0x010;
+	*_spio = 0x0100;
 	// Turn our first CLR LED green as well
-	sys->io_b.i_clrled[0] = LEDC_GREEN;
+	_clrled[0] = LEDC_GREEN;
 
 	// Set our timer to have us send a ping 1/sec
 	zip->z_tma = CLOCKFREQ_HZ | TMR_INTERVAL;
 
-	sys->io_enet.n_rxcmd = ENET_RXCLRERR|ENET_RXCLR;
+	_netp->n_rxcmd = ENET_RXCLRERR|ENET_RXCLR;
 
 	while(1) {
 		unsigned	picv, bmsr;
@@ -392,18 +391,18 @@ int main(int argc, char **argv) {
 
 		// Wait while the link is being negotiated
 		// --- Read the MDIO status register
-		bmsr = sys->io_netmdio.e_v[MDIO_BMSR];
+		bmsr = _mdio->e_v[MDIO_BMSR];
 		if ((bmsr & 4)==0) {
 			// Link is down, do nothing this time through
-			sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
-			sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
-			sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
+			_clrled[1] = LEDC_BRIGHTRED;
+			_clrled[2] = LEDC_BRIGHTRED;
+			_clrled[3] = LEDC_BRIGHTRED;
 		} else {
-			sys->io_b.i_leds = 0x020;
-			sys->io_b.i_clrled[1] = LEDC_GREEN;
+			*_spio = 0x0200;
+			_clrled[1] = LEDC_GREEN;
 			send_ping();
-			sys->io_b.i_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
-			sys->io_b.i_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
+			_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
+			_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
 		}
 
 		// Clear any timer or PPS interrupts, disable all others
@@ -422,11 +421,11 @@ int main(int argc, char **argv) {
 			zip->z_pic = (picv & 0x0ffff);
 
 			if (zip_ucc() & CC_FAULT) {
-				sys->io_b.i_leds = 0x0ff;
-				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
+				*_spio = 0x0f0f;
+				_clrled[0] = LEDC_BRIGHTRED;
+				_clrled[1] = LEDC_BRIGHTRED;
+				_clrled[2] = LEDC_BRIGHTRED;
+				_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if (zip_ucc() & CC_TRAP) {
 				save_context((int *)user_context);
@@ -438,12 +437,12 @@ int main(int argc, char **argv) {
 				// R5 = (flags, i socket)
 				unsigned *sptr = (void *)user_context[3], ln;
 				ln = user_context[4];
-				while(sys->io_enet.n_txcmd & ENET_TXBUSY)
+				while(_netp->n_txcmd & ENET_TXBUSY)
 					;
 				if (ln < 1400) {
 					for(int i=0; i<(ln+3)>>2; i++)
-						sys->io_enet_tx[i] = *sptr++;
-					sys->io_enet.n_txcmd = ENET_TXCMD(ln);
+						_netbtx[i] = *sptr++;
+					_netp->n_txcmd = ENET_TXCMD(ln);
 
 					user_tx_packets++;
 					// (Re-)Enable the transmit complete
@@ -457,25 +456,25 @@ int main(int argc, char **argv) {
 				user_context[14] &= ~CC_TRAP;
 				restore_context(user_context);
 			} else if ((picv & INTNOW)==0) {
-				sys->io_b.i_leds = 0x0ff;
-				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[1] = LEDC_WHITE;
-				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
+				*_spio = 0x0f0f;
+				_clrled[0] = LEDC_BRIGHTRED;
+				_clrled[1] = LEDC_WHITE;
+				_clrled[2] = LEDC_BRIGHTRED;
+				_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_TMA))==0) {
-				sys->io_b.i_leds = 0x0ff;
-				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[2] = LEDC_WHITE;
-				sys->io_b.i_clrled[3] = LEDC_BRIGHTRED;
+				*_spio = 0x0f0f;
+				_clrled[0] = LEDC_BRIGHTRED;
+				_clrled[1] = LEDC_BRIGHTRED;
+				_clrled[2] = LEDC_WHITE;
+				_clrled[3] = LEDC_BRIGHTRED;
 				zip_halt();
 			} else if ((picv & DINT(SYSINT_PPS))==0) {
-				sys->io_b.i_leds = 0x0ff;
-				sys->io_b.i_clrled[0] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[1] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[2] = LEDC_BRIGHTRED;
-				sys->io_b.i_clrled[3] = LEDC_WHITE;
+				*_spio = 0x0f0f;
+				_clrled[0] = LEDC_BRIGHTRED;
+				_clrled[1] = LEDC_BRIGHTRED;
+				_clrled[2] = LEDC_BRIGHTRED;
+				_clrled[3] = LEDC_WHITE;
 				zip_halt();
 			} if (picv & SYSINT_ENETRX) {
 				// This will not clear until the packet has
@@ -484,8 +483,8 @@ int main(int argc, char **argv) {
 				// has been disabled.
 				if (picv&(DINT(SYSINT_ENETRX))) {
 					zip->z_pic = DINT(SYSINT_ENETRX);
-					sys->io_b.i_leds = 0x040;
-					sys->io_b.i_clrled[2] = LEDC_GREEN;
+					*_spio = 0x0400;
+					_clrled[2] = LEDC_GREEN;
 				}
 			} else
 				zip->z_pic = EINT(SYSINT_ENETRX);

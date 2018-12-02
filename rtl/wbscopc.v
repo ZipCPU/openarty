@@ -488,14 +488,14 @@ module wbscopc(i_data_clk, i_ce, i_trigger, i_data,
 	assign	o_interrupt = (bw_stopped)&&(!bw_disable_trigger)
 					&&(!br_level_interrupt);
 	always @(posedge i_wb_clk)
-		if ((bw_reset_complete)||(bw_reset_request))
-			br_level_interrupt<= 1'b0;
-		else
-			br_level_interrupt<= (bw_stopped)&&(!bw_disable_trigger);
+	if ((bw_reset_complete)||(bw_reset_request))
+		br_level_interrupt<= 1'b0;
+	else
+		br_level_interrupt<= (bw_stopped)&&(!bw_disable_trigger);
 
 	// Make Verilator happy
 	// verilator lint_off UNUSED
-	wire	[3+5+(20-HOLDOFFBITS)-1:0] unused;
+	wire	[3+6+(20-HOLDOFFBITS)-1:0] unused;
 	assign	unused = { i_wb_data[30:28], i_wb_data[25:HOLDOFFBITS] };
 	// verilator lint_on  UNUSED
 

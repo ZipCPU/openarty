@@ -308,15 +308,15 @@ void	main(int argc, char **argv) {
 		// the master_ce line high within the CPU, and so it generates
 		// a whole lot of debug information in our Verilator simulation,
 		// busmaster_tb.
-		int pwrcount = sys->io_b.i_pwrcount;
+		int pwrcount = _pwrcount;
 		do {
-			pwrcount = sys->io_b.i_pwrcount;
+			pwrcount = _pwrcount;
 		} while((pwrcount>0)&&(pwrcount < CLOCKFREQ_HZ/4));
 	} else {
 		// By using the timer and sleeping instead, the simulator can
 		// be made to run a *lot* faster, with a *lot* less debugging
 		// ... junk.
-		int pwrcount = sys->io_b.i_pwrcount;
+		int pwrcount = _pwrcount;
 		if ((pwrcount > 0)&&(pwrcount < CLOCKFREQ_HZ/4)) {
 			pwrcount = CLOCKFREQ_HZ/4 - pwrcount;
 			timer_delay(pwrcount);
@@ -376,7 +376,7 @@ void	main(int argc, char **argv) {
 	//	so we're good here.
 
 	while(1) {
-		sys->io_b.i_leds = 0x0f0;
+		*_spio = 0x0f00;
 
 		_oledrgb->o_ctrl = OLEDRGB_DISPLAYON;
 
@@ -399,25 +399,25 @@ void	main(int argc, char **argv) {
 		// wait_on_interrupt(SYSINT_DMAC);
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
-		sys->io_b.i_leds = 0x0f1;
+		*_spio = 0x0f01;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_b.i_leds = 0x0f3;
+		*_spio = 0x0f03;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_b.i_leds = 0x0f7;
+		*_spio = 0x0f07;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_b.i_leds = 0x0ff;
+		*_spio = 0x0f0f;
 		timer_delay(CLOCKFREQ_HZ*5);
-		sys->io_b.i_leds = 0x0fe;
+		*_spio = 0x0f0e;
 		timer_delay(CLOCKFREQ_HZ*5);
 
 
 		// Display a second image.
-		sys->io_b.i_leds = 0x0fc;
+		*_spio = 0x0f0c;
 		oled_show_image(mug);
 		// wait_on_interrupt(SYSINT_DMAC);
 
 		// Leave this one in effect for 5 seconds only.
-		sys->io_b.i_leds = 0x0f8;
+		*_spio = 0x0f08;
 		timer_delay(CLOCKFREQ_HZ*5);
 	}
 
@@ -427,9 +427,9 @@ void	main(int argc, char **argv) {
 
 #else
 void	main(int argc, char **argv) {
-	_io_clrled[0] = 0xff0000;
-	_io_clrled[1] = 0xff0000;
-	_io_clrled[2] = 0xff0000;
-	_io_clrled[3] = 0xff0000;
+	_clrled[0] = 0xff0000;
+	_clrled[1] = 0xff0000;
+	_clrled[2] = 0xff0000;
+	_clrled[3] = 0xff0000;
 }
 #endif

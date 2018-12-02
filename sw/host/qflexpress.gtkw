@@ -1,0 +1,56 @@
+[*]
+[*] GTKWave Analyzer v3.3.66 (w)1999-2015 BSI
+[*] Sat Dec  1 17:47:50 2018
+[*]
+[dumpfile] "/home/dan/work/rnd/opencores/openarty/trunk/sw/host/qflexpress.vcd"
+[dumpfile_mtime] "Sat Dec  1 17:18:15 2018"
+[dumpfile_size] 140128
+[savefile] "/home/dan/work/rnd/opencores/openarty/trunk/sw/host/qflexpress.gtkw"
+[timestart] 5468559
+[size] 1925 600
+[pos] -1 -1
+*-5.000000 5350000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 196
+[signals_width] 134
+[sst_expanded] 1
+[sst_vpaned_height] 155
+@28
+WBSCOPE._trigger
+WBSCOPE.wb_cyc[0]
+WBSCOPE.cfg_stb[0]
+WBSCOPE.wb_stb[0]
+WBSCOPE.wb_ack[0]
+@22
+WBSCOPE.wb_data[7:0]
+@28
+WBSCOPE.wb_stall[0]
+@200
+-
+@28
+WBSCOPE.o_cs_n[0]
+WBSCOPE.o_sck[0]
+@22
+WBSCOPE.o_qdat[3:0]
+@28
+WBSCOPE.o_qmod[1:0]
+@800022
+WBSCOPE.i_qdat[3:0]
+@28
+(0)WBSCOPE.i_qdat[3:0]
+(1)WBSCOPE.i_qdat[3:0]
+(2)WBSCOPE.i_qdat[3:0]
+(3)WBSCOPE.i_qdat[3:0]
+@1001200
+-group_end
+@29
+[color] 1
+WBSCOPE.actual_sck[0]
+@200
+-
+@28
+WBSCOPE.cfg_cs[0]
+WBSCOPE.cfg_dir[0]
+WBSCOPE.cfg_mode[0]
+WBSCOPE.cfg_speed[0]
+[pattern_trace] 1
+[pattern_trace] 0

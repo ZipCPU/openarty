@@ -51,13 +51,13 @@ void main(int argc, char **argv) {
 	*/
 
 	// Method two: Waiting on interrupts
-	int	lglen = (1<<((gpsu->u_fifo >> 12)&0x0f))-1;
+	int	lglen = (1<<((_gpsu->u_fifo >> 12)&0x0f))-1;
 	zip->z_pic = SYSINT_GPSRXF;
 	while(1) {
 		while((zip->z_pic & SYSINT_GPSRXF)==0)
 			;
 		for(int i=0; i<lglen/2; i++)
-			_uart->u_tx = gpsu->u_rx & 0x0ff;
+			_uart->u_tx = _gpsu->u_rx & 0x0ff;
 		zip->z_pic = SYSINT_GPSRXF;
 	}
 

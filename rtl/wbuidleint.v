@@ -64,26 +64,30 @@ module	wbuidleint(i_clk, i_stb, i_codword, i_cyc, i_busy, i_int,
 		else
 			int_request <= (int_request)||(i_int);
 
-
+`ifdef	VERILATOR
+	localparam	IDLEBITS = 22;
+`else
+	localparam	IDLEBITS = 31;
+`endif
 	// Now, for the idle counter
 	wire		idle_expired;
 	reg		idle_state;
-	reg	[35:0]	idle_counter;
-	initial	idle_counter = 36'h0000;
+	reg	[IDLEBITS-1:0]	idle_counter;
+	initial	idle_counter = 0;
 	always @(posedge i_clk)
 		if ((i_stb)||(o_stb)||(i_busy))
-			idle_counter <= 36'h000;
-		else if (~idle_counter[35])
-			idle_counter <= idle_counter + 36'd43;
+			idle_counter <= 0;
+		else if (!idle_counter[IDLEBITS-1])
+			idle_counter <= idle_counter + 1;
 
 	initial	idle_state = 1'b0;
 	always @(posedge i_clk)
-		if ((o_stb)&&(~i_tx_busy)&&(o_codword[35:31]==5'h0))
+		if ((o_stb)&&(!i_tx_busy)&&(o_codword[IDLEBITS-1:IDLEBITS-5]==5'h0))
 			idle_state <= 1'b1;
-		else if (~idle_counter[35])
+		else if (!idle_counter[IDLEBITS-1])
 			idle_state <= 1'b0;
 
-	assign	idle_expired = (~idle_state)&&(idle_counter[35]);
+	assign	idle_expired = (!idle_state)&&(idle_counter[IDLEBITS-1]);
 
 	initial	o_stb  = 1'b0;
 	initial	o_busy = 1'b0;

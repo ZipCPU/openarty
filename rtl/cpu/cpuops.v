@@ -45,6 +45,7 @@
 module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 			o_busy);
 	parameter		IMPLEMENT_MPY = `OPT_MULTIPLY;
+	parameter	[0:0]	OPT_SHIFTS = 1'b1;
 	input	wire	i_clk, i_reset, i_stb;
 	input	wire	[3:0]	i_op;
 	input	wire	[31:0]	i_a, i_b;
@@ -57,18 +58,27 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 
 	// Shift register pre-logic
 	wire	[32:0]		w_lsr_result, w_asr_result, w_lsl_result;
-	wire	signed	[32:0]	w_pre_asr_input, w_pre_asr_shifted;
-	assign	w_pre_asr_input = { i_a, 1'b0 };
-	assign	w_pre_asr_shifted = w_pre_asr_input >>> i_b[4:0];
-	assign	w_asr_result = (|i_b[31:5])? {(33){i_a[31]}}
-				: w_pre_asr_shifted;// ASR
-	assign	w_lsr_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
-				:((i_b[5])?{32'h0,i_a[31]}
-				
-				: ( { i_a, 1'b0 } >> (i_b[4:0]) ));// LSR
-	assign	w_lsl_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
-				:((i_b[5])?{i_a[0], 32'h0}
-				: ({1'b0, i_a } << i_b[4:0]));	// LSL
+	generate if (OPT_SHIFTS)
+	begin : IMPLEMENT_SHIFTS
+		wire	signed	[32:0]	w_pre_asr_input, w_pre_asr_shifted;
+		assign	w_pre_asr_input = { i_a, 1'b0 };
+		assign	w_pre_asr_shifted = w_pre_asr_input >>> i_b[4:0];
+		assign	w_asr_result = (|i_b[31:5])? {(33){i_a[31]}}
+					: w_pre_asr_shifted;// ASR
+		assign	w_lsr_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
+					:((i_b[5])?{32'h0,i_a[31]}
+					
+					: ( { i_a, 1'b0 } >> (i_b[4:0]) ));// LSR
+		assign	w_lsl_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
+					:((i_b[5])?{i_a[0], 32'h0}
+					: ({1'b0, i_a } << i_b[4:0]));	// LSL
+	end else begin : NO_SHIFTS
+
+		assign	w_asr_result = {   i_a[31], i_a[31:0] };
+		assign	w_lsr_result = {      1'b0, i_a[31:0] };
+		assign	w_lsl_result = { i_a[31:0],      1'b0 };
+
+	end endgenerate
 
 	// Bit reversal pre-logic
 	wire	[31:0]	w_brev_result;
@@ -169,6 +179,7 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 			o_valid <= (i_stb);
 		else
 			o_valid <=((i_stb)&&(!this_is_a_multiply_op))||(mpydone);
+
 `ifdef	FORMAL
 // Formal properties for this module are maintained elsewhere
 `endif

@@ -213,57 +213,41 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 # set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[3] }]; #IO_L18P_T2_A24_15 Sch=eth_txd[3]
 
 # Ethernet generated clocks from the chip
+#
+# These clock definitions have been moved to the end of the file --- but only when enet.tx is part of
+# the autofpga configuration file mix.
+#
 # create_clock -period 40.000 -name eth_tx_pin -add [get_ports {i_eth_tx_clk}]
 # create_clock -period 40.000 -name eth_rx_pin -add [get_ports {i_eth_rx_clk}]
+#
 
 # And crossing clocks from ethernet clocks to master clock
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/o_net_reset*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_tx_busy*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
-# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]        -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_len*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/config_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cm*}]     -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cm*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cancel*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cancel*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/txmaci/r_hw*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rxmaci/r_hw*}] 12.3;
-# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
-# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_holdoff*}] -to [get_cells -hier -filter {NAME =~ *net_scope/dr_stopped*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txmaci/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txcrci/o_v*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_val*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_val*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_busy*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_busy*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_len*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_len*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_miss*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_miss_pi*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/p_rx_cle*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_crce*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_crc_pip*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_err*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_err_pip*}] 12.3;
+#
+# These were moved into the AutoFPGA Ethernet configuration file
+#
 
 # and for the scope ... if we have that configured
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/waddr*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/counter*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/dr_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/q_if*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/r_rese*}]           -to [get_cells -hier -filter {NAME =~ *net_scope/q_rese*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/waddr*}]            -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/waddr*}]            -to [get_cells -hier -filter {NAME =~ *net_scope/this_addr*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/dr_*}]              -to [get_cells -hier -filter {NAME =~ *net_scope/q_of*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]                 -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/r_err*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxememi/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxprei/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxprei/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/o_broa*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxcrci/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
-set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxcrci/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# These should be placed into the ethernet scope configuration file
+#
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/waddr*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/counter*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/dr_*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/br_config*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/q_if*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/r_rese*}]           -to [get_cells -hier -filter {NAME =~ *net_scope/q_rese*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/waddr*}]            -to [get_cells -hier -filter {NAME =~ *net_scope/mem*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/waddr*}]            -to [get_cells -hier -filter {NAME =~ *net_scope/this_addr*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *net_scope/dr_*}]              -to [get_cells -hier -filter {NAME =~ *net_scope/q_of*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_*}]                 -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/r_err*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxememi/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxprei/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxprei/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxmaci/o_broa*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxcrci/o_d*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
+# set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/rxcrci/o_v*}]    -to [get_cells -hier -filter {NAME =~ *net_scope/o_bus_data*}] 12.3;
 
 ##Quad SPI Flash
 

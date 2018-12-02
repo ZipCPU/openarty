@@ -108,11 +108,15 @@ SECTIONS
 	// from
 `ifdef	FLASH_ACCESS
 	localparam	RESET_ADDRESS = @$RESET_ADDRESS;
-`elsif	SDRAM_ACCESS
+`else
+`ifdef	SDRAM_ACCESS
 	localparam	RESET_ADDRESS = @$sdram.REGBASE;
-`elsif	BKRAM_ACCESS
+`else
+`ifdef	BKRAM_ACCESS
 	localparam	RESET_ADDRESS = @$bkram.REGBASE;
-`endif
+`endif // BKRAM_ACCESS
+`endif // SDRAM_ACCESS
+`endif // FLASH_ACCESS
 	//
 	// The number of valid bits on the bus
 	localparam	ZIP_ADDRESS_WIDTH = @$(MASTER.BUS.AWID);	// Zip-CPU address width
