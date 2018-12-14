@@ -49,8 +49,8 @@ void	idle_task(void) {
 }
 
 void	wait_on_interrupt(int mask) {
-	zip->z_pic = DALLPIC|mask;
-	zip->z_pic = EINT(mask);
+	_zip->z_pic = DALLPIC|mask;
+	_zip->z_pic = EINT(mask);
 	zip_rtu();
 }
 
@@ -74,12 +74,12 @@ void	main(int argc, char **argv) {
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
-	zip->z_pic = CLEARPIC;
+	_zip->z_pic = CLEARPIC;
 	while(*_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
-	zip->z_tma = TMR_INTERVAL | (second/4);
+	_zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
 	_clrled[0] = green;
@@ -143,7 +143,7 @@ void	main(int argc, char **argv) {
 		unsigned	btn, ledc;
 
 		zip_rtu();
-		zip->z_pic = EINT(SYSINT_TMA)|SYSINT_TMA;
+		_zip->z_pic = EINT(SYSINT_TMA)|SYSINT_TMA;
 		// If the button is pressed, toggle the LED
 		// Otherwise, turn the LED off.
 		//

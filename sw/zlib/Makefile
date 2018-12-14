@@ -4,7 +4,10 @@
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	
+## Purpose:	To guide/direct the build of the board-specific portion of
+##		newlib.
+##
+## Targets:	
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -38,12 +41,15 @@
 CC := zip-gcc
 AR := zip-ar
 OBJDIR  := obj-zip
-CFLAGS  := -O3 -I../../rtl
-LIBSRCS := udiv.c umod.c crt0.c
+INCS    := -I. -I../../rtl
+CFLAGS  := -O3 $(INCS)
+LIBSRCS := udiv.c umod.c syscalls.c crt0.c
 LIBOBJS := $(addprefix $(OBJDIR)/,$(subst .c,.o,$(LIBSRCS)))
-all: libarty.a
+ZIPLIB  := libarty.a
+all: $(ZIPLIB)
 
 $(OBJDIR)/%.o: %.c
+	$(mk-objdir)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.s: %.c
@@ -54,8 +60,11 @@ $(OBJDIR)/crt0.o: crt0.c
 	$(mk-objdir)
 	$(CC) $(CFLAGS) -ffreestanding -c $< -o $@
 
-libarty.a: $(LIBOBJS)
-	$(AR) -cru libarty.a $(LIBOBJS)
+$(ZIPLIB): $(LIBOBJS)
+	$(AR) -cru $@ $(LIBOBJS)
+
+clean:
+	rm -rf $(ZIPLIB) $(OBJDIR)/
 
 define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
@@ -72,11 +81,6 @@ endef
 tags: $(LIBSRCS) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(LIBSRCS) $(HEADERS)
-
-
-.PHONY: clean
-clean:
-	rm -rf libarty.a libarty.a $(OBJDIR)/
 
 
 .PHONY: depends

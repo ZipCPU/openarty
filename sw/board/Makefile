@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2016-2017, Gisselquist Technology, LLC
+## Copyright (C) 2016-2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -24,7 +24,7 @@
 ## for more details.
 ##
 ## You should have received a copy of the GNU General Public License along
-## with this program.  (It's in the $(ROOT)/doc directory, run make with no
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
 ##
@@ -38,20 +38,26 @@
 .PHONY: all
 PROGRAMS := exstartup oledtest gpsdump exmulti cputest cputestcis hello gettysburg simple_ping
 all:	$(PROGRAMS)
-OBJDIR := obj-zip
-NM := zip-nm
-RDELF := zip-readelf
-CC := zip-gcc
+#
+#
+CC	:=zip-gcc
+AS	:=zip-as
+LD	:=zip-ld
+NM	:=zip-nm
+OBJDIR	:= obj-zip
+RDELF	:= zip-readelf
 OBJDUMP := zip-objdump
+SUBMAKE:= $(MAKE) --no-print-directory -C
+#
+#
 SOURCES := exstartup.c gpsdump.c oledtest.c exmulti.c simple_ping.c ipcksum.c cputest.c hello.c gettysburg.c # ntpserver.c
 HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
-LFLAGS  := -T board.ld -L../zlib -Wl,--start-group -larty
+LFLAGS  := -T board.ld -L../zlib -Wl,--start-group -larty -lgcc
 CFLAGS  := -O3 -I../zlib -I../../rtl
 #
 # For source analysis, the following macros are defined:
-
 #
 
 %.o: $(OBJDIR)/%.o
@@ -130,7 +136,6 @@ define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR)/; fi"
 endef
 
-
 define	build-depends
 	@echo "Building dependency file(s)"
 	$(mk-objdir)
@@ -144,7 +149,8 @@ tags: $(SOURCES) $(HEADERS)
 	@ctags $(SOURCES) $(HEADERS)
 
 clean:
-	rm -rf $(PROGRAMS) $(addsuffix .map,$(PROGRAMS))
+	rm -rf $(PROGRAMS)
+	rm -rf $(addsuffix .map,$(PROGRAMS))
 	rm -rf $(addsuffix .txt,$(PROGRAMS))
 	rm -rf $(OBJDIR)/
 

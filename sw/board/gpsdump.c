@@ -52,27 +52,27 @@ void main(int argc, char **argv) {
 
 	// Method two: Waiting on interrupts
 	int	lglen = (1<<((_gpsu->u_fifo >> 12)&0x0f))-1;
-	zip->z_pic = SYSINT_GPSRXF;
+	_zip->z_pic = SYSINT_GPSRXF;
 	while(1) {
-		while((zip->z_pic & SYSINT_GPSRXF)==0)
+		while((_zip->z_pic & SYSINT_GPSRXF)==0)
 			;
 		for(int i=0; i<lglen/2; i++)
 			_uart->u_tx = _gpsu->u_rx & 0x0ff;
-		zip->z_pic = SYSINT_GPSRXF;
+		_zip->z_pic = SYSINT_GPSRXF;
 	}
 
 	/*
 	// Method three: Use the DMA
-	zip->z_dma.d_ctrl = DMACLEAR;
+	_zip->z_dma.d_ctrl = DMACLEAR;
 	while(1) {
-		zip->z_dma.d_rd = (int *)&sys->io_gps_rx;
-		zip->z_dma.d_wr = (int *)&sys->io_uart_tx;
-		zip->z_dma.d_len = 0x01000000; // More than we'll ever do ...
-		zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
+		_zip->z_dma.d_rd = (int *)&sys->io_gps_rx;
+		_zip->z_dma.d_wr = (int *)&sys->io_uart_tx;
+		_zip->z_dma.d_len = 0x01000000; // More than we'll ever do ...
+		_zip->z_dma.d_ctrl = (DMAONEATATIME|DMA_CONSTDST|DMA_CONSTSRC|DMA_ONGPSRX);
 
-		while(zip->z_dma.d_ctrl & DMA_BUSY) {
+		while(_zip->z_dma.d_ctrl & DMA_BUSY) {
 			zip_idle();
-			if (zip->z_dma.d_ctrl & DMA_ERR)
+			if (_zip->z_dma.d_ctrl & DMA_ERR)
 				zip_halt();
 		}
 	}

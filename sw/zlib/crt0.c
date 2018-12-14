@@ -222,49 +222,53 @@ void	_bootloader(void) {
 	    *kramdev = (_kram) ? _kram : _ram;
 
 #ifdef	USE_DMA
-	zip->z_dma.d_ctrl= DMACLEAR;
-	zip->z_dma.d_rd = _kram_start; // Flash memory
-	zip->z_dma.d_wr  = (_kram) ? _kram : _ram;
+	// asm("\tNSTR "DMA\n"\n");
+	_zip->z_dma.d_ctrl= DMACLEAR;
+	_zip->z_dma.d_rd = _kram_start; // Flash memory
+	_zip->z_dma.d_wr  = (_kram) ? _kram : _ram;
 	if (_kram_start != _kram_end) {
 		if (_kram_end != _kram) {
-			zip->z_dma.d_len = _kram_end - _kram;
-			zip->z_dma.d_wr  = _kram;
-			zip->z_dma.d_ctrl= DMACCOPY;
+			// asm("NSTR \"KRAM\n\"\n");
+			_zip->z_dma.d_len = _kram_end - _kram;
+			_zip->z_dma.d_wr  = _kram;
+			_zip->z_dma.d_ctrl= DMACCOPY;
 
-			zip->z_pic = SYSINT_DMAC;
-			while((zip->z_pic & SYSINT_DMAC)==0)
+			_zip->z_pic = SYSINT_DMAC;
+			while((_zip->z_pic & SYSINT_DMAC)==0)
 				;
 		}
 	}
 
-	// zip->z_dma.d_rd // Keeps the same value
+	// _zip->z_dma.d_rd // Keeps the same value
 	if (NULL != _kram) {
 		// Writing to kram, need to switch to RAM
-		zip->z_dma.d_wr  = _ram;
-		zip->z_dma.d_len = _ram_image_end - _ram;
+		_zip->z_dma.d_wr  = _ram;
+		_zip->z_dma.d_len = _ram_image_end - _ram;
 	} else {
 		// Continue writing to the RAM device from where we left off
-		zip->z_dma.d_len = _ram_image_end - _kram_end;
+		_zip->z_dma.d_len = _ram_image_end - _kram_end;
 	}
 
-	if (zip->z_dma.d_len>0) {
-		zip->z_dma.d_ctrl= DMACCOPY;
+	if (_zip->z_dma.d_len>0) {
+		// asm("NSTR \"RAM\n\"\n");
+		_zip->z_dma.d_ctrl= DMACCOPY;
 
-		zip->z_pic = SYSINT_DMAC;
-		while((zip->z_pic & SYSINT_DMAC)==0)
+		_zip->z_pic = SYSINT_DMAC;
+		while((_zip->z_pic & SYSINT_DMAC)==0)
 			;
 	}
 
 	if (_bss_image_end != _ram_image_end) {
 		volatile int	zero = 0;
 
-		zip->z_dma.d_len = _bss_image_end - _ram_image_end;
-		zip->z_dma.d_rd  = (unsigned *)&zero;
-		// zip->z_dma.wr // Keeps the same value
-		zip->z_dma.d_ctrl = DMACCOPY|DMA_CONSTSRC;
+		// asm("NSTR \"BSS\n\"\n");
+		_zip->z_dma.d_len = _bss_image_end - _ram_image_end;
+		_zip->z_dma.d_rd  = (unsigned *)&zero;
+		// _zip->z_dma.wr // Keeps the same value
+		_zip->z_dma.d_ctrl = DMACCOPY|DMA_CONSTSRC;
 
-		zip->z_pic = SYSINT_DMAC;
-		while((zip->z_pic & SYSINT_DMAC)==0)
+		_zip->z_pic = SYSINT_DMAC;
+		while((_zip->z_pic & SYSINT_DMAC)==0)
 			;
 	}
 #else

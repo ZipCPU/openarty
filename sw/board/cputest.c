@@ -14,7 +14,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -26,6 +26,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -33,6 +38,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
+#include <stdint.h>
 #include "board.h"
 #include "zipcpu.h"
 #include "zipsys.h"
@@ -44,11 +50,10 @@
 #define	UARTTX		_uart->u_tx
 #define	UART_CTRL	_uart->u_setup
 #undef PIC
-#define	PIC		zip->z_pic
-#define	TIMER		zip->z_tma
-#define	COUNTER		zip->z_m.ac_ck
+#define	PIC		_zip->z_pic
+#define	TIMER		_zip->z_tma
+#define	COUNTER		_zip->z_m.ac_ck
 
-// #define	HAVE_COUNTER
 // #define	HAVE_SCOPE
 #ifdef	HAVE_SCOPE
 #define	SCOPEc			_sys->io_scope[0].s_ctrl
@@ -933,7 +938,7 @@ asm("\t.text\n\t.global\tnowaitpipe_test\n"
 
 //bcmem_test
 void	bcmem_test(void);
-asm("\t.text\n.global\tbcmem_test\n"
+asm("\t.text\n\t.global\tbcmem_test\n"
 	"\t.type\tbcmem_test,@function\n"
 "bcmem_test:\n"
 	"\tSUB\t4,SP\n"
@@ -972,7 +977,7 @@ asm("\t.text\n.global\tbcmem_test\n"
 // operations without arguments are NOOP, BREAK, LOCK, and so we envision a
 // fourth instruction to create.
 void	ill_test(void);
-asm("\t.text\n.global\till_test\n"
+asm("\t.text\n\t.global\till_test\n"
 	"\t.type\till_test,@function\n"
 "ill_test:\n"	// 0.111_1.110_11......
 	"\t.int\t0x7ec00000\n"
@@ -981,7 +986,7 @@ asm("\t.text\n.global\till_test\n"
 // Are sim instructions considered valid?  Just hit the illegal instruction
 // so we can report the result
 void	sim_test(void);
-asm("\t.text\n.global\tsim_test\n"
+asm("\t.text\n\t.global\tsim_test\n"
 	"\t.type\tsim_test,@function\n"
 "sim_test:\n"	// 0.111_1.111_10......
 	"\t.int\t0x7f800000\n"
@@ -990,14 +995,14 @@ asm("\t.text\n.global\tsim_test\n"
 // Are CIS instructions considered valid?  Try two compare instructions to
 // see if they are built into our CPU.
 void	cis_test(void);
-asm("\t.text\n.global\tcis_test\n"
+asm("\t.text\n\t.global\tcis_test\n"
 	"\t.type\tcis_test,@function\n"
 "cis_test:\n"	// 1.000_0.011._1.101_0.000 ... 1.000_1.011._1.110_0.000
 	"\t.int\t0x83d08be0\n"
 	"\tJMP\tR0\n");
 
 void	cmpeq_test(void);
-asm("\t.text\n.global\tcmpeq_test\n"
+asm("\t.text\n\t.global\tcmpeq_test\n"
 	"\t.type\tcmpeq_test,@function\n"
 "cmpeq_test:\n"
 	"\tCMP\tR1,R2\n"
@@ -1006,7 +1011,7 @@ asm("\t.text\n.global\tcmpeq_test\n"
 	"\tJMP\tR0\n");
 
 void	cmpneq_test(void);
-asm("\t.text\n.global\tcmpneq_test\n"
+asm("\t.text\n\t.global\tcmpneq_test\n"
 	"\t.type\tcmpneq_test,@function\n"
 "cmpneq_test:\n"
 	"\tLDI\t1,R4\n"
@@ -1028,7 +1033,7 @@ asm("\t.text\n.global\tcmpneq_test\n"
 // issues.
 //
 void	ccreg_test(void);
-asm("\t.text\n.global\tccreg_test\n"
+asm("\t.text\n\t.global\tccreg_test\n"
 	"\t.type\tccreg_test,@function\n"
 "ccreg_test:\n"
 	// First test: If we try to change the fixed bits, will they change
@@ -1276,11 +1281,11 @@ void entry(void) {
 	// Check whether or not this CPU correctly identifies SIM instructions
 	// as illegal instructions
 	testid("SIM Instructions"); MARKSTART;
-	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_TRAP|CC_STEP|CC_SLEEP;
+	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_STEP|CC_SLEEP;
 	if ((run_test(sim_test, user_stack_ptr))||(zip_ucc()&cc_fail))
 		test_fails(start_time, &testlist[tnum]);
 	else if (zip_ucc() & CC_ILL) {
-		txstr("Pass\r\n"); testlist[tnum++];	// 0
+		txstr("Pass\r\n"); testlist[tnum++] = 0; // 0
 	} else
 		txstr("Is this a simulator?\r\n");
 
@@ -1485,11 +1490,18 @@ void entry(void) {
 	txstr("-----------------------------------\r\n");
 	txstr("All tests passed.  Halting CPU.\r\n");
 	wait_for_uart_idle();
+	txstr("\r\n");
+	wait_for_uart_idle();
 	for(int k=0; k<50000; k++)
 		asm("NOOP");
 	asm("NEXIT 0");
 	zip_halt();
 }
+
+int	main(int argc, char **argv) {
+	entry();
+}
+
 
 // To build this:
 //	zip-gcc -O3 -Wall -Wextra -nostdlib -fno-builtin -T xula.ld -Wl,-Map,cputest.map cputest.cpp -o cputest

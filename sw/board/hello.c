@@ -4,43 +4,22 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	The classical "Hello, world!\r\n" program.  This one, however,
-//		runs on the Arty using the PModUSBUART
+// Purpose:	The original Helllo World program.  If everything works, this
+//		will print Hello World to the UART, and then halt the CPU--if
+//	run with no O/S.
 //
-// Creator:	Dan Gisselquist, Ph.D.
-//		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
-//
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-// for more details.
-//
-// You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
-// target there if the PDF file isn't present.)  If not, see
-// <http://www.gnu.org/licenses/> for a copy.
-//
-// License:	GPL, v3, as defined and found on www.gnu.org,
-//		http://www.gnu.org/licenses/gpl.html
-//
+// Gisselquist Technology asserts no ownership rights over this particular
+// hello world program.
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
 #include <stdio.h>
 
-int	main(int argc, char **argv) {
-	// Print Hello, World, out the UART!
-	printf("Hello, world!\r\n");
+int main(int argc, char **argv) {
+	printf("Hello, World!\r\n");
 	return 0;
 }
-

@@ -107,14 +107,14 @@ typedef	struct	{
 #define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
 #define	INTNOW		0x08000
 
-static	volatile ZIPSYS *const zip = (ZIPSYS *)(ZIPSYS_ADDR);
+static	volatile ZIPSYS *const _zip = (ZIPSYS *)(ZIPSYS_ADDR);
 
 static inline void	DISABLE_INTS(void) {
-	zip->z_pic = 0;
+	_zip->z_pic = 0;
 }
 
 static inline void	ENABLE_INTS(void) {
-	zip->z_pic = 0x80000000;
+	_zip->z_pic = 0x80000000;
 }
 
 typedef	struct	{

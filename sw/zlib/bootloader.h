@@ -35,6 +35,7 @@
 #define	BOOTLOADER_H
 
 extern	int	_top_of_heap[1], _top_of_stack[1];
+extern	int	_boot_address[1];
 
 extern	int	_ram[1], _rom[1], _kram[1];
 

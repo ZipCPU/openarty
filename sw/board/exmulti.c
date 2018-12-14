@@ -50,10 +50,10 @@ void	idle_task(void) {
 
 void	wait_on_interrupt(int mask) {
 	if (mask & SYSINT_AUX) {
-		zip->z_apic = INT_ENABLE;
+		_zip->z_apic = INT_ENABLE;
 	}
-	zip->z_pic = DALLPIC|mask;
-	zip->z_pic = EINT(mask);
+	_zip->z_pic = DALLPIC|mask;
+	_zip->z_pic = EINT(mask);
 	zip_rtu();
 }
 
@@ -210,12 +210,12 @@ void	main(int argc, char **argv) {
 	//
 	//	Acknowledge all interrupts, turn off all interrupts
 	//
-	zip->z_pic = CLEARPIC;
+	_zip->z_pic = CLEARPIC;
 	while(*_pwrcount < (second >> 4))
 		;
 
 	// Repeating timer, every 250ms
-	zip->z_tma = TMR_INTERVAL | (second/4);
+	_zip->z_tma = TMR_INTERVAL | (second/4);
 	wait_on_interrupt(SYSINT_TMA);
 
 	_clrled[0] = green;
@@ -273,17 +273,17 @@ void	main(int argc, char **argv) {
 
 	do {
 		wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
-	} while((zip->z_pic & SYSINT_PPS)==0);
+	} while((_zip->z_pic & SYSINT_PPS)==0);
 
 	printf("GPS RECORD START\r\n");
 
-	zip->z_tma = TMR_INTERVAL | (second/1000);
+	_zip->z_tma = TMR_INTERVAL | (second/1000);
 	wait_on_interrupt(SYSINT_TMA);
 	_gpsu->u_rx = 0x01000;
 	while(1) {
 		char	*s = errstring;
 
-		zip->z_wdt = CLKFREQHZ*4;
+		_zip->z_wdt = CLKFREQHZ*4;
 		*_spio = 0x0808;
 
 		// 1. Read and report the GPS tracking err
@@ -308,7 +308,7 @@ void	main(int argc, char **argv) {
 
 		*_spio = 0x0800;
 
-		zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS | SYSINT_TMA;
+		_zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS | SYSINT_TMA;
 		{
 			const int	LINEBUFSZ = 80;
 			char	line[LINEBUFSZ], *linep = line;
@@ -330,7 +330,7 @@ void	main(int argc, char **argv) {
 						linep = line;
 					}
 				}
-			} while((zip->z_pic & SYSINT_PPS)==0);
+			} while((_zip->z_pic & SYSINT_PPS)==0);
 		}
 	}
 
