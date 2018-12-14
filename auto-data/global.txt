@@ -43,11 +43,8 @@
 # @KEYS.INTLIST is a list of all things that need to be converted to integers
 @KEYS.INTLIST= BUS_ADDRESS_WIDTH NADDR NPIC NSCOPES PIC.MAX REGS.N ID
 @DEFAULT.BUS=wb
-@$RESET_ADDRESS=@$flash.BASE+(@$flash.NADDR)
-@RESET_ADDRESS.FORMAT=32'h%08x
 @REGISTER.BUS=wbu
 @VERILATOR_PREFIX=v
-@XDC.FILE=../arty.xdc
 @REGDEFS.H.INSERT=
 typedef	struct {
 	unsigned	m_addr;

@@ -10,7 +10,6 @@
 	wire	eth_rx_clk, eth_tx_clk;
 @TOP.INSERT=
 `ifdef VERILATOR
-	wire	s_clk, s_reset;
 	assign	s_clk = sys_clk_i;
 
 	assign	eth_tx_clk = i_eth_tx_clk;
@@ -25,16 +24,16 @@
 	// controller.
 	//
 	// Logic description starts with the PRE-reset, so as to make certain
-	// we include the reset button.  The memory controller wants an active
-	// low reset here, so we provide such.
-	initial	pre_reset = 1'b0;
+	// we include the reset button.
+	//
+	initial	pre_reset = -1;
 	always @(posedge sys_clk)
 		pre_reset <= ((!i_reset_btn)||(clk_locked))
-			? 8'h00 : { pre_reset, 1'b1 };
+			? -1 : { pre_reset, 1'b0 };
 	//
 	// and then continues with the actual reset, now that we've
 	// synchronized our reset button wire.  This is an active LOW reset.
-	initial	pwr_reset = 1'b0;
+	initial	pwr_reset = 1'b1;
 	always @(posedge sys_clk)
 		pwr_reset <= pre_reset[7];
 `ifdef	VERILATOR
@@ -105,11 +104,13 @@
 
 ##
 @PREFIX=eth_rx_clk_p
+@CLOCK.TOP=i_eth_rx_clk
 @CLOCK.NAME=eth_rx_clk
 @CLOCK.WIRE=i_eth_rx_clk
 @CLOCK.FREQUENCY=25000000
 ##
 @PREFIX=eth_tx_clk_p
+@CLOCK.TOP=i_eth_tx_clk
 @CLOCK.NAME=eth_tx_clk
 @CLOCK.WIRE=i_eth_tx_clk
 @CLOCK.FREQUENCY=25000000
@@ -124,6 +125,6 @@
 @PREFIX=crystal_oscillator
 @CLOCK.NAME=crystal_clk
 @CLOCK.WIRE=no_clk
-@CLOCK.TOP=sysclk_i
+@CLOCK.TOP=sys_clk_i
 @CLOCK.FREQUENCY=100000000
 ##

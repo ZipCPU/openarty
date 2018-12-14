@@ -52,12 +52,12 @@ AUX     := version.txt buserr.txt pic.txt pwrcount.txt
 IO      := spio.txt clrspio.txt # gpio.txt
 RTC     := rtcgps.txt
 NETWORK := mdio.txt  enet.txt
-MEMORY  := bkram.txt flash.txt # sdram.txt # wbhyperram.txt
+MEMORY  := bkram.txt flash.txt sdram.txt # wbhyperram.txt
 GPS     := gps.txt
 CPU     := zipmaster.txt
 DBGBUS  := wbuconsole.txt
 SDCARD  := sdspi.txt
-DATA := clock.txt $(BASE) $(AUX) $(IO) $(RTC) $(GPS)	\
+DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC) $(GPS)	\
 	$(MEMORY) $(DBGBUS) $(CPU)
 
 AUTOFPGA := autofpga

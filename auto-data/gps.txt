@@ -205,4 +205,4 @@ typedef	struct	GPSTB_S	{
 #endif
 #
 @RTL.MAKE.GROUP=GPS
-@RTL.MAKE.FILES=gpsglock_tb.v gpsclock.v bigadd.v bigsub.v bigsmpy.v
+@RTL.MAKE.FILES=gpsclock_tb.v gpsclock.v bigadd.v bigsub.v bigsmpy.v
