@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -119,6 +119,7 @@ void	elfread(const char *fname, unsigned &entry, ELFSECTION **&sections)
 	}
 
 	if (dbg) {
+	printf("ELF File header\n");
 	printf("    %-20s 0x%jx\n", "e_type", (uintmax_t)ehdr.e_type);
 	printf("    %-20s 0x%jx\n", "e_machine", (uintmax_t)ehdr.e_machine);
 	printf("    %-20s 0x%jx\n", "e_version", (uintmax_t)ehdr.e_version);
@@ -161,6 +162,7 @@ assert(n != 0);
 		}
 
 		if (dbg) {
+		printf("  Section %d:\n", i);
 		printf("    %-20s 0x%x\n", "p_type",   phdr.p_type);
 		printf("    %-20s 0x%jx\n", "p_offset", phdr.p_offset);
 		printf("    %-20s 0x%jx\n", "p_vaddr",  phdr.p_vaddr);
@@ -195,6 +197,7 @@ assert(n != 0);
 		}
 
 		if (dbg) {
+		printf("  Section %d:\n", i);
 		printf("    %-20s 0x%jx\n", "p_offset", phdr.p_offset);
 		printf("    %-20s 0x%jx\n", "p_vaddr",  phdr.p_vaddr);
 		printf("    %-20s 0x%jx\n", "p_paddr",  phdr.p_paddr);
@@ -210,6 +213,11 @@ assert(n != 0);
 		printf("    %-20s 0x%jx\n", "p_align", phdr.p_align);
 		}
 
+		if (phdr.p_filesz == 0)
+			continue;
+
+		// Only create non-zero sized sections
+		// A zero sized section is the mark of the end of the file.
 		current_section++;
 
 		r[i]->m_start = phdr.p_paddr;
@@ -236,9 +244,11 @@ assert(n != 0);
 			r[i]->m_data[j] = byteswap(r[i]->m_data[j]);
 		*/
 
+/*
 		if (dbg) for(unsigned j=0; j<r[i]->m_len; j++)
 			fprintf(stderr, "ADR[%04x] = %02x\n", r[i]->m_start+j,
 				r[i]->m_data[j] & 0x0ff);
+*/
 	}
 
 	r[i] = (ELFSECTION *)(&d[current_offset]);
