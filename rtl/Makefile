@@ -42,6 +42,7 @@ all:	test cpudefs.h design.h
 YYMMDD=`date +%Y%m%d`
 CXX   := g++
 FBDIR := .
+VDIRFB:= $(FBDIR)/obj_dir
 VOBJ := obj_dir
 CPUDR := cpu
 BASE  := main
@@ -56,7 +57,9 @@ VERILATOR := verilator
 else
 VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
-VFLAGS = -Wall --MMD --trace $(AUTOVDIRS) -cc
+VFLAGS = -Wall --MMD -O3 --trace -Mdir $(VDIRFB) $(AUTOVDIRS) -cc
+
+-include make.inc
 
 $(VOBJ)/V$(BASE)__ALL.a: $(VOBJ)/V$(BASE).h
 $(VOBJ)/V$(BASE).mk:  $(VOBJ)/V$(BASE).cpp
@@ -120,9 +123,7 @@ clean:
 # Note Verilator's dependency created information, and include it here if we
 # can
 DEPS := $(wildcard $(VOBJ)/*.d)
-
 ifneq ($(MAKECMDGOALS),clean)
-include make.inc
 ifneq ($(DEPS),)
 include $(DEPS)
 endif
