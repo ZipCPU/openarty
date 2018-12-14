@@ -88,7 +88,7 @@ module	wbuconsole(i_clk, i_rx_stb, i_rx_data,
 
 
 	always @(posedge i_clk)
-		o_console_stb <= (i_console_stb)&&(i_rx_data[7] == 1'b0);
+		o_console_stb <= (i_rx_stb)&&(i_rx_data[7] == 1'b0);
 	always @(posedge i_clk)
 		o_console_data <= i_rx_data[6:0];
 
