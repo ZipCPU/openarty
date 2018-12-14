@@ -56,7 +56,6 @@
 //
 module rtcdate(i_clk, i_ppd, i_wb_cyc_stb, i_wb_we, i_wb_data, i_wb_sel,
 		o_wb_ack, o_wb_stall, o_wb_data);
-	parameter [0:0]		F_OPT_CLK2FFLOGIC = 1'b0;
 	input	wire		i_clk;
 	// A one part per day signal, i.e. basically a clock enable line that
 	// controls when the beginning of the day happens.  This line should
@@ -256,92 +255,6 @@ module rtcdate(i_clk, i_ppd, i_wb_cyc_stb, i_wb_we, i_wb_data, i_wb_sel,
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL
-`ifdef	RTCDATE
-`define	ASSUME	assume
-	reg	f_last_clk;
-	initial	assume(f_last_clk == 1);
-	initial	assume(i_clk == 0);
-	always @($global_clock)
-	begin
-		assume(i_clk != f_last_clk);
-		f_last_clk <= !f_last_clk;
-	end
-`else
-`define	ASSUME	assert
-`endif
-	reg	f_past_valid;
-	initial	f_past_valid = 1'b0;
-	always @(posedge i_clk)
-		f_past_valid <= 1'b1;
-
-	initial	`ASSUME(!i_wb_cyc_stb);
-	initial	assume(!i_wb_we);
-	initial	assume(!i_wb_sel);
-	initial	`ASSUME(!i_ppd);
-
-	generate if (F_OPT_CLK2FFLOGIC)
-	begin
-		always @($global_clock)
-		if (!$rose(i_clk))
-		begin
-			`ASSUME($stable(i_ppd));
-			`ASSUME($stable(i_wb_cyc_stb));
-			`ASSUME($stable(i_wb_we));
-			`ASSUME($stable(i_wb_data));
-			`ASSUME($stable(i_wb_sel));
-
-			if (f_past_valid)
-			begin
-				assert($stable(o_wb_ack));
-				assert($stable(o_wb_stall));
-				assert($stable(o_wb_data));
-			end
-		end
-	end endgenerate
-
-	always @(posedge i_clk)
-		if (f_past_valid)
-			assert(o_wb_ack == $past(i_wb_cyc_stb));
-
-	reg	[8:0]	f_past_ppd;
-	initial	f_past_ppd = 8'h00;
-	always @(posedge i_clk)
-		if (i_ppd)
-			f_past_ppd <= 9'h1ff;
-		else
-			f_past_ppd <= { f_past_ppd[7:0], 1'b0 };
-	always @(posedge i_clk)
-		if (|f_past_ppd)
-			`ASSUME(!i_ppd);
-
-	always @(posedge i_clk)
-	if (!r_block_updates[9])
-	begin
-		assert(r_day[3:0] <= 4'h9);
-		assert(r_day > 0);
-		assert(r_day <= days_per_month);
-		assert(days_per_month > 6'h27);
-		assert(days_per_month[3:0] <= 4'h9);
-		if ((f_past_valid)&&(!$past(i_ppd)))
-		begin
-			assert((r_mon == 5'h02)||
-				(days_per_month == 6'h31)||(days_per_month == 6'h30));
-			assert((r_mon != 5'h02)||
-				(days_per_month == 6'h28)||(days_per_month == 6'h29));
-		end
-
-		if (r_mon[4])
-		begin
-			assert(r_mon[3:2]==0);
-			assert(r_mon[1:0]!=2'b11);
-		end else begin
-			assert(r_mon[3:0]<=4'h9);
-		end
-
-		assert(r_year[ 3: 0] <= 4'h9);
-		assert(r_year[ 7: 4] <= 4'h9);
-		assert(r_year[11: 8] <= 4'h9);
-	end
-
+// Formal properties for this core are maintained elsewhere
 `endif
 endmodule

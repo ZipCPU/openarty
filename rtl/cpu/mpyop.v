@@ -186,7 +186,8 @@ module	mpyop(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_valid, o_busy, o_result, o_
 		assign	o_valid = mpypipe[1];
 
 		// Results are then set on the third clock
-	end else // if (IMPLEMENT_MPY <= 4)
+	end else begin : MPN3
+	if (IMPLEMENT_MPY == 4)
 	begin : MPY4CK // The three clock option
 		reg	[63:0]	r_mpy_result;
 		reg	[31:0]	r_mpy_a_input, r_mpy_b_input;
@@ -294,7 +295,25 @@ module	mpyop(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_valid, o_busy, o_result, o_
 
 		assign	o_result = r_mpy_result;
 		// Fourth clock -- results are clocked into writeback
-	end end end end
+	end else begin : MPYSLOW
+
+		// verilator lint_off UNUSED
+		wire		unused_aux;
+		wire	[65:0]	full_result;
+		// verilator lint_on  UNUSED
+
+		slowmpy #(.LGNA(6), .NA(33)) slowmpyi(i_clk, i_reset, i_stb,
+			{ (i_op[0])&(i_a[31]), i_a },
+			{ (i_op[0])&(i_b[31]), i_b }, 1'b0, o_busy,
+				o_valid, full_result, unused_aux);
+
+		assign	o_result = full_result[63:0];
+
+		always @(posedge i_clk)
+		if (i_stb)
+			o_hi  <= i_op[1];
+
+	end end end end end
 	endgenerate // All possible multiply results have been determined
 
 endmodule

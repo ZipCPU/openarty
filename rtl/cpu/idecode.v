@@ -81,6 +81,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	parameter	[0:0]	OPT_LOCK   = (OPT_PIPELINED);
 	parameter	[0:0]	OPT_OPIPE  = (OPT_PIPELINED);
 	parameter	[0:0]	OPT_SIM    = 1'b0;
+	parameter	[0:0]	OPT_NO_USERMODE = 1'b0;
 	localparam		AW = ADDRESS_WIDTH;
 	//
 	input	wire		i_clk, i_reset, i_ce, i_stalled;
@@ -229,12 +230,12 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	// moves in iword[18] but only for the supervisor, and the other
 	// four bits encoded in the instruction.
 	//
-	assign	w_dcdR = { ((!iword[`CISBIT])&&(w_mov)&&(!i_gie))?iword[`IMMSEL]:i_gie,
+	assign	w_dcdR = { ((!iword[`CISBIT])&&(!OPT_NO_USERMODE)&&(w_mov)&&(!i_gie))?iword[`IMMSEL]:i_gie,
 				iword[30:27] };
 
 	// dcdB - What register is used in the opB?
 	//
-	assign w_dcdB[4] = ((!iword[`CISBIT])&&(w_mov)&&(!i_gie))?iword[13]:i_gie;
+	assign w_dcdB[4] = ((!iword[`CISBIT])&&(w_mov)&&(!OPT_NO_USERMODE)&&(!i_gie))?iword[13]:i_gie;
 	assign w_dcdB[3:0]= (iword[`CISBIT])
 				? (((!iword[`CISIMMSEL])&&(iword[26:25]==2'b10))
 					? `CPU_SP_REG : iword[22:19])
@@ -627,7 +628,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	// Note that we're not using iword here ... there's a lot of logic
 	// taking place, and it's only valid if the new word is not compressed.
 	//
-	reg	r_valid;
+	reg	r_valid, r_insn_is_pipeable;
 	generate if (OPT_OPIPE)
 	begin : GEN_OPIPE
 		reg	r_pipe;
@@ -641,13 +642,16 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		// with the current output *may* have a pipeable instruction
 		// following it.
 		// 
-		reg	r_insn_is_pipeable;
 		initial	r_insn_is_pipeable = 1'b0;
 		always @(posedge i_clk)
 		if (i_reset)
 			r_insn_is_pipeable <= 1'b0;
-		else if ((i_ce)&&(!pf_valid)&&(!o_phase))
+		else if ((i_ce)&&((!pf_valid)||(i_illegal))&&(!o_phase))
 			// Pipeline bubble, can't pipe through it
+			r_insn_is_pipeable <= 1'b0;
+		else if (o_ljmp)
+			r_insn_is_pipeable <= 1'b0;
+		else if ((i_ce)&&((!OPT_CIS)&&(i_instruction[`CISBIT])))
 			r_insn_is_pipeable <= 1'b0;
 		else if (i_ce)
 		begin	// This is a valid instruction
@@ -706,6 +710,8 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		assign o_pipe = r_pipe;
 	end else begin
 		assign o_pipe = 1'b0;
+		always @(*)
+			r_insn_is_pipeable = 1'b0;
 	end endgenerate
 
 	initial	r_valid = 1'b0;

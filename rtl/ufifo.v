@@ -272,5 +272,5 @@ module ufifo(i_clk, i_rst, i_wr, i_data, o_empty_n, i_rd, o_data, o_status, o_er
 	};
 
 	assign	o_empty_n = r_empty_n;
-	
+
 endmodule

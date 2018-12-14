@@ -91,7 +91,8 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 	reg			r_wb_cyc_gbl, r_wb_cyc_lcl, fifo_full;
 	reg	[(FLN-1):0]		rdaddr, wraddr;
 	wire	[(FLN-1):0]		nxt_rdaddr, fifo_fill;
-	reg	[(4+5-1):0]	fifo_oreg [0:15];
+	reg	[(3+5-1):0]	fifo_oreg [0:15];
+	reg			fifo_gie;
 	initial	rdaddr = 0;
 	initial	wraddr = 0;
 
@@ -101,16 +102,20 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 	if (OPT_ALIGNMENT_ERR)
 	begin
 		casez({ i_op[2:1], i_addr[1:0] })
-		4'b01?1: misaligned = 1'b1;
-		4'b0110: misaligned = 1'b1;
-		4'b10?1: misaligned = 1'b1;
-		default: misaligned = 1'b0;
+		4'b01?1: misaligned = i_pipe_stb;
+		4'b0110: misaligned = i_pipe_stb;
+		4'b10?1: misaligned = i_pipe_stb;
+		default: misaligned = i_pipe_stb;
 		endcase
 	end else
 		misaligned = 1'b0;
 
 	always @(posedge i_clk)
-		fifo_oreg[wraddr] <= { i_oreg, i_op[2:1], i_addr[1:0] };
+		fifo_oreg[wraddr] <= { i_oreg[3:0], i_op[2:1], i_addr[1:0] };
+
+	always @(posedge i_clk)
+	if (i_pipe_stb)
+		fifo_gie <= i_oreg[4];
 
 	initial	wraddr = 0;
 	always @(posedge i_clk)
@@ -246,10 +251,10 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 		o_err <= ((cyc)&&(i_wb_err))||((i_pipe_stb)&&(misaligned));
 	assign	o_busy = cyc;
 
-	wire	[8:0]	w_wreg;
+	wire	[7:0]	w_wreg;
 	assign	w_wreg = fifo_oreg[rdaddr];
 	always @(posedge i_clk)
-		o_wreg <= w_wreg[8:4];
+		o_wreg <= { fifo_gie, w_wreg[7:4] };
 	always @(posedge i_clk)
 		if ((OPT_ZERO_ON_IDLE)&&((!cyc)||((!i_wb_ack)&&(!i_wb_err))))
 			o_result <= 0;
@@ -301,5 +306,5 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 
 `ifdef	FORMAL
 // Formal properties for this module are maintained elsewhere
-`endif
+`endif // FORMAL
 endmodule

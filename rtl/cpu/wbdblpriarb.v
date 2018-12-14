@@ -221,7 +221,7 @@ module	wbdblpriarb(i_clk, i_reset,
 	end endgenerate
 
 `ifdef	FORMAL
-// Formal properties for this module are maintained elsewhere
+// The formal properties for this module are maintained elsewhere
 `endif
 endmodule
 

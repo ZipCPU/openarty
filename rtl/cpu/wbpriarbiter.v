@@ -152,4 +152,3 @@ module	wbpriarbiter(i_clk,
 // Formal properties for this module are maintained elsewhere
 `endif
 endmodule
-

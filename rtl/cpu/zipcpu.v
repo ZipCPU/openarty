@@ -144,7 +144,7 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	//{{{
 	parameter [31:0] RESET_ADDRESS=32'h0100000;
 	parameter	ADDRESS_WIDTH=30,
-			LGICACHE=8;
+			LGICACHE=12;
 `ifdef	OPT_MULTIPLY
 	parameter	IMPLEMENT_MPY = `OPT_MULTIPLY;
 `else
@@ -185,6 +185,7 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 `else
 	localparam	[0:0]	OPT_PIPELINED_BUS_ACCESS = 1'b0;
 `endif
+	localparam	[0:0]	OPT_MEMPIPE = OPT_PIPELINED_BUS_ACCESS;
 	parameter	[0:0]	IMPLEMENT_LOCK=1;
 	localparam	[0:0]	OPT_LOCK=(IMPLEMENT_LOCK)&&(OPT_PIPELINED);
 `ifdef	OPT_DCACHE
@@ -192,10 +193,13 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 `else
 	parameter		OPT_LGDCACHE = 0;
 `endif
+	localparam	[0:0]	OPT_DCACHE = (OPT_LGDCACHE > 0);
 
 	parameter [0:0]	WITH_LOCAL_BUS = 1'b1;
 	localparam	AW=ADDRESS_WIDTH;
 	localparam	[(AW-1):0]	RESET_BUS_ADDRESS = RESET_ADDRESS[(AW+1):2];
+	parameter	F_LGDEPTH=8;
+
 	//}}}
 	// I/O declarations
 	//{{{
@@ -717,6 +721,12 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 		.OPT_FPU(IMPLEMENT_FPU),
 		.OPT_LOCK(OPT_LOCK),
 		.OPT_OPIPE(OPT_PIPELINED_BUS_ACCESS),
+		.OPT_NO_USERMODE(OPT_NO_USERMODE),
+`ifdef	VERILATOR
+		.OPT_SIM(1'b1),
+`else
+		.OPT_SIM(1'b0),
+`endif
 		.OPT_CIS(OPT_CIS))
 		instruction_decoder(i_clk,
 			(i_reset)||(clear_pipeline)||(w_clear_icache),
@@ -1049,11 +1059,11 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 
 		initial	r_op_lock = 1'b0;
 		always @(posedge i_clk)
-			if (clear_pipeline)
-				r_op_lock <= 1'b0;
-			else if (op_ce)
-				r_op_lock <= (dcd_valid)&&(dcd_lock)
-					&&(!dcd_illegal)&&(!clear_pipeline);
+		if (clear_pipeline)
+			r_op_lock <= 1'b0;
+		else if (op_ce)
+			r_op_lock <= (dcd_valid)&&(dcd_lock)
+					&&(!dcd_illegal);
 		assign	op_lock = r_op_lock;
 
 	end endgenerate
@@ -1554,12 +1564,12 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 
 	// Memory interface
 	//{{{
-	generate if (OPT_LGDCACHE > 0)
+	generate if (OPT_DCACHE)
 	begin : MEM_DCACHE
 
 		dcache #(.LGCACHELEN(OPT_LGDCACHE), .ADDRESS_WIDTH(AW),
-			.LGNLINES(6), .OPT_LOCAL_BUS(WITH_LOCAL_BUS),
-			.OPT_PIPE(OPT_PIPELINED_BUS_ACCESS),
+			.LGNLINES(OPT_LGDCACHE-3), .OPT_LOCAL_BUS(WITH_LOCAL_BUS),
+			.OPT_PIPE(OPT_MEMPIPE),
 			.OPT_LOCK(OPT_LOCK)
 			) docache(i_clk, i_reset,
 		///{{{
@@ -1685,13 +1695,12 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	//	FPU operation.
 	generate if (OPT_NO_USERMODE)
 	begin
-		assign	wr_reg_id[3:0] = (alu_wR|div_valid|fpu_valid)
-				? alu_reg[3:0]:mem_wreg[3:0];
+		assign	wr_reg_id[3:0] = (mem_valid)
+					? mem_wreg[3:0] : alu_reg[3:0];
 
 		assign	wr_reg_id[4] = 1'b0;
 	end else begin
-		assign	wr_reg_id = (alu_wR|div_valid|fpu_valid)
-				? alu_reg : mem_wreg;
+		assign	wr_reg_id = (mem_valid) ? mem_wreg : alu_reg;
 	end endgenerate
 
 	// Are we writing to the CC register?
@@ -2364,7 +2373,11 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	end else begin
 
 		always @(posedge i_clk)
-			r_halted <= (i_halt)&&(!alu_phase)&&((op_valid)||(i_reset));
+			r_halted <= (i_halt)&&(!alu_phase)
+				// To be halted, any long lasting instruction
+				// must be completed.
+				&&(!pf_cyc)&&(!mem_busy)&&(!alu_busy)
+					&&(!div_busy)&&(!fpu_busy);
 	end endgenerate
 `ifdef	NO_DISTRIBUTED_RAM
 	reg	r_dbg_stall;

@@ -67,7 +67,7 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 					: w_pre_asr_shifted;// ASR
 		assign	w_lsr_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
 					:((i_b[5])?{32'h0,i_a[31]}
-					
+
 					: ( { i_a, 1'b0 } >> (i_b[4:0]) ));// LSR
 		assign	w_lsl_result = ((|i_b[31:6])||(i_b[5]&&(i_b[4:0]!=0)))? 33'h00
 					:((i_b[5])?{i_a[0], 32'h0}
@@ -80,6 +80,7 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 
 	end endgenerate
 
+	//
 	// Bit reversal pre-logic
 	wire	[31:0]	w_brev_result;
 	generate
@@ -110,7 +111,7 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 
 	// A 4-way multiplexer can be done in one 6-LUT.
 	// A 16-way multiplexer can therefore be done in 4x 6-LUT's with
-	//	the Xilinx multiplexer fabric that follows. 
+	//	the Xilinx multiplexer fabric that follows.
 	// Given that we wish to apply this multiplexer approach to 33-bits,
 	// this will cost a minimum of 132 6-LUTs.
 

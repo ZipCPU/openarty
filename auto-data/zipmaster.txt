@@ -55,12 +55,15 @@
 @INT.ZIP.WIRE=zip_cpu_int
 @INT.ZIP.BUS=buspic
 @LD.FILE=board.ld
-@LD.DEFNS=_top_of_stack = ORIGIN(bkram) + LENGTH(bkram) - 4;
+@LD.DEFNS=
+/* LD.DEFNS from zipmaster.txt */
+_kram  = 0; /* No high-speed kernel RAM */
+_ram   = ORIGIN(bkram);
+_rom   = ORIGIN(flash);
+_top_of_stack = ORIGIN(bkram) + LENGTH(bkram);
+
 @LD.SCRIPT=
-_rom  = ORIGIN(flash);
-/* _kram = ORIGIN(bkram); */
-_kram = 0;
-_ram = ORIGIN(bkram);
+/* LD.SCRIPT from zipmaster.txt */
 SECTIONS
 {
        .rocode @$[0x%08x](RESET_ADDRESS) : ALIGN(4) {
@@ -106,17 +109,7 @@ SECTIONS
 	//
 	// A 32-bit address indicating where teh ZipCPU should start running
 	// from
-`ifdef	FLASH_ACCESS
 	localparam	RESET_ADDRESS = @$RESET_ADDRESS;
-`else
-`ifdef	SDRAM_ACCESS
-	localparam	RESET_ADDRESS = @$sdram.REGBASE;
-`else
-`ifdef	BKRAM_ACCESS
-	localparam	RESET_ADDRESS = @$bkram.REGBASE;
-`endif // BKRAM_ACCESS
-`endif // SDRAM_ACCESS
-`endif // FLASH_ACCESS
 	//
 	// The number of valid bits on the bus
 	localparam	ZIP_ADDRESS_WIDTH = @$(MASTER.BUS.AWID);	// Zip-CPU address width
@@ -158,7 +151,7 @@ SECTIONS
 #include <cpudefs.h>
 
 #define	_HAVE_ZIPSYS
-#define	PIC	zip->z_pic
+#define	PIC	_zip->z_pic
 
 #ifdef	INCLUDE_ZIPCPU
 #ifdef INCLUDE_DMA_CONTROLLER
@@ -186,13 +179,8 @@ SECTIONS
 #define	CPU_uCC		0x001e
 #define	CPU_uPC		0x001f
 
-#ifdef	FLASH_ACCESS
-#define	RESET_ADDRESS @$[0x%08x](RESET_ADDRESS)
-#elif	defined(SDRAM_ACCESS)
-#define	RESET_ADDRESS @$[0x%08x](sdram.REGBASE)
-#elif	defined(BKRAM_ACCESS)
-#define	RESET_ADDRESS @$[0x%08x](bkram.REGBASE)
-#endif
+#define	RESET_ADDRESS	@$[0x%08x](RESET_ADDRESS)
+
 
 @SIM.INCLUDE=
 #include "zipelf.h"
@@ -259,9 +247,18 @@ SECTIONS
 		elfread(elfname, entry, secpp);
 
 		for(int s=0; secpp[s]->m_len; s++) {
+			bool	successful_load;
 			secp = secpp[s];
 
-			load(secp->m_start, secp->m_data, secp->m_len);
+			successful_load = load(secp->m_start,
+				secp->m_data, secp->m_len);
+
+			if (!successful_load) {
+				printf("Could not load section "
+					"from %08x to %08x--no such address\n",
+					secp->m_start,
+					secp->m_start+secp->m_len);
+			}
 		} free(secpp);
 	}
 

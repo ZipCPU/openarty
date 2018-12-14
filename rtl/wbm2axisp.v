@@ -78,20 +78,20 @@ module wbm2axisp #(
 	output	wire	[2:0]		o_axi_awprot,	// Write Protection type
 	output	wire	[3:0]		o_axi_awqos,	// Write Quality of Svc
 	output	reg			o_axi_awvalid,	// Write address valid
-  
+
 // AXI write data channel signals
 	input	wire			i_axi_wready,  // Write data ready
 	output	reg	[C_AXI_DATA_WIDTH-1:0]	o_axi_wdata,	// Write data
 	output	reg	[C_AXI_DATA_WIDTH/8-1:0] o_axi_wstrb,	// Write strobes
 	output	wire			o_axi_wlast,	// Last write transaction   
 	output	reg			o_axi_wvalid,	// Write valid
-  
+
 // AXI write response channel signals
-	input	wire [C_AXI_ID_WIDTH-1:0] i_axi_bid,	// Response ID
-	input	wire [1:0]		  i_axi_bresp,	// Write response
+	input wire [C_AXI_ID_WIDTH-1:0]	i_axi_bid,	// Response ID
+	input	wire [1:0]		i_axi_bresp,	// Write response
 	input	wire			i_axi_bvalid,  // Write reponse valid
 	output	wire			o_axi_bready,  // Response ready
-  
+
 // AXI read address channel signals
 	input	wire			i_axi_arready,	// Read address ready
 	output	wire	[C_AXI_ID_WIDTH-1:0]	o_axi_arid,	// Read ID
@@ -104,13 +104,13 @@ module wbm2axisp #(
 	output	wire	[2:0]		o_axi_arprot,	// Read Protection type
 	output	wire	[3:0]		o_axi_arqos,	// Read Protection type
 	output	reg			o_axi_arvalid,	// Read address valid
-  
+
 // AXI read data channel signals   
 	input wire [C_AXI_ID_WIDTH-1:0]	i_axi_rid,     // Response ID
-	input wire [1:0]			i_axi_rresp,   // Read response
-	input wire			i_axi_rvalid,  // Read reponse valid
-	input wire [C_AXI_DATA_WIDTH-1:0]	i_axi_rdata,    // Read data
-	input wire			i_axi_rlast,    // Read last
+	input	wire	[1:0]		i_axi_rresp,   // Read response
+	input	wire			i_axi_rvalid,  // Read reponse valid
+	input wire [C_AXI_DATA_WIDTH-1:0] i_axi_rdata,    // Read data
+	input	wire			i_axi_rlast,    // Read last
 	output	wire			o_axi_rready,  // Read Response ready
 
 	// We'll share the clock and the reset
@@ -141,8 +141,8 @@ module wbm2axisp #(
 //*****************************************************************************
 
 // Things we're not changing ...
-	assign o_axi_awlen = 8'h0;	// Burst length is one
-	assign o_axi_awsize = 3'b101;	// maximum bytes per burst is 32
+	assign o_axi_awlen   = 8'h0;	// Burst length is one
+	assign o_axi_awsize  = 3'b101;	// maximum bytes per burst is 32
 	assign o_axi_awburst = 2'b01;	// Incrementing address (ignored)
 	assign o_axi_arburst = 2'b01;	// Incrementing address (ignored)
 	assign o_axi_awlock  = 1'b0;	// Normal signaling
@@ -151,12 +151,13 @@ module wbm2axisp #(
 	assign o_axi_arcache = 4'h2;	// Normal: no cache, no buffer
 	assign o_axi_awprot  = 3'b010;	// Unpriviledged, unsecure, data access
 	assign o_axi_arprot  = 3'b010;	// Unpriviledged, unsecure, data access
-	assign o_axi_awqos  = 4'h0;	// Lowest quality of service (unused)
-	assign o_axi_arqos  = 4'h0;	// Lowest quality of service (unused)
+	assign o_axi_awqos   = 4'h0;	// Lowest quality of service (unused)
+	assign o_axi_arqos   = 4'h0;	// Lowest quality of service (unused)
 
 // Command logic
 // Write address logic
 
+	initial	o_axi_awvalid = 0;
 	always @(posedge i_clk)
 		o_axi_awvalid <= (!o_wb_stall)&&(i_wb_stb)&&(i_wb_we)
 			||(o_wb_stall)&&(o_axi_awvalid)&&(!i_axi_awready);
@@ -185,10 +186,11 @@ module wbm2axisp #(
 			o_axi_awid <= transaction_id;
 
 // Read address logic
-	assign	o_axi_arid = o_axi_awid;
+	assign	o_axi_arid   = o_axi_awid;
 	assign	o_axi_araddr = o_axi_awaddr;
 	assign	o_axi_arlen  = o_axi_awlen;
 	assign	o_axi_arsize = 3'b101;	// maximum bytes per burst is 32
+	initial	o_axi_arvalid = 1'b0;
 	always @(posedge i_clk)
 		o_axi_arvalid <= (!o_wb_stall)&&(i_wb_stb)&&(!i_wb_we)
 			||(o_wb_stall)&&(o_axi_arvalid)&&(!i_axi_arready);
@@ -220,11 +222,12 @@ module wbm2axisp #(
 	end endgenerate
 
 	assign	o_axi_wlast = 1'b1;
+	initial	o_axi_wvalid = 0;
 	always @(posedge i_clk)
 		o_axi_wvalid <= ((!o_wb_stall)&&(i_wb_stb)&&(i_wb_we))
 			||(o_wb_stall)&&(o_axi_wvalid)&&(!i_axi_wready);
 
-// Read data channel / response logic
+	// Read data channel / response logic
 	assign	o_axi_rready = 1'b1;
 	assign	o_axi_bready = 1'b1;
 
@@ -347,6 +350,7 @@ module wbm2axisp #(
 
 
 		reg	r_fifo_full;
+		initial	r_fifo_full = 0;
 		always @(posedge i_clk)
 		begin
 			if (!i_wb_cyc)
@@ -390,7 +394,7 @@ module wbm2axisp #(
 			i_axi_rvalid, i_axi_bvalid, 2'b00
 		};
 	end endgenerate
-	
+
 
 	// Now, the difficult signal ... the stall signal
 	// Let's build for a single cycle input ... and only stall if something

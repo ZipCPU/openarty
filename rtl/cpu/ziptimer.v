@@ -190,6 +190,6 @@ module	ziptimer(i_clk, i_reset, i_ce,
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL
-// Formal properties for this file are maintained elsewhere
+// The formal properties for this module are maintained elsewhere
 `endif
 endmodule
