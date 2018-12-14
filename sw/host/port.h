@@ -5,7 +5,7 @@
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Defines the communication parameters necessary for communicating
-//		with the device.
+//		with either the device or its simulation.
 //
 //
 // Creator:	Dan Gisselquist, Ph.D.
@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
