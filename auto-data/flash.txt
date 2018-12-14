@@ -92,10 +92,10 @@
 ##
 ##
 @MAIN.PORTLIST=
-		// The QSPI Flash
+		// The Universal QSPI Flash
 		o_qspi_cs_n, o_qspi_sck, o_qspi_dat, i_qspi_dat, o_qspi_mod
 @MAIN.IODECL=
-	// The QSPI flash
+	// The Universal QSPI flash
 	output	wire		o_qspi_cs_n, o_qspi_sck;
 	output	wire	[3:0]	o_qspi_dat;
 	input	wire	[3:0]	i_qspi_dat;
@@ -106,7 +106,7 @@
 	wire	[31:0]	@$(PREFIX)_debug;
 @MAIN.INSERT=
 	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ),
-		.CKDELAY(0), .RDDELAY(2)
+		.CKDELAY(0), .RDDELAY(4)
 `ifdef	FLASHCFG_ACCESS
 		, .OPT_CFG(1'b1)
 `else
@@ -199,8 +199,8 @@
 	assign	@$(PREFIX)_stall = 1'b0;
 	assign	@$(PREFIX)_data  = 0;
 @REGS.NOTE= // FLASH erase/program configuration registers
-@REGS.N=1
-@REGS.0= 0 R_FLASHCFG FLASHCFG QSPIC
+@REGS.N= 1
+@REGS.0= 0 R_@$(DEVID) @$(DEVID) QSPIC
 @REGDEFS.H.INSERT=
 // Flash control constants
 #define	QSPI_FLASH	// This core and hardware support a Quad SPI flash
@@ -233,7 +233,7 @@
 @SLAVE.TYPE=OTHER
 @SLAVE.BUS=wb
 @MAIN.INSERT=
-	wbscopc
+	wbscopc #(12)
 	@$(PREFIX)i(i_clk, 1'b1, flash_dbg_trigger, flash_debug[30:0],
 		i_clk, wb_cyc, (wb_stb)&&(@$(PREFIX)_sel), wb_we,
 		wb_addr[0], wb_data, @$(PREFIX)_ack, @$(PREFIX)_stall,

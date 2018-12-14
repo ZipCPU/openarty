@@ -60,6 +60,9 @@ FLAGS	:= -Wall -Og -g $(VDEFS)
 VINCD   := $(VROOT)/include
 VINC	:= -I$(VINCD) -I$(VINCD)/vltstd -I$(VOBJDR)
 INCS	:= -I. -I../../sw/host -I$(RTLD) $(VINC)
+#
+# A list of our sources and headers
+#
 SOURCES := automaster_tb.cpp main_tb.cpp			\
 	oledsim.cpp enetctrlsim.cpp zipelf.cpp byteswap.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp flashsim.cpp
@@ -74,7 +77,9 @@ SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp flashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
+#
 PROGRAMS := main_tb enetctrl_tb
+# Now the return to the "all" target, and fill in some details
 all:	$(PROGRAMS)
 
 $(OBJDIR)/%.o: %.cpp
@@ -92,6 +97,7 @@ $(OBJDIR)/oledsim.o: oledsim.cpp
 #
 $(OBJDIR)/main_tb.o: automaster_tb.cpp
 	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) -c $< -o $@
+
 
 main_tb: $(OBJDIR)/main_tb.o $(OBJDIR)/zipelf.o $(SIMOBJS) $(VMAIN) $(VOBJS)
 	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) $^ $(GFXLIBS) -lelf -o $@

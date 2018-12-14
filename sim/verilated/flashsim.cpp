@@ -51,13 +51,19 @@
 
 #include "flashsim.h"
 
+#ifndef	CLKRATE_HZ
+// Default to a 100MHz clock
+// Much higher and we might suffer from overflow
+#define	CLKRATE_HZ	100000000
+#endif
+
 extern const unsigned DEVID;
 const unsigned	DEVID = 0x01152340;
 static	const unsigned
 	DEVESD = 0x014,
-	MICROSECONDS = 100,
-	MILLISECONDS = MICROSECONDS * 1000,
-	SECONDS = MILLISECONDS * 1000,
+	MICROSECONDS = ((CLKRATE_HZ + 1)/ 1000000),
+	MILLISECONDS = ((CLKRATE_HZ + 1)/ 1000),
+	SECONDS = CLKRATE_HZ,
 	tW     =   50 * MICROSECONDS, // write config cycle time
 	tBE    =   32 * SECONDS,
 	tDP    =   10 * SECONDS,
@@ -69,7 +75,8 @@ static	const unsigned
 	// tPP    = 1200 * MICROSECONDS,
 	// tSE    = 1500 * MILLISECONDS;
 
-FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug) {
+FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug),
+			CKDELAY(1), RDDELAY(3), NDUMMY(10) {
 	m_membytes = (1<<lglen);
 	m_memmask = (m_membytes - 1);
 	m_mem = new char[m_membytes];
@@ -82,6 +89,7 @@ FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug) {
 	m_creg = 0x001;	// Iinitial creg on delivery
 	m_mode = FM_SPI;
 	m_mode_byte = 0;
+	m_idle_throttle = false;
 
 	memset(m_mem, 0x0ff, m_membytes);
 }
@@ -265,8 +273,8 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 
 		assert(quad_mode());
 		if (m_count == 24) {
-			if (m_debug) printf("FLASHSIM: Entering from Quad-Read Idle to Quad-Read\n");
-			if (m_debug) printf("FLASHSIM: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
+			// if (m_debug) printf("FLASHSIM: Entering from Quad-Read Idle to Quad-Read\n");
+			// if (m_debug) printf("FLASHSIM: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
 			m_addr = (m_ireg) & m_memmask;
 			assert((m_addr & (~(m_memmask)))==0);
 			m_state = QSPIF_QUAD_READ;
@@ -363,6 +371,9 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("FLASHSIM: READING FLAG-STATUS REGISTER\n");
 			QOREG(0);
 			break;
+		case 0x81: // Write enhanced configuration register
+			QOREG(0);
+			break;
 		case 0x9f: // Read ID
 			m_state = QSPIF_RDID;
 			if (m_debug) printf("FLASHSIM: READING ID, %02x\n", (DEVID>>24)&0x0ff);
@@ -389,7 +400,7 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			m_state = QSPIF_DUAL_READ_CMD;
 			m_mode = FM_DSPI;
 			break;
-			
+
 		case 0xc7: // Bulk Erase
 			if (2 != (m_sreg & 0x203)) {
 				if (m_debug) printf("FLASHSIM: WEL not set, cannot erase device\n");
@@ -424,10 +435,13 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		}
 	} else if ((0 == (m_count&0x07))&&(m_count != 0)) {
 		QOREG(0);
+		if ((m_idle_throttle)&&(m_state != QSPIF_IDLE))
+			m_idle_throttle = false;
 		switch(m_state) {
 		case QSPIF_IDLE:
-			if (m_debug)
+			if ((m_debug)&&(!m_idle_throttle))
 				printf("TOO MANY CLOCKS from QUAD-IDLE, SPIF in IDLE\n");
+			m_idle_throttle = true;
 			break;
 		case QSPIF_WRSR:
 			if (m_count == 16) {
@@ -524,10 +538,10 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				// printf("FAST READ, ADDR = %08x\n", m_addr);
 				// printf("QSPI: QUAD READ, ADDR = %06x\n", m_addr);
 				assert((m_addr & (~(m_memmask)))==0);
-			} else if (m_count == 32+24) {
-				m_mode_byte = (m_ireg>>16) & 0x0ff;
-				// printf("QSPI: MODE BYTE = %02x\n", m_mode_byte);
-			} else if ((m_count > 32+24)&&(0 == (m_sreg&0x01))) {
+			} else if (m_count == 32+8) {
+				m_mode_byte = (m_ireg) & 0x0ff;
+				if (m_debug) printf("QSPI: MODE BYTE = %02x\n", m_mode_byte);
+			} else if ((m_count > 32+8+NDUMMY)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
 				// printf("QSPIF[%08x]/QR = %02x\n",
 					// m_addr-1, m_oreg);
@@ -542,10 +556,10 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("DSPIF[%08x]/DR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			break;
 		case QSPIF_QUAD_READ:
-			if (m_count == 32) {
+			if (m_count == 24+NDUMMY) {
 				m_mode_byte = (m_ireg & 0x0ff);
 				// printf("QSPI/QR: MODE BYTE = %02x\n", m_mode_byte);
-			} else if ((m_count >= 32+16)&&(0 == (m_sreg&0x01))) {
+			} else if ((m_count >= 24+NDUMMY+16)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
 				// printf("QSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			} else m_oreg = 0;
@@ -599,4 +613,93 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		return ((m_oreg>>8)&0x03)|(dat & 0x0c);
 	else
 		return ((m_oreg & 0x0100)?2:0)|(dat & 0x0d);
+}
+
+//
+// simtick
+//
+// Simulate an ODDR clock.  Also, adjust the timing in case the clock and
+// data are not aligned, or likewise in case the incoming data is not
+// aligned with the clock tick upon which it is sent.
+//
+int	FLASHSIM::simtick(const int csn, const int sck, const int dat,
+		const int mod){
+	int	lclsck;
+
+	if ((CKDELAY > 0)&&(m_ckdelay == NULL)) {
+		m_ckdelay = new int[CKDELAY+8];
+		for(unsigned i=0; i<CKDELAY; i++)
+			m_ckdelay[i] = 0;
+	} if ((RDDELAY>0)&&(m_rddelay == NULL)) {
+		m_rddelay = new int[RDDELAY];
+	}
+
+	if (CKDELAY > 0) {
+		// Delay the incoming clock value by CKDELAY clocks
+		lclsck = m_ckdelay[0];
+		for(unsigned i=0; i+1<CKDELAY; i++)
+			m_ckdelay[i] = m_ckdelay[i+1]&1;
+		m_ckdelay[CKDELAY-1] = sck&1;
+	} else
+		lclsck = sck;
+
+	// Simulate an ODDR for the clock
+	int	r;
+	r = (*this)(csn, (lclsck != 0)?0:1, dat);
+	r = (*this)(csn, 1, dat);
+
+	if (false) {
+		// Debug the transaction
+		if (!csn) {
+			printf("%s %s/%s %x -> %x",
+				(csn)?"   ":"CSN", (sck)?"PCK":"   ",
+				(lclsck)?"SCK":"   ", dat, r);
+			switch(mod) {
+			case 0: case 1:	printf(" (SPI)");	break;
+			case 2:		printf(" (QDI)");	break;
+			case 3:		printf(" (QDO)");	break;
+			case 4:		printf(" (DDI)");	break;
+			case 5:		printf(" (DDO)");	break;
+			}
+
+			printf(" -- %d %d",
+				CKDELAY, (m_ckdelay != NULL) ? m_ckdelay[0] : -2);
+			printf("\n");
+		}
+	}
+
+
+	switch(mod) {
+	case 0: case 1:	// Normal SPI transaction
+		r &= 2;
+		r |= (dat&1);
+		r |= 0x0c;
+		break;
+	case 2:	// QSPI master driven
+		r = dat;
+		break;
+	case 3:	// QSPI slave driven
+		break;
+	case 4:	// DSPI master driven
+		r = dat & 3;
+		r |= 0x0c;
+		break;
+	case 5:	// DSPI slave driven
+		r &= 3;
+		r |= 0x0c;
+	}
+
+	if (RDDELAY > 0) {
+		int	lclr;
+
+		// Delay the output by RDDELAY clocks
+		lclr = m_rddelay[0];
+		for(unsigned i=0; i<RDDELAY-1; i++)
+			m_rddelay[i] = m_rddelay[i+1];
+		m_rddelay[RDDELAY-1] = r;
+
+		r = lclr & 0x0f;
+	}
+
+	return r;
 }

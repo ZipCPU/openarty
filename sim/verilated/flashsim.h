@@ -85,8 +85,12 @@ class	FLASHSIM {
 	unsigned	m_write_count, m_ireg, m_oreg, m_sreg, m_addr,
 			m_count, m_config, m_mode_byte, m_creg, m_membytes,
 			m_memmask;
-	bool		m_debug;
+	bool		m_debug, m_idle_throttle;
 	FLASH_MODE	m_mode;
+
+	const	unsigned	CKDELAY, RDDELAY, NDUMMY;
+
+	int		*m_ckdelay, *m_rddelay;
 
 public:
 	FLASHSIM(const int lglen = 24, bool debug = false);
@@ -119,6 +123,12 @@ public:
 		*cptr   = (val);
 		return;}
 	int	operator()(const int csn, const int sck, const int dat);
+
+	// simtick applies various programmable delays to the inputs in 
+	// order to determine the outputs.  It's primary purpose is to
+	// support an ODDR based clock (and or other) components.
+	int	simtick(const int csn, const int sck, const int dat,
+			const int mode);
 };
 
 #endif

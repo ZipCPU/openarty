@@ -95,15 +95,26 @@ module	qflexpress(i_clk, i_reset,
 	parameter [0:0]	OPT_CFG     = 1'b1;
 	//
 	// OPT_STARTUP enables the startup logic
-	parameter [0:0]	OPT_STARTUP = 1'b1;
+	parameter [0:0]	OPT_STARTUP = 1'b0;
 	//
 	// CKDELAY is the number of clock delays from when o_qspi_sck is set
-	// until the actual clock takes place
-	parameter	CKDELAY = 2;
+	// until the actual clock takes place.  Values of 0 and 1 have been
+	// verified.  CKDELAY = 2 isn't fully supported.
+	parameter	CKDELAY = 0;
 	//
 	// RDDELAY is the number of clock cycles from when o_qspi_dat is valid
-	// until i_qspi_dat is valid
-	parameter	RDDELAY = 1;
+	// until i_qspi_dat is valid.  Read delays from 0-4 have been verified
+	parameter	RDDELAY = 3;
+	//
+	// NDUMMY is the number of "dummy" clock cycles between the 24-bits of
+	// the Quad I/O address and the first data bits.  This includes the
+	// two clocks of the Quad output mode byte, 0xa0
+	// 
+	parameter	NDUMMY = 10;
+	//
+	//
+	//
+	//
 	//
 	localparam [4:0]	CFG_MODE =	12;
 	localparam [4:0]	QSPEED_BIT = 	11;
@@ -119,6 +130,11 @@ module	qflexpress(i_clk, i_reset,
 	//
 	localparam	AW=LGFLASHSZ-2;
 	localparam	DW=32;
+	//
+`ifdef	FORMAL
+	localparam	F_LGDEPTH=$clog2(3+RDDELAY);
+`endif
+	//
 	//
 	input	wire			i_clk, i_reset;
 	//
@@ -139,7 +155,13 @@ module	qflexpress(i_clk, i_reset,
 	output	wire		o_dbg_trigger;
 	output	wire	[31:0]	o_debug;
 
-	reg		dly_ack, read_sck;
+	reg		dly_ack, read_sck, xtra_stall;
+	// clk_ctr must have enough bits for ...
+	//	CKDELAY clocks before the clock starts on the interface
+	//	6		address clocks, 4-bits each
+	//	NDUMMY		dummy clocks, including two mode bytes
+	//	8		data clocks
+	//	(RDDELAY clocks not counted here)
 	reg	[4:0]	clk_ctr;
 
 	//
@@ -169,137 +191,238 @@ module	qflexpress(i_clk, i_reset,
 	// Maintenance / startup portion
 	//
 	//
-	localparam	MBITS = 8+24+4+4*CKDELAY;
-
 	reg		maintenance;
-	reg	[14:0]	m_counter;
-	reg	[1:0]	m_state;
 	reg	[1:0]	m_mod;
 	reg		m_cs_n;
 	reg		m_clk;
-	reg	[MBITS-1:0]	m_data;
-	wire	[3:0]	m_dat;
+	reg	[3:0]	m_dat;
 
 	generate if (OPT_STARTUP)
 	begin : GEN_STARTUP
 
+		reg	[6:0]	m_this_word;
+		reg	[6:0]	m_cmd_word	[0:127];
+		reg	[6:0]	m_cmd_index;
+
+		reg	[5:0]	m_counter;
+		reg		m_midcount;
+
+		// Let's script our startup with a series of commands.
+		// These commands are specific to the Micron Serial NOR flash
+		// memory that was on the original Arty A7 board.  Switching
+		// from one memory to another should only require adjustments
+		// to this startup sequence, and to the flashdrvr.cpp module
+		// found in sw/host.
+		//
+		// The format of the data words is ...
+		//	1'bit (MSB) to indicate this is a counter word.
+		//		Counter words count a number of idle cycles,
+		//		in which the port is unused (CSN is high)
+		//
+		//	2'bit mode.  This is either ...
+		//	    NORMAL_SPI, for a normal SPI interaction:
+		//			MOSI, MISO, WPn and HOLD
+		//	    QUAD_READ, all four pins set as inputs.  In this
+		//			startup, the input values will be
+		//			ignored.
+		//	or  QUAD_WRITE, all four pins are outputs.  This is
+		//			important for getting the flash into
+		//			an XIP mode that we can then use for
+		//			all reads following.
+		//
+		//
+		integer k;
+		initial begin
+		for(k=0; k<128; k=k+1)
+			m_cmd_word[k] = 7'h1ff;
+		// cmd_word= m_ctr_flag, m_mod[1:0],
+		//			m_cs_n, m_clk, m_data[3:0]
+		// Start off idle
+		//	This is really redundant since all of our commands are
+		//	idle's.
+		m_cmd_word[7'h35] = { 1'b1, 6'h3f };
+		m_cmd_word[7'h36] = { 1'b1, 6'h3f };
+		//
+		// Since we don't know what mode we started in, whether the
+		// device was left in XIP mode or some other mode, we'll start
+		// by exiting any mode we might have been in.
+		//
+		// The key to doing this is to issue a non-command, that can
+		// also be interpreted as an XIP address with an incorrect
+		// mode bit.  That will get us out of any XIP mode, and back
+		// into a SPI mode we might use.  The command is issued in
+		// NORMAL_SPI mode, however, since we don't know if the device
+		// is initially in XIP or not.
+		//
+		// Exit any QSPI mode we might've been in
+		m_cmd_word[7'h37] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 1
+		m_cmd_word[7'h38] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 2
+		m_cmd_word[7'h39] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 3
+		m_cmd_word[7'h3a] = { 1'b0, NORMAL_SPI, 4'hf }; // Mode byte
+		m_cmd_word[7'h3b] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h3c] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h3d] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h3e] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h3f] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h40] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h41] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h42] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h43] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h44] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h45] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h46] = { 1'b0, NORMAL_SPI, 4'hf };
+		// Idle
+		m_cmd_word[7'h47] = { 1'b1, 6'h3f };
+		// Write enhanced configuration register
+		// The write enable must come first: 06
+		m_cmd_word[7'h48] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h49] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h4a] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h4b] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h4c] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h4d] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h4e] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h4f] = { 1'b0, NORMAL_SPI, 4'h0 };
+		// Idle
+		m_cmd_word[7'h50] = { 1'b1, 6'h3f };
+		// Write enhanced configuration register, 0x81, 0xfb
+		m_cmd_word[7'h51] = { 1'b0, NORMAL_SPI, 4'h1 };	// 0x81
+		m_cmd_word[7'h52] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h53] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h54] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h55] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h56] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h57] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h58] = { 1'b0, NORMAL_SPI, 4'h1 };
+		//
+		m_cmd_word[7'h59] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5a] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5b] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5c] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5d] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h5e] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h5f] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h60] = { 1'b0, NORMAL_SPI, 4'h1 };
+		// Idle
+		m_cmd_word[7'h61] = { 1'b1, 6'h3f };
+		// Enter into QSPI mode, 0xeb, 0,0,0
+		// 0xeb
+		m_cmd_word[7'h62] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h63] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h64] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h65] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h66] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h67] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h68] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h69] = { 1'b0, NORMAL_SPI, 4'h1 };
+		// Addr #1
+		m_cmd_word[7'h6a] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h6b] = { 1'b0, QUAD_WRITE, 4'h0 };
+		// Addr #2
+		m_cmd_word[7'h6c] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h6d] = { 1'b0, QUAD_WRITE, 4'h0 };
+		// Addr #3
+		m_cmd_word[7'h6e] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h6f] = { 1'b0, QUAD_WRITE, 4'h0 };
+		// Mode byte
+		m_cmd_word[7'h70] = { 1'b0, QUAD_WRITE, 4'ha };
+		m_cmd_word[7'h71] = { 1'b0, QUAD_WRITE, 4'h0 };
+		// Dummy clocks, x10 for this flash
+		m_cmd_word[7'h72] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h73] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h74] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h75] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h76] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h77] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h78] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h79] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h7a] = { 1'b0, QUAD_WRITE, 4'h0 };
+		m_cmd_word[7'h7b] = { 1'b0, QUAD_WRITE, 4'h0 };
+		// Now read a byte for form
+		m_cmd_word[7'h7c] = { 1'b0, QUAD_READ, 4'h0 };
+		m_cmd_word[7'h7d] = { 1'b0, QUAD_READ, 4'h0 };
+		// Idle
+		m_cmd_word[7'h7e] = { 1'b1, 6'h3f };
+		m_cmd_word[7'h7f] = { 1'b1, 6'h3f };
+		// Then we are in business!
+		end
+
+
 		//
 		initial	maintenance = 1'b1;
-		initial	m_counter   = 0;
-		initial	m_state     = 2'b00;
-		initial	m_cs_n      = 1'b1;
-		initial	m_clk       = 1'b0;
+
 		always @(posedge i_clk)
 		if (i_reset)
 		begin
+			m_cmd_index <= 0;
 			maintenance <= 1'b1;
-			m_counter   <= 0;
-			m_state     <= 2'b00;
-			m_cs_n <= 1'b1;
-			m_clk  <= 1'b0;
-			m_data <= {(MBITS){1'b1}};
-			m_mod  <= NORMAL_SPI; // Normal SPI mode
-		end else begin
-			if (maintenance)
-				m_counter <= m_counter + 1'b1;
-			case(m_state)
-			2'b00: begin
-				// Step one: the device may have just been
-				// placed into it's power down mode.  Wait for
-				// it to fully enter this mode.
-				maintenance <= 1'b1;
-				if (m_counter[14:0] == 15'h7fff)
-					// 24000 is the limit
-					m_state <= 2'b01;
-				m_cs_n <= 1'b1;
-				m_clk  <= 1'b0;
-				m_mod <= NORMAL_SPI;
-				end
-			2'b01: begin
-				// Now that the flash has had a chance to start
-				// up, feed it with chip selects with no clocks.
-				// This is guaranteed to remove us from any XIP
-				// mode we might be in upon startup.  We do this
-				// so that we might be placed into a known
-				// mode--albeit the wrong one, but a known one.
-				maintenance <= 1'b1;
-				//
-				// 1111 0000 1111 0000 1111 0000 1111 0000
-				// 1111 0000 1111 0000 1111 0000 1111 0000
-				// 1111 ==> 17 * 4 clocks, or 68 clocks in total
-				//
-				// 8'hEB is a quad I/O read command
-				m_data <= { {(CKDELAY){1'b0}}, QIO_READ_CMD,
-							28'h00_00_00_a,
-						{(3*CKDELAY){1'b0}} };
-
-				if (m_counter[14:0] == 15'd138)
-					m_state <= 2'b10;
-				m_cs_n <= m_counter[2];
-				m_clk  <= 1'b0;
-				m_mod <= NORMAL_SPI;
-				end
-			2'b10: begin
-				// Rest, before issuing our initial read command
-				maintenance <= 1'b1;
-				if (m_counter[14:0] == 15'd138 + 15'd48)
-					m_state <= 2'b11;
-				m_cs_n <= 1'b1;	// Rest the interface
-				m_clk  <= 1'b0;
-				m_data <= { {(CKDELAY){1'b0}}, QIO_READ_CMD,
-						24'h00, 4'ha,
-						{(3*CKDELAY){1'b0}} };
-
-				m_mod <= NORMAL_SPI;
-				end
-			2'b11: begin
-				m_cs_n <= 1'b0;
-				if (m_counter[14:0] == 15'd138+15'd48+15'd37)
-					maintenance <= 1'b0;
-				m_clk  <= 1'b1;
-				if (m_counter[14:0] < 15'd138 + 15'd48+15'd10)
-					m_mod <= NORMAL_SPI;
-				else if (m_counter[14:0] < 15'd138 + 15'd48+15'd26)
-					m_mod <= QUAD_WRITE;
-				else
-					m_mod <= QUAD_READ;
-				if (m_mod[1])
-					m_data <= {m_data[MBITS-5:0], 4'h0};
-				else
-					m_data <= {m_data[MBITS-2:0], 1'h0};
-				if (m_counter[14:0] >= 15'd138+15'd48+15'd33)
-				begin
-					m_cs_n <= 1'b1;
-					m_clk  <= 1'b0;
-				end
-				// We depend upon the non-maintenance code to
-				// provide our first (bogus) address, mode,
-				// dummy cycles, and data bits.
-				end
-			endcase
+		end else if (!m_midcount)
+		begin
+			maintenance <= (maintenance)&& !(&m_cmd_index);
+			m_cmd_index <= m_cmd_index + 1'b1;
 		end
+
+		always @(posedge i_clk)
+		if (!m_midcount)
+			m_this_word <= m_cmd_word[m_cmd_index];
+
+		initial	m_midcount = 1;
+		initial	m_counter   = -1;
+		always @(posedge i_clk)
+		if (i_reset)
+		begin
+			m_midcount <= 1'b1;
+			m_counter <= -1;
+		end else if (!m_midcount)
+		begin
+			m_midcount <= m_this_word[6];
+			if (m_this_word[6])
+				m_counter <= m_this_word[5:0];
+		end else begin
+			m_midcount <= (m_counter > 0);
+			if (m_counter > 0)
+				m_counter <= m_counter - 1'b1;
+		end
+
+		initial	m_cs_n      = 1'b1;
+		initial	m_mod       = NORMAL_SPI;
+		always @(posedge i_clk)
+		if (i_reset)
+		begin
+			m_cs_n <= 1'b1;
+			m_mod  <= NORMAL_SPI;
+			m_dat  <= 4'h0;
+		end else if ((m_midcount)||(m_this_word[6]))
+		begin
+			m_cs_n <= 1'b1;
+			m_mod  <= NORMAL_SPI;
+			m_dat  <= 4'h0;
+		end else begin
+			m_cs_n <= 1'b0;
+			m_mod  <= m_this_word[5:4];
+			m_dat  <= m_this_word[3:0];
+		end
+
+		always @(*)
+			m_clk = !m_cs_n;
 	end else begin : NO_STARTUP_OPT
 
 		always @(*)
 		begin
 			maintenance = 0;
-			m_counter   = 0;
-			m_state     = 2'b11;
 			m_mod       = 2'b00;
 			m_cs_n      = 1'b1;
 			m_clk       = 1'b0;
-			m_data      = 0;
+			m_dat       = 4'h0;
 		end
 
 		// verilator lint_off UNUSED
-		wire	[55:0] unused_maintenance;
-		assign	unused_maintenance = { maintenance, m_counter, m_state,
-					m_mod, m_cs_n, m_clk, m_data, m_dat };
+		wire	[8:0] unused_maintenance;
+		assign	unused_maintenance = { maintenance,
+					m_mod, m_cs_n, m_clk, m_dat };
 		// verilator lint_on  UNUSED
 	end endgenerate
 
-	assign	m_dat = (m_mod[1]) ? m_data[MBITS-1:MBITS-4]
-				: { (4){m_data[MBITS-1]} };
 
 	//
 	//
@@ -385,7 +508,7 @@ module	qflexpress(i_clk, i_reset,
 	if ((i_reset)||(maintenance))
 		clk_ctr <= 0;
 	else if ((bus_request)&&(!pipe_req))
-		clk_ctr <= 5'd20 + CKDELAY;
+		clk_ctr <= 5'd14 + CKDELAY + NDUMMY;
 	else if (bus_request) // && pipe_req
 		clk_ctr <= 5'd8;
 	else if (cfg_ls_write)
@@ -453,11 +576,15 @@ module	qflexpress(i_clk, i_reset,
 	always @(posedge i_clk)
 	if (i_reset)
 		o_wb_stall <= 1'b1;
-	else if ((maintenance)||(cfg_write)||(bus_request))
+	else if (maintenance)
+		o_wb_stall <= 1'b1;
+	else if ((RDDELAY > 0)&&((i_cfg_stb)||(i_wb_stb))&&(!o_wb_stall))
+		o_wb_stall <= 1'b1;
+	else if ((RDDELAY == 0)&&((cfg_write)||(bus_request)))
 		o_wb_stall <= 1'b1;
 	else if ((i_wb_stb)&&(pipe_req)&&(clk_ctr == 5'd2))
 		o_wb_stall <= 1'b0;
-	else if (clk_ctr > 1)
+	else if ((clk_ctr > 1)||(xtra_stall))
 		o_wb_stall <= 1'b1;
 	else
 		o_wb_stall <= 1'b0;
@@ -512,6 +639,7 @@ module	qflexpress(i_clk, i_reset,
 		begin
 			read_sck = actual_sck;
 			o_wb_ack = dly_ack;
+			xtra_stall = 1'b0;
 		end
 
 	end else if (RDDELAY == 1)
@@ -523,6 +651,7 @@ module	qflexpress(i_clk, i_reset,
 		begin
 			read_sck <= actual_sck;
 			o_wb_ack <= (!i_reset)&&(i_wb_cyc)&&(dly_ack);
+			xtra_stall <= (clk_ctr > 1);
 		end
 
 	end else begin
@@ -540,6 +669,26 @@ module	qflexpress(i_clk, i_reset,
 		always @(posedge i_clk)
 			{ read_sck, read_sck_pipe } <= { read_sck_pipe, actual_sck };
 
+		wire	xtra_pipe_stall;
+		if (RDDELAY > 3)
+			assign xtra_pipe_stall = (|ack_pipe[RDDELAY-4:0]);
+		else
+			assign xtra_pipe_stall = 1'b0;
+
+		always @(posedge i_clk)
+		if ((i_reset)||(!i_wb_cyc))
+			xtra_stall <= 1'b0;
+		else begin
+			xtra_stall <= dly_ack;
+			if ((i_wb_stb||i_cfg_stb)&&(!o_wb_stall))
+				xtra_stall <= 1'b1;;
+			if (clk_ctr > 0)
+				xtra_stall <= 1'b1;
+			if (xtra_pipe_stall)
+				xtra_stall <= 1'b1;
+		end
+
+
 	end endgenerate
 
 	always @(posedge i_clk)
@@ -553,7 +702,7 @@ module	qflexpress(i_clk, i_reset,
 		end
 
 		if ((OPT_CFG)&&((cfg_mode)||((i_cfg_stb)&&(!o_wb_stall))))
-			o_wb_data[12:8] <= { cfg_mode, cfg_speed, 1'b0,
+			o_wb_data[16:8] <= { 4'b0, cfg_mode, cfg_speed, 1'b0,
 				cfg_dir, cfg_cs };
 	end
 
@@ -590,7 +739,11 @@ module	qflexpress(i_clk, i_reset,
 		cfg_dir   <= i_wb_data[DIR_BIT];
 	end
 
-	assign	o_dbg_trigger = (!o_wb_stall)&&(i_cfg_stb || i_wb_stb);
+	reg	r_last_cfg;
+	initial	r_last_cfg = 1'b0;
+	always @(posedge i_clk)
+		r_last_cfg <= cfg_mode;
+	assign	o_dbg_trigger = (!cfg_mode)&&(r_last_cfg);
 	assign	o_debug = { o_dbg_trigger,
 			i_wb_cyc, i_cfg_stb, i_wb_stb, o_wb_ack, o_wb_stall,//6
 			o_qspi_cs_n, o_qspi_sck, o_qspi_dat, o_qspi_mod,// 8
@@ -602,8 +755,8 @@ module	qflexpress(i_clk, i_reset,
 			};
 
 	// verilator lint_off UNUSED
-	wire	[20:0]	unused;
-	assign	unused = { i_wb_data[31:12], m_data[30] };
+	wire	[19:0]	unused;
+	assign	unused = { i_wb_data[31:12] };
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL
@@ -655,8 +808,8 @@ module	qflexpress(i_clk, i_reset,
 		`ASSUME(i_cfg_stb);
 
 	fwb_slave #(.AW(AW), .DW(DW),.F_LGDEPTH(F_LGDEPTH),
-			.F_MAX_STALL(21+CKDELAY+RDDELAY),
-			.F_MAX_ACK_DELAY(20+CKDELAY+RDDELAY),
+			.F_MAX_STALL(15+CKDELAY+NDUMMY+RDDELAY),
+			.F_MAX_ACK_DELAY(14+CKDELAY+NDUMMY+RDDELAY),
 			.F_OPT_RMW_BUS_OPTION(0),
 			.F_OPT_CLK2FFLOGIC(1'b0),
 			.F_OPT_DISCONTINUOUS(1))
@@ -667,20 +820,11 @@ module	qflexpress(i_clk, i_reset,
 			f_nreqs, f_nacks, f_outstanding);
 
 	always @(*)
-		assert(f_outstanding <= 2);
-
-/*
-	always @(posedge i_clk)
-	if (!pre_ack)
-		assert(f_outstanding == 0);
-	else
-		assert((f_outstanding <= 1+RDDELAY)
-			||((dly_ack)&&(!o_qspi_cs_n)));
+		assert(f_outstanding <= 2 + f_extra);
 
 	always @(posedge i_clk)
 	if ((f_past_valid)&&(!$past(i_wb_stb))||($past(o_wb_stall)))
-		assert(f_outstanding <= 1);
-*/
+		assert(f_outstanding <= 1 + f_extra);
 
 	always @(*)
 	if (maintenance)
@@ -696,24 +840,6 @@ module	qflexpress(i_clk, i_reset,
 	end
 
 	always @(*)
-	if (m_state == 2'b01)
-		assert(m_counter <= 15'd138);
-	always @(posedge i_clk)
-	if (m_state == 2'b10)
-		assert(m_counter <= 15'd138 + 15'd48);
-	always @(*)
-	if (m_state != 2'b11)
-		assert(maintenance);
-	always @(*)
-	if (m_state == 2'b11)
-		assert(m_counter <= 15'd138+15'd48+15'd38);
-	always @(*)
-	if ((m_state == 2'b11)&&(m_counter == 15'd138+15'd48+15'd38))
-		assert(!maintenance);
-	else if (maintenance)
-		assert((m_state!= 2'b11)||(m_counter != 15'd138+15'd48+15'd38));
-
-	always @(*)
 	if (maintenance)
 	begin
 		assert(clk_ctr == 0);
@@ -724,31 +850,38 @@ module	qflexpress(i_clk, i_reset,
 	if (dly_ack)
 		assert(clk_ctr[2:0] == 0);
 
+	// Zero cycle requests
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&(($past(cfg_noop))
+			||($past(i_wb_stb && i_wb_we && !o_wb_stall))))
+		assert((dly_ack)&&((!i_wb_cyc)
+			||(f_outstanding == 1 + f_extra)));
+
 	always @(posedge i_clk)
 	if ((f_outstanding > 0)&&(clk_ctr > 0))
 		assert(pre_ack);
-/*
-	always @(posedge i_clk)
-	if ((i_wb_cyc)&&(dly_ack))
-		assert(f_outstanding >= 1);
 
 	always @(posedge i_clk)
-	if ((f_past_valid)&&(clk_ctr == 0)&&(!o_wb_ack)
+	if ((i_wb_cyc)&&(dly_ack))
+		assert(f_outstanding >= 1 + f_extra);
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(clk_ctr == 0)&&(!dly_ack)
 			&&((!$past(i_wb_stb|i_cfg_stb))||($past(o_wb_stall))))
-		assert(f_outstanding == 0);
+		assert(f_outstanding == f_extra);
 
 	always @(*)
 	if ((i_wb_cyc)&&(pre_ack)&&(!o_qspi_cs_n))
-		assert((f_outstanding >= 1)||((OPT_CFG)&&(cfg_mode)));
+		assert((f_outstanding >= 1 + f_extra)||((OPT_CFG)&&(cfg_mode)));
 
 	always @(*)
 	if ((cfg_mode)&&(!dly_ack)&&(clk_ctr == 0))
-		assert(f_outstanding == 0);
+		assert(f_outstanding == f_extra);
 
 	always @(*)
 	if (cfg_mode)
-		assert(f_outstanding <= 1);
-*/
+		assert(f_outstanding <= 1 + f_extra);
+
 	/////////////////
 	//
 	// Idle channel
@@ -794,13 +927,13 @@ module	qflexpress(i_clk, i_reset,
 			assert(clk_ctr == 5'd8);
 			assert(o_qspi_mod == QUAD_READ);
 		end else begin
-			assert(clk_ctr == 5'd20+CKDELAY);
+			assert(clk_ctr == 5'd14+CKDELAY + NDUMMY);
 			assert(o_qspi_mod == QUAD_WRITE);
 		end
 	end
 
 	always @(*)
-		assert(clk_ctr <= 5'd20+CKDELAY);
+		assert(clk_ctr <= 5'd18+CKDELAY + NDUMMY);
 
 	always @(*)
 	if (!o_qspi_cs_n)
@@ -809,7 +942,7 @@ module	qflexpress(i_clk, i_reset,
 	//	assert((!o_qspi_sck)&&(!actual_sck));
 
 	always @(*)
-	if ((dly_ack)&&(clk_ctr == 0))
+	if ((RDDELAY == 0)&&((dly_ack)&&(clk_ctr == 0)))
 		assert(!o_wb_stall);
 
 	always @(*)
@@ -885,12 +1018,12 @@ module	qflexpress(i_clk, i_reset,
 				&&(o_qspi_mod == QUAD_WRITE)&&(!dly_ack))
 			throughout
 			(o_qspi_dat == 4'h0) [*CKDELAY]
-			##1 (o_qspi_dat == ADDR[21:18])&&(clk_ctr==5'd20)
-			##1 (o_qspi_dat == ADDR[17:14])&&(clk_ctr==5'd19)
-			##1 (o_qspi_dat == ADDR[13:10])&&(clk_ctr==5'd18)
-			##1 (o_qspi_dat == ADDR[ 9: 6])&&(clk_ctr==6'd17)
-			##1 (o_qspi_dat == ADDR[ 5: 2])&&(clk_ctr==5'd16)
-			##1 (o_qspi_dat =={ADDR[1:0],2'b00})&&(clk_ctr==5'd15);
+			##1 (o_qspi_dat == ADDR[21:18])&&(clk_ctr==5'd14+NDUMMY)
+			##1 (o_qspi_dat == ADDR[17:14])&&(clk_ctr==5'd13+NDUMMY)
+			##1 (o_qspi_dat == ADDR[13:10])&&(clk_ctr==5'd12+NDUMMY)
+			##1 (o_qspi_dat == ADDR[ 9: 6])&&(clk_ctr==6'd11+NDUMMY)
+			##1 (o_qspi_dat == ADDR[ 5: 2])&&(clk_ctr==5'd10+NDUMMY)
+			##1 (o_qspi_dat =={ADDR[1:0],2'b00})&&(clk_ctr==5'd9+NDUMMY);
 	endsequence;
 
 	sequence	MODE_BYTE;
@@ -898,9 +1031,9 @@ module	qflexpress(i_clk, i_reset,
 				&&(o_qspi_mod == QUAD_WRITE)&&(!dly_ack))
 			throughout
 			// Mode nibble 1
-			(o_qspi_dat == 4'ha)&&(clk_ctr == 5'd14)
+			(o_qspi_dat == 4'ha)&&(clk_ctr == 5'd8+NDUMMY)
 			// Mode nibble 2
-			##1 (o_qspi_dat == 4'h0)&&(clk_ctr == 5'd13);
+			##1 (o_qspi_dat == 4'h0)&&(clk_ctr == 5'd7+NDUMMY);
 	endsequence
 
 	sequence	DUMMY_BYTES;
@@ -908,9 +1041,7 @@ module	qflexpress(i_clk, i_reset,
 				&&(o_qspi_mod == QUAD_WRITE)&&(!dly_ack))
 			throughout
 			// (o_qspi_dat == 4'h0) [*4];
-			(o_qspi_dat == 4'h0)&&(clk_ctr == 5'd12)
-			##1 (o_qspi_dat == 4'h0)&&(clk_ctr == 5'd11)
-			##1 (o_qspi_dat == 4'h0)&&(clk_ctr == 5'd10)
+			(o_qspi_dat == 4'h0) [*NDUMMY-3]
 			##1 (o_qspi_dat == 4'h0)&&(clk_ctr == 5'd9);
 	endsequence;
 
@@ -919,13 +1050,14 @@ module	qflexpress(i_clk, i_reset,
 			&&(o_qspi_mod == QUAD_READ)) throughout
 		(o_wb_stall)&&(o_qspi_sck)&&(clk_ctr == 5'h8)
 		##1 ((o_wb_stall)&&(o_qspi_sck)) [*6]
-		##1 (o_qspi_sck==(i_wb_stb && !o_wb_stall))&&(clk_ctr==5'd1)
-			&&((OPT_PIPE)||((!o_qspi_sck)&&(o_wb_stall)));
+		##1 ((OPT_PIPE)||(o_wb_stall))&&(clk_ctr == 5'd1)
+		    &&(((CKDELAY == 0)&&(o_qspi_sck))
+			||((CKDELAY > 0)&&((OPT_PIPE)||(!o_qspi_sck))));
 	endsequence;
 
 	sequence	ACK_WORD;
 		1'b1 [*RDDELAY]
-		##1 ((o_wb_ack)||(!$past(pre_ack))||($past(!i_wb_cyc)))
+		##1 (o_wb_ack)
 			&&(o_wb_data[31:28] == $past(i_qspi_dat,8))
 			&&(o_wb_data[27:24] == $past(i_qspi_dat,7))
 			&&(o_wb_data[23:20] == $past(i_qspi_dat,6))
@@ -938,7 +1070,7 @@ module	qflexpress(i_clk, i_reset,
 
 	// Proper Bus read request
 	property BUS_READ;
-		disable iff (i_reset)
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(i_wb_stb)&&(!o_wb_stall)&&(!i_wb_we)&&(!cfg_mode)
 			&&(o_qspi_cs_n)
 		|=> READ_REQUEST(fv_addr)
@@ -952,11 +1084,10 @@ module	qflexpress(i_clk, i_reset,
 		(!o_qspi_cs_n)&&(o_qspi_mod == QUAD_READ)&&(!cfg_mode)
 			throughout
 		(((o_wb_stall)&&(o_qspi_sck)
-				&&(o_wb_ack))
-				&&((f_outstanding == 2)||(!i_wb_cyc))
+				&&(dly_ack))
+				&&((f_outstanding == 2 + f_extra)||(!i_wb_cyc))
 				&&(clk_ctr == 5'd8))
-		##1 ((!o_wb_ack)
-			&&((f_outstanding== 1)||(!pre_ack)||(!i_wb_cyc)))
+		##1 ((!dly_ack)&&(f_outstanding == 1 + f_extra))
 			throughout
 		((o_wb_stall)&&(o_qspi_sck)
 				&&(clk_ctr > 1)&&(clk_ctr < 5'd8)
@@ -968,7 +1099,7 @@ module	qflexpress(i_clk, i_reset,
 
 	// Bus pipe-read request
 	property PIPED_READ;
-		disable iff (i_reset)
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(i_wb_stb)&&(!o_wb_stall)&&(!i_wb_we)&&(!cfg_mode)
 			&&(!o_qspi_cs_n)&&(OPT_PIPE)
 		|=> PIPED_READ_SEQUENCE
@@ -1015,7 +1146,7 @@ module	qflexpress(i_clk, i_reset,
 		(o_qspi_dat[3:0] == 4'b00)&&(o_qspi_sck) [*CKDELAY]
 		##1 (o_qspi_dat[3:0]==$past(i_wb_data[7:4],2))
 				&&(clk_ctr== 5'd2)
-		##1 ((o_qspi_dat[3:0]==$past(i_wb_data[3:0],3))
+		##1 (o_qspi_dat[3:0]==$past(i_wb_data[3:0],3))
 				&&(clk_ctr== 5'd1)
 				&&(actual_sck);
 	endsequence
@@ -1025,26 +1156,29 @@ module	qflexpress(i_clk, i_reset,
 			&&(o_qspi_mod == QUAD_READ)&&(!o_wb_ack)
 			&&(cfg_mode)&&(cfg_speed)&&(!cfg_dir))
 			throughout
-		((clk_ctr == 5'd3)&&(o_qspi_sck))
+		(o_qspi_sck) [*CKDELAY]
 		##1 ((clk_ctr== 5'd2)&&(o_qspi_sck))
 		##1 ((clk_ctr== 5'd1)&&(!o_qspi_sck)&&(actual_sck));
 	endsequence
 
 	// Config write request (low speed)
 	property SPI_CFG_WRITE;
-		disable iff (i_reset)
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(cfg_ls_write)
 		|=> SPI_CFG_WRITE_SEQ
-		##1 ((o_wb_ack)||(!$past(pre_ack))||($past(!i_wb_cyc)))
-			&&(o_wb_data[7]==$past(i_qspi_dat[1],8))
-			&&(o_wb_data[6]==$past(i_qspi_dat[1],7))
-			&&(o_wb_data[5]==$past(i_qspi_dat[1],6))
-			&&(o_wb_data[4]==$past(i_qspi_dat[1],5))
-			&&(o_wb_data[3]==$past(i_qspi_dat[1],4))
-			&&(o_wb_data[2]==$past(i_qspi_dat[1],3))
-			&&(o_wb_data[1]==$past(i_qspi_dat[1],2))
-			&&(o_wb_data[0]==$past(i_qspi_dat[1]))
-			&&(o_wb_data[12:10]==3'b100)&&(o_wb_data[8]);
+		##1 ( (((dly_ack)||(!$past(pre_ack))||($past(!i_wb_cyc)))
+			&&(o_wb_data[12:10]==3'b100)&&(o_wb_data[8]))
+		and 1'b1 [*RDDELAY]
+		##1 ((o_wb_ack)
+				&&(o_wb_data[7]==$past(i_qspi_dat[1],8))
+				&&(o_wb_data[6]==$past(i_qspi_dat[1],7))
+				&&(o_wb_data[5]==$past(i_qspi_dat[1],6))
+				&&(o_wb_data[4]==$past(i_qspi_dat[1],5))
+				&&(o_wb_data[3]==$past(i_qspi_dat[1],4))
+				&&(o_wb_data[2]==$past(i_qspi_dat[1],3))
+				&&(o_wb_data[1]==$past(i_qspi_dat[1],2))
+				&&(o_wb_data[0]==$past(i_qspi_dat[1])))
+		);
 	endproperty
 
 	// Config read-HS  request
@@ -1052,40 +1186,46 @@ module	qflexpress(i_clk, i_reset,
 		disable iff (i_reset)
 		(cfg_hs_read)
 		|=> QSPI_CFG_READ_SEQ
-		##1 ((o_wb_ack)||(!$past(pre_ack))||($past(!i_wb_cyc)))
-			&&(o_wb_data[12:8]==5'b11001)
-			&&(o_wb_data[7:4]==$past(i_qspi_dat,2))
-			&&(o_wb_data[3:0]==$past(i_qspi_dat));
+		##1 ((dly_ack)||(!$past(pre_ack))||($past(!i_wb_cyc)))
+			&&(o_wb_data[12:8]==5'b11001);
 	endproperty
 
 	// Config write-HS request
 	property QSPI_CFG_WRITE;
-		disable iff (i_reset)
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(cfg_hs_write)
-		|=> QSPI_CFG_WRITE_SEQ
-		##1((o_wb_ack)||(!$past(pre_ack))||(!$past(i_wb_cyc)))
-			&&(o_wb_data[12:8]==5'b11011);
+		|=> ((pre_ack) throughout QSPI_CFG_WRITE_SEQ)
+		##1 ((o_wb_data[12:8] == 5'b11011)
+			and 1'b1 [*RDDELAY]
+			##1 (o_wb_ack));
 	endproperty
 
 	// Config release request
 	property CFG_RELEASE;
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(OPT_CFG)&&(!i_reset)&&(i_cfg_stb)&&(!o_wb_stall)&&(i_wb_we)
 				&&(i_wb_data[USER_CS_n])
-		|=> (o_wb_ack)&&(o_qspi_cs_n)&&(!cfg_cs)
-			&&(clk_ctr == 0)
-			&&(cfg_mode==$past(i_wb_data[CFG_MODE]));
+		|=> ( ((dly_ack)&&(o_qspi_cs_n)&&(!cfg_cs)&&(clk_ctr == 0)
+			&&(cfg_mode == $past(i_wb_data[CFG_MODE])))
+		and (o_wb_stall) [*(RDDELAY)] ##1 (o_wb_ack) );
 	endproperty
 
 	property CFG_READBUS_NOOP;
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(OPT_CFG)&&(!i_reset)&&(i_cfg_stb)&&(!o_wb_stall)&&(!i_wb_we)
-		|=> (o_wb_ack)&&(o_qspi_cs_n==$past(o_qspi_cs_n))
-			&&(clk_ctr==0);
+		|=> (o_qspi_cs_n==$past(o_qspi_cs_n))
+			&&(clk_ctr==0)
+		##1 1'b1 [*(RDDELAY-1)]
+		##1 (o_wb_ack);
 	endproperty
 
 	// Non-config responses from the config port
 	property NOCFG_NOOP;
+		disable iff ((i_reset)||(!i_wb_cyc))
 		(!OPT_CFG)&&(!i_reset)&&(i_cfg_stb)&&(!o_wb_stall)
-		|=> (o_wb_ack)&&(o_qspi_cs_n==$past(o_qspi_cs_n))&&(clk_ctr==0);
+		|=> (o_qspi_cs_n==$past(o_qspi_cs_n))&&(clk_ctr==0)
+		##1 1'b1 [*(RDDELAY-1)]
+		##1 (o_wb_ack);
 	endproperty
 
 	assert	property (@(posedge i_clk) SPI_CFG_WRITE);
