@@ -56,11 +56,11 @@ void	closeup(int v) {
 	exit(0);
 }
 
-int main(int argc, char **argv) {
-#ifdef	FLASH_ACCESS
-#define	DUMPMEM		EQSPIFLASH
+#define	DUMPMEM		FLASHBASE
 #define	DUMPWORDS	(FLASHLEN>>2)
 
+int main(int argc, char **argv) {
+#ifdef	FLASH_ACCESS
 	FILE	*fp;
 	const int	BUFLN = FLASHLEN;
 	char	*buf = new char[FLASHLEN];
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 	if (m_fpga->poll())
 		printf("FPGA was interrupted\n");
 	delete	m_fpga;
-#else
+#else // FLASH_ACCESS
 	printf(
 "This design requires some kind of flash be available within your design.\n"
 "\n"
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 "directory, and then add that component to the AutoFPGA makefile to\n"
 "include it.  This file should then build properly, and be able to dump\n"
 "the given flash device.\n");
-#endif
+#endif // FLASH_ACCESS
 }
 
 
