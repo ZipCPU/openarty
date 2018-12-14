@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -197,6 +197,8 @@ int main(int argc, char **argv) {
 
 #ifdef	FLASH_ACCESS
 	flash = new FLASHDRVR(m_fpga);
+#else
+	flash = NULL;
 #endif
 
 	if (codef) try {
