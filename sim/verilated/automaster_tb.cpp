@@ -129,10 +129,8 @@ int	main(int argc, char **argv) {
 		}
 	}
 
-	if (elfload) {
+	if (elfload)
 		willexit = true;
-	}
-
 	if (debug_flag) {
 		printf("Opening design with\n");
 		printf("\tDebug Access port = %d\n", FPGAPORT); // fpga_port);
@@ -146,7 +144,8 @@ int	main(int argc, char **argv) {
 	if (profile_file) {
 		profile_fp = fopen(profile_file, "w");
 		if (profile_fp == NULL) {
-			fprintf(stderr, "ERR: Cannot open profile output file, %s\n", profile_file);
+			fprintf(stderr, "ERR: Cannot open profile output "
+				"file, %s\n", profile_file);
 			exit(EXIT_FAILURE);
 		}
 	} else
@@ -159,7 +158,8 @@ int	main(int argc, char **argv) {
 #endif
 
 	if (elfload) {
-		fprintf(stderr, "WARNING: Elf loading currently only works for programs starting at the reset address\n");
+		fprintf(stderr, "WARNING: Elf loading currently only "
+			"works for programs starting at the reset address\n");
 		tb->loadelf(elfload);
 
 		tb->m_core->cpu_cmd_halt = 0;
