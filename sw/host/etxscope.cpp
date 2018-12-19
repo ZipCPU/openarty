@@ -47,6 +47,7 @@
 #include <assert.h>
 
 #include "port.h"
+#include "design.h"
 #include "regdefs.h"
 #include "ttybus.h"
 #include "scopecls.h"
@@ -96,8 +97,16 @@ public:
 	}
 };
 
-int main(int argc, char **argv) {
 #ifndef	R_NETSCOPE
+#define	NO_NETSCOPE
+#else
+#ifdef	ENETRX_SCOPE
+#define	NO_NETSCOPE
+#endif
+#endif
+
+int main(int argc, char **argv) {
+#ifdef	NO_NETSCOPE
 	printf("This design was not built with a NET scope within it.\n");
 #else
 	FPGAOPEN(m_fpga);

@@ -1,18 +1,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	flashdrvr.h
+// Filename:	flashid.cpp
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	Flash driver.  Encapsulates writing, both erasing sectors and
-//		the programming pages, to the flash device.
+// Purpose:	Reads the ID from the flash, and verifies that the flash can
+//		be put back into QSPI mode after reading the ID.
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -36,39 +37,54 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-//
-#ifndef	FLASHDRVR_H
-#define	FLASHDRVR_H
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <strings.h>
+#include <ctype.h>
+#include <string.h>
+#include <signal.h>
+#include <assert.h>
 
+#include "port.h"
 #include "regdefs.h"
+#include "ttybus.h"
+#include "flashdrvr.h"
 
-class	FLASHDRVR {
-private:
-	DEVBUS	*m_fpga;
-	bool	m_debug;
-	unsigned	m_id; // ID of the flash device
+FPGA	*m_fpga;
+void	closeup(int v) {
+	m_fpga->kill();
+	exit(0);
+}
 
-	//
-	void	take_offline(void);
-	void	place_online(void);
-	void	restore_dualio(void);
-	void	restore_quadio(void);
-	//
-	bool	verify_config(void);
-	void	set_config(void);
-	void	flwait(void);
-public:
-	FLASHDRVR(DEVBUS *fpga);
-	bool	erase_sector(const unsigned sector, const bool verify_erase=true);
-	bool	page_program(const unsigned addr, const unsigned len,
-			const char *data, const bool verify_write=true);
-	bool	write(const unsigned addr, const unsigned len,
-			const char *data, const bool verify=false);
+void	usage(void) {
+	printf("USAGE: flashid\n"
+"\n"
+"\tflashid reads the ID from the flash, and then attempts to place the\n"
+"\tflash back into QSPI mode, followed by reading several values from it\n"
+"\tin order to demonstrate that it was truly returned to QSPI mode\n");
+}
 
-	unsigned	flashid(void);
+int main(int argc, char **argv) {
+	FLASHDRVR	*m_flash;
+	FPGAOPEN(m_fpga);
 
-	static void take_offline(DEVBUS *fpga);
-	static void place_online(DEVBUS *fpga);
-};
+	m_flash = new FLASHDRVR(m_fpga);
+	printf("Flash device ID: 0x%08x\n", m_flash->flashid());
+	printf("First several words:\n");
+	for(int k=0; k<12; k++)
+		printf("\t0x%08x\n", m_fpga->readio(R_FLASH+(k<<2)));
 
+#ifdef	RESET_ADDRESS
+	printf("From the RESET_ADDRESS:\n");
+	for(int k=0; k<5; k++) {
+		printf("%08x: ", RESET_ADDRESS + (k<<2)); fflush(stdout);
+		printf("\t0x%08x\n", m_fpga->readio(RESET_ADDRESS+(k<<2)));
+		fflush(stdout);
+	}
 #endif
+
+	delete	m_flash;
+	delete	m_fpga;
+}
+

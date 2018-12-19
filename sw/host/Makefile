@@ -38,17 +38,17 @@
 ##
 .PHONY: all
 PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping	\
-	zipload zipstate zipdbg divutb dumpflash
-SCOPES := flashscope etxscope erxscope cpuscope
+	zipload zipstate zipdbg divutb dumpflash flashid
+SCOPES := flashscope etxscope erxscope cpuscope dcachescope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
 OBJDIR := obj-pc
 BUSSRCS := ttybus.cpp llcomms.cpp regdefs.cpp byteswap.cpp
 SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
-	dumpflash.cpp flashscope.cpp flashdrvr.cpp 			\
+	dumpflash.cpp flashscope.cpp flashdrvr.cpp flashid.cpp		\
 	scopecls.cpp sdramscope.cpp					\
 	zipload.cpp zipstate.cpp zipdbg.cpp		\
-	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp		\
+	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp dcachescope.cpp		\
 	 mdioscope.cpp manping.cpp $(BUSSRCS)
 	# ziprun.cpp cfgscope.cpp
 HEADERS := llcomms.h ttybus.h devbus.h
@@ -77,9 +77,10 @@ $(OBJDIR)/hsnetuart.o: netuart.cpp
 clean:
 	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out
 
-$(OBJDIR)/scopecls.o: scopecls.cpp scopecls.h
+$(OBJDIR)/scopecls.o:   scopecls.cpp scopecls.h
 $(OBJDIR)/flashscope.o: flashscope.cpp scopecls.h
-$(OBJDIR)/dumpflash.o: dumpflash.cpp regdefs.h
+$(OBJDIR)/dumpflash.o:  dumpflash.cpp regdefs.h
+$(OBJDIR)/flashid.o:    flashid.cpp regdefs.h
 
 netuart: $(OBJDIR)/netuart.o
 	$(CXX) $(CFLAGS) $^ -o $@
@@ -101,6 +102,8 @@ netsetup: $(OBJDIR)/netsetup.o $(BUSOBJS)
 wbregs: $(OBJDIR)/wbregs.o $(BUSOBJS)
 	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 dumpflash: $(OBJDIR)/dumpflash.o $(BUSOBJS)
+	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
+flashid: $(OBJDIR)/flashid.o $(OBJDIR)/flashdrvr.o $(BUSOBJS)
 	$(CXX) $(CFLAGS) $^ $(LIBS) -o $@
 divutb: $(OBJDIR)/divutb.o
 	$(CXX) $(CFLAGS) $^ -o $@
@@ -124,6 +127,8 @@ sdramscope: $(OBJDIR)/sdramscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 cfgscope: $(OBJDIR)/cfgscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 cpuscope: $(OBJDIR)/cpuscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
+	$(CXX) -g $^ -o $@
+dcachescope: $(OBJDIR)/dcachescope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@
 erxscope: $(OBJDIR)/erxscope.o $(OBJDIR)/scopecls.o $(BUSOBJS)
 	$(CXX) -g $^ -o $@

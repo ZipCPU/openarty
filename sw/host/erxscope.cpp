@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -47,6 +47,7 @@
 #include <assert.h>
 
 #include "port.h"
+#include "design.h"
 #include "regdefs.h"
 #include "ttybus.h"
 #include "scopecls.h"
@@ -104,6 +105,9 @@ public:
 			(miss)?"MISS":"    ", (clear)?"CLEAR":"     ",
 			(rxvalid)?"VALID":"     ");
 	}
+
+	virtual	void	define_traces(void) {
+	}
 };
 
 int main(int argc, char **argv) {
@@ -116,11 +120,14 @@ int main(int argc, char **argv) {
 	signal(SIGHUP, closeup);
 
 	ERXSCOPE *scope = new ERXSCOPE(m_fpga, WBSCOPE);
+	scope->set_clkfreq_hz(ENETCLKFREQHZ);
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
-	} else
-		scope->read();
+	} else {
+		scope->print();
+		scope->writevcd("erxscope.vcd");
+	}
 	delete	m_fpga;
 #endif
 }

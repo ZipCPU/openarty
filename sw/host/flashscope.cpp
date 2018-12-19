@@ -53,8 +53,8 @@
 #include "scopecls.h"
 #include "ttybus.h"
 
-#define	WBSCOPE		R_QSCOPE
-#define	WBSCOPEDATA	R_QSCOPED
+#define	WBSCOPE		R_FLASHSCOPE
+#define	WBSCOPEDATA	R_FLASHSCOPED
 
 #define	SCOPEBIT(VAL,B)	((val >> B)&1)
 
@@ -148,7 +148,7 @@ public:
 };
 
 int main(int argc, char **argv) {
-#ifndef	R_QSCOPE
+#ifndef	R_FLASHSCOPE
 	printf(
 "This design was not built with a flash scope attached to the QFLEXPRESS\n"
 "design component.\n"

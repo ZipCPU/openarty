@@ -224,10 +224,10 @@ int main(int argc, char **argv) {
 			secp=  secpp[i];
 
 			// Make sure our section is either within block RAM
-#ifdef	BLKRAM_ACCESS
-			if ((secp->m_start >= BKMEMBASE)
+#ifdef	BKRAM_ACCESS
+			if ((secp->m_start >= BKRAMBASE)
 				&&(secp->m_start+secp->m_len
-						<= BKMEMBASE+BKMEMLEN))
+						<= BKRAMBASE+BKRAMLEN))
 				valid = true;
 #endif
 
@@ -276,10 +276,10 @@ int main(int argc, char **argv) {
 			}
 #endif
 
-#ifdef	BLKRAM_ACCESS
-			if ((secp->m_start >= BKMEMBASE)
+#ifdef	BKRAM_ACCESS
+			if ((secp->m_start >= BKRAMBASE)
 				  &&(secp->m_start+secp->m_len
-						<= BKMEMBASE+BKMEMLEN)) {
+						<= BKRAMBASE+BKRAMLEN)) {
 				if (verbose)
 					printf("Writing to MEM: %08x-%08x\n",
 						secp->m_start,

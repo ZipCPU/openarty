@@ -51,8 +51,8 @@
 #include "scopecls.h"
 #include "ttybus.h"
 
-#define	WBSCOPE		R_CPUSCOPE
-#define	WBSCOPEDATA	R_CPUSCOPED
+#define	WBSCOPE		R_ZIPSCOPE
+#define	WBSCOPEDATA	R_ZIPSCOPED
 
 #include "zopcodes.h"
 
@@ -213,10 +213,14 @@ public:
 			if (mce)  printf("M-CE ");
 		}
 	}
+
+	virtual void define_traces(void) {
+	
+	}
 };
 
 int main(int argc, char **argv) {
-#ifndef	R_CPUSCOPE
+#ifndef	R_ZIPSCOPE
 	printf("This design was not built with a CPU scope within it.\n");
 #else
 	FPGAOPEN(m_fpga);
@@ -228,11 +232,9 @@ int main(int argc, char **argv) {
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
-		scope->decode(WBSCOPEDATA);
-		printf("\n");
 	} else {
-		printf("Scope is ready\n");
-		scope->read();
+		scope->print();
+		scope->writevcd("cpuscope.vcd");
 	}
 	delete	m_fpga;
 #endif
