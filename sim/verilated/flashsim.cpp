@@ -76,7 +76,7 @@ static	const unsigned
 	// tSE    = 1500 * MILLISECONDS;
 
 FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug),
-			CKDELAY(1), RDDELAY(3), NDUMMY(10) {
+			CKDELAY(0), RDDELAY(3), NDUMMY(10) {
 	m_membytes = (1<<lglen);
 	m_memmask = (m_membytes - 1);
 	m_mem = new char[m_membytes];
@@ -161,7 +161,7 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 
 		if ((QSPIF_PP == m_state)||(QSPIF_QPP == m_state)) {
 			// Start a page program
-			if (m_debug) printf("FLASHSIM: Page Program write cycle begins\n");
+			if (m_debug) printf("FLASHSIM: Page Program write cycle begins (Addr = %08x)\n", (m_addr&(~0x0ff)));
 			if (m_debug) printf("CK = %d & 7 = %d\n", m_count, m_count & 0x07);
 			if (m_debug) printf("FLASHSIM: pmem = %08lx\n", (unsigned long)m_pmem);
 			m_write_count = tPP;
@@ -556,12 +556,12 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("DSPIF[%08x]/DR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			break;
 		case QSPIF_QUAD_READ:
-			if (m_count == 24+NDUMMY) {
+			if (m_count == 24+4*2) {
 				m_mode_byte = (m_ireg & 0x0ff);
-				// printf("QSPI/QR: MODE BYTE = %02x\n", m_mode_byte);
-			} else if ((m_count >= 24+NDUMMY+16)&&(0 == (m_sreg&0x01))) {
+				if (m_debug) printf("QSPI/QR: MODE BYTE = %02x\n", m_mode_byte);
+			} else if ((m_count >= 24+4*NDUMMY)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
-				// printf("QSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
+				// if (m_debug) printf("QSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			} else m_oreg = 0;
 			break;
 		case QSPIF_PP:

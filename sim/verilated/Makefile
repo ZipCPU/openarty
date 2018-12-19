@@ -68,7 +68,7 @@ SOURCES := automaster_tb.cpp main_tb.cpp			\
 	memsim.cpp sdspisim.cpp uartsim.cpp flashsim.cpp
 	## eqspiflashsim.cpp ddrsdramsim.cpp
 HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
-	oledsim.h pipecmdr.h port.h sdspisim.h testb.h uartsim.h zipelf.h \
+	oledsim.h port.h sdspisim.h testb.h uartsim.h zipelf.h \
 	flashsim.h
 VOBJDR	:= $(RTLD)/obj_dir
 VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o

@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -142,6 +142,10 @@ int	main(int argc, char **argv) {
 		tb->opentrace(trace_file);
 
 	if (profile_file) {
+#ifndef	INCLUDE_ZIPCPU
+		fprintf(stderr, "ERR: Design has no ZipCPU\n");
+		exit(EXIT_FAILURE);
+#endif
 		profile_fp = fopen(profile_file, "w");
 		if (profile_fp == NULL) {
 			fprintf(stderr, "ERR: Cannot open profile output "
@@ -158,10 +162,31 @@ int	main(int argc, char **argv) {
 #endif
 
 	if (elfload) {
-		fprintf(stderr, "WARNING: Elf loading currently only "
-			"works for programs starting at the reset address\n");
+#ifndef	INCLUDE_ZIPCPU
+		fprintf(stderr, "ERR: Design has no ZipCPU\n");
+		exit(EXIT_FAILURE);
+#endif
 		tb->loadelf(elfload);
 
+		ELFSECTION	**secpp;
+		uint32_t	entry;
+
+		elfread(elfload, entry, secpp);
+		free(secpp);
+
+		printf("Attempting to start from 0x%08x\n", entry);
+		tb->m_core->cpu_ipc = entry;
+
+		tb->m_core->cpu_cmd_halt = 0;
+		tb->m_core->cpu_reset    = 0;
+		tb->tick();
+
+		tb->m_core->cpu_ipc = entry;
+		tb->m_core->cpu_new_pc   = 1;
+		tb->m_core->cpu_pf_pc    = entry;
+		tb->m_core->cpu_cmd_halt = 0;
+		tb->m_core->cpu_reset    = 0;
+		tb->tick();
 		tb->m_core->cpu_cmd_halt = 0;
 		tb->m_core->VVAR(_swic__DOT__cmd_reset) = 0;
 	}
