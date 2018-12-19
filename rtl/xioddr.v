@@ -50,6 +50,7 @@ module	xioddr(i_clk, i_oe, i_v, o_v, io_pin);
 
 	wire	w_internal;
 	reg	last;
+
 	always @(posedge i_clk)
 		last <= i_v[1];
 
@@ -61,7 +62,7 @@ module	xioddr(i_clk, i_oe, i_v, o_v, io_pin);
 		.Q(w_internal),
 		.C(i_clk),
 		.CE(1'b1),
-		.D1(last),	// Negative clock edge
+		.D1(last),	// Negative clock edge (goes first)
 		.D2(i_v[0]),	// Positive clock edge
 		.R(1'b0),
 		.S(1'b0));
@@ -80,10 +81,10 @@ module	xioddr(i_clk, i_oe, i_v, o_v, io_pin);
 		.R(1'b0),
 		.S(1'b0));
 
-	reg	[1:0]	oedelay;
+	reg	oedelay;
 	initial	oedelay = 0;
 	always @(posedge i_clk)
-		oedelay = { oedelay[0], i_oe };
-	assign	io_pin = (oedelay[0]) ? w_internal:1'bz;
+		oedelay = i_oe;
+	assign	io_pin = (oedelay) ? w_internal:1'bz;
 
 endmodule

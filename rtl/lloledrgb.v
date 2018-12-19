@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	lloled.v
+// Filename: 	lloledrgb.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -70,7 +70,7 @@
 `define	OLED_MOD_QOUT	2'b10
 `define	OLED_MOD_QIN	2'b11
 
-module	lloled(i_clk,
+module	lloledrgb(i_clk,
 		// Module interface
 		i_wr, i_dbit, i_word, i_len, o_busy,
 		// OLED interface

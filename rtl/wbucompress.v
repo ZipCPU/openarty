@@ -79,7 +79,7 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	wire	[31:0]	w_addr;
 	assign	w_addr = i_codword[31:0];
 	always @(posedge i_clk)
-		if ((i_stb)&&(~a_stb))
+		if ((i_stb)&&(!a_stb))
 		begin
 			if (i_codword[35:32] != 4'h2)
 			begin
@@ -98,9 +98,9 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 		end
 	initial	a_stb = 1'b0;
 	always @(posedge i_clk)
-		if ((i_stb)&&(~a_stb))
+		if ((i_stb)&&(!a_stb))
 			a_stb <= i_stb;
-		else if (~i_busy)
+		else if (!i_busy)
 			a_stb <= 1'b0;
 
 
@@ -121,7 +121,7 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	// address)
 
 	wire	w_accepted;
-	assign	w_accepted = (a_stb)&&(~i_busy);
+	assign	w_accepted = (a_stb)&&(!i_busy);
 
 	reg		r_stb;
 	always @(posedge i_clk)
@@ -188,17 +188,17 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	always @(posedge i_clk)
 	begin
 		nxt_match <= ((nxt_rd_addr-tbl_addr)=={{(TBITS-1){1'b0}},1'b1});
-		if ((w_accepted)||(~a_stb))
+		if ((w_accepted)||(!a_stb))
 		begin
 			// Keep in mind, if a write was just accepted, then
 			// rd_addr will need to be reset on the next clock
-			// when (~a_stb).  Hence this must be a two clock
+			// when (!a_stb).  Hence this must be a two clock
 			// update
 			rd_addr <= tbl_addr + {(TBITS){1'b1}};
 			nxt_rd_addr <= tbl_addr + { {(TBITS-1){1'b1}}, 1'b0 };
 			tbl_match <= 1'b0;
-		end else if ((~tbl_match)&&(~match)
-				&&((~nxt_rd_addr[TBITS-1])||(tbl_filled)))
+		end else if ((!tbl_match)&&(!match)
+				&&((!nxt_rd_addr[TBITS-1])||(tbl_filled)))
 		begin
 			rd_addr <= nxt_rd_addr;
 			nxt_rd_addr <= nxt_rd_addr - { {(TBITS-1){1'b0}}, 1'b1 };
@@ -224,7 +224,7 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	end
 
 	always @(posedge i_clk)
-		if ((w_accepted)||(~a_stb))
+		if ((w_accepted)||(!a_stb))
 			pmatch <= 0; // rd_addr is set on this clock
 		else
 			// cword is set on the next clock, pmatch = 3'b001
@@ -234,9 +234,9 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	reg		match;
 	reg	[(TBITS-1):0]	matchaddr;
 	always @(posedge i_clk)
-		if((w_accepted)||(~a_stb)||(~r_stb))// Reset upon any write
+		if((w_accepted)||(!a_stb)||(!r_stb))// Reset upon any write
 			match <= 1'b0;
-		else if (~match)
+		else if (!match)
 		begin
 			// To be a match, the table must not be empty,
 			match <= (vaddr)&&(dmatch)&&(r_word[35:33]==3'b111)
@@ -245,7 +245,7 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 
 	reg	zmatch, hmatch, fmatch;
 	always @(posedge i_clk)
-		if (~match)
+		if (!match)
 		begin
 			matchaddr <= maddr;
 			fmatch    <= (maddr < 10'h521);
@@ -261,7 +261,7 @@ module	wbucompress(i_clk, i_stb, i_codword, o_stb, o_cword, i_busy);
 	reg	[(CW-1):0]	r_cword; // Record our result
 	always @(posedge i_clk)
 	begin
-		if ((~a_stb)||(~r_stb)||(w_accepted))//Reset whenever word gets written
+		if ((!a_stb)||(!r_stb)||(w_accepted))//Reset whenever word gets written
 		begin
 			r_cword <= r_word;
 		end else if ((match)&&(fmatch)) // &&(r_word == a_addrword))

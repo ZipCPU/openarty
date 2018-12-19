@@ -160,6 +160,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	o_debug
 	);
 	parameter	MEMORY_ADDRESS_WIDTH = 12; // Log_2 octet width:11..14
+	parameter [0:0]	RXSCOPE = 1'b1;
 	localparam	MAW =((MEMORY_ADDRESS_WIDTH>14)? 14: // width of words
 			((MEMORY_ADDRESS_WIDTH<11)? 11:MEMORY_ADDRESS_WIDTH))-2;
 	input	wire		i_wb_clk, i_reset;
@@ -746,40 +747,30 @@ module	enetpackets(i_wb_clk, i_reset,
 	assign	o_rx_int = (rx_valid)&&(!rx_clear);
 	assign	o_wb_stall = 1'b0;
 
-	wire	[31:0]	rxdbg;
-	wire	rx_trigger; // reg	rx_trigger;
-	/*
-	always @(posedge `RXCLK)
-	begin
-		if ((n_rx_clear)&&(!rx_trigger))
-			rx_trigger <= 1'b1;
-		else if (!n_rx_clear)
-			rx_trigger <= 1'b0;
-	end
-	*/
-	assign	rx_trigger = i_net_dv;
+	generate if (RXSSCOPE)
+	begin : RXSCOPE
 
-	assign	rxdbg = { rx_trigger, n_eop, w_rxwr,
-		w_npre, w_npred,
-		w_rxcrc, w_rxcrcd,
-		w_macerr, w_broadcast, w_rxmac, w_rxmacd,
-		n_rx_clear, i_net_rxerr, n_rx_miss, n_rx_net_err,// 4 bits
-		n_rx_valid, n_rx_busy, i_net_crs, i_net_dv,	// 4 bits
-		i_net_rxd };					// 4 bits
+		assign	o_debug = { i_net_dv, n_eop, w_rxwr,
+			w_npre, w_npred,
+			w_rxcrc, w_rxcrcd,
+			w_macerr, w_broadcast, w_rxmac, w_rxmacd,
+			n_rx_clear, i_net_rxerr, n_rx_miss, n_rx_net_err,// 4'b
+			n_rx_valid, n_rx_busy, i_net_crs, i_net_dv,	// 4'b
+			i_net_rxd };					// 4'b
+
+	end else begin : TXSCOPE
 
 
-	/*
-	wire	[31:0]	txdbg;
-	assign	txdbg = { n_tx_cmd, i_net_dv, rx_busy, n_rx_err, i_net_rxd,
+		assign	o_debug = { n_tx_cmd,
+			i_net_dv, rx_busy, n_rx_err, i_net_rxd,
 			{(24-(MAW+3)-10){1'b0}}, 
 			n_tx_addr[(MAW+2):0],
-		tx_clk_stb, n_tx_cancel,
-		n_tx_cmd, n_tx_complete, n_tx_busy, o_net_tx_en,
-		o_net_txd
-		};
-	*/
+			tx_clk_stb, n_tx_cancel,
+			n_tx_cmd, n_tx_complete, n_tx_busy, o_net_tx_en,
+			o_net_txd
+			};
 
-	assign	o_debug = rxdbg;
+	end endgenerate
 
 	// Make verilator happy
 	// verilator lint_off UNUSED

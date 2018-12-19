@@ -71,7 +71,7 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 
 	wire	w_accept, w_eow, w_newwr, w_new_err;
 	// wire	w_newad, w_newrd;
-	assign	w_accept = (i_stb)&&(~o_busy);
+	assign	w_accept = (i_stb)&&(!o_busy);
 	// assign	w_newad  = (w_accept)&&(i_codword[35:34] == 2'b00);
 	assign	w_newwr  = (w_accept)&&(i_codword[35:34] == 2'b01);
 	assign	w_eow    = (w_accept)&&(i_codword[35:30] == 6'h2e);
@@ -115,7 +115,7 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 			// Increment addresses?
 			r_inc <= i_codword[30];
 			// Will this be a write?
-			o_wb_we <= (~i_codword[35]);
+			o_wb_we <= (!i_codword[35]);
 			//
 			// Our next codeword will be the new address (if there
 			// is one).  Set it here.  The o_stb line will determine
@@ -182,13 +182,14 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 				o_codword <= { 3'h7, i_wb_data[31:30], r_inc, 
 					i_wb_data[29:0] };
 
-			if ((r_inc)&&(~i_wb_stall))
+			if ((r_inc)&&(!i_wb_stall))
 				o_wb_addr <= o_wb_addr + 32'h001;
 
 
-			if (~i_wb_stall) // Deal with the strobe line
+			if (!i_wb_stall) // Deal with the strobe line
 			begin // Strobe was accepted, busy should be '1' here
-				if ((single_read_request)||(last_read_request)) // (r_len != 0) // read
+				if ((single_read_request)||(last_read_request))
+					// (r_len != 0) // read
 				begin
 					wb_state <= `WB_ACK;
 					o_wb_stb <= 1'b0;
@@ -204,10 +205,10 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 			else // Write acknowledgement
 				o_codword <= { 6'h2, i_wb_data[29:0] };
 
-			if ((r_inc)&&(~i_wb_stall))
+			if ((r_inc)&&(!i_wb_stall))
 				o_wb_addr <= o_wb_addr + 32'h001;
 
-			o_stb <= (i_wb_err)||(~i_wb_stall);
+			o_stb <= (i_wb_err)||(!i_wb_stall);
 
 			// Don't need to worry about accepting anything new
 			// here, since we'll always be busy while in this state.
@@ -220,7 +221,7 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 				//
 				o_wb_cyc <= 1'b0;
 				o_wb_stb <= 1'b0;
-			end else if (~i_wb_stall)
+			end else if (!i_wb_stall)
 			begin
 				wb_state <= `WB_WAIT_ON_NEXT_WRITE;
 				o_wb_stb <= 1'b0;
@@ -243,7 +244,7 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 
 			// Return a read result, or (possibly) an error
 			// notification
-			o_stb <= (((i_wb_ack)&&(~o_wb_we)) || (i_wb_err));
+			o_stb <= (((i_wb_ack)&&(!o_wb_we)) || (i_wb_err));
 
 			if (((last_ack)&&(i_wb_ack))||(zero_acks)||(i_wb_err))
 			begin
@@ -314,42 +315,50 @@ module	wbuexec(i_clk, i_rst, i_stb, i_codword, o_busy,
 	//			||(wb_state == `WB_WRITE_REQUEST);
 
 	always @(posedge i_clk)
-		if (i_rst)
-			r_new_addr <= 1'b1;
-		else if ((~o_wb_cyc)&&(i_stb)&&(~i_codword[35]))
-			r_new_addr <= 1'b1;
-		else if (o_wb_cyc)
-			r_new_addr <= 1'b0;
+	if (i_rst)
+		r_new_addr <= 1'b1;
+	else if ((!o_wb_cyc)&&(i_stb)&&(!i_codword[35]))
+		r_new_addr <= 1'b1;
+	else if (o_wb_cyc)
+		r_new_addr <= 1'b0;
 
 	always @(posedge i_clk)
-		if (~o_wb_cyc)
-			r_acks_needed <= 10'h00; // (i_codword[35])?i_codword[9:0]:10'h00;
-		else if ((o_wb_stb)&&(~i_wb_stall)&&(~i_wb_ack))
-			r_acks_needed <= r_acks_needed + 10'h01;
-		else if (((~o_wb_stb)||(i_wb_stall))&&(i_wb_ack))
-			r_acks_needed <= r_acks_needed - 10'h01;
+	if (!o_wb_cyc)
+		r_acks_needed <= 10'h00; // (i_codword[35])?i_codword[9:0]:10'h00;
+	else if ((o_wb_stb)&&(!i_wb_stall)&&(!i_wb_ack))
+		r_acks_needed <= r_acks_needed + 10'h01;
+	else if (((!o_wb_stb)||(i_wb_stall))&&(i_wb_ack))
+		r_acks_needed <= r_acks_needed - 10'h01;
 
 	always @(posedge i_clk)
-		last_ack <= (~o_wb_stb)&&(r_acks_needed == 10'h01)
+		last_ack <= (!o_wb_stb)&&(r_acks_needed == 10'h01)
 				||(o_wb_stb)&&(r_acks_needed == 10'h00);
 
 	always @(posedge i_clk)
-		zero_acks <= (~o_wb_stb)&&(r_acks_needed == 10'h00);
+		zero_acks <= (!o_wb_stb)&&(r_acks_needed == 10'h00);
 
 	always @(posedge i_clk)
-		if (!o_wb_stb) // (!o_wb_cyc)&&(i_codword[35:34] == 2'b11))
-			r_len <= i_codword[9:0];
-		else if ((o_wb_stb)&&(~i_wb_stall)&&(|r_len))
-			r_len <= r_len - 10'h01;
+	if (!o_wb_stb) // (!o_wb_cyc)&&(i_codword[35:34] == 2'b11))
+		r_len <= i_codword[9:0];
+	else if ((o_wb_stb)&&(!i_wb_stall)&&(|r_len))
+		r_len <= r_len - 10'h01;
 
 	always @(posedge i_clk)
 	begin
-		single_read_request <= (~o_wb_cyc)&&(i_codword[9:0] == 10'h01);
+		single_read_request <= (!o_wb_cyc)&&(i_codword[9:0] == 10'h01);
 		// When there is one read request left, it will be the last one
 		// will be the last one
 		last_read_request <= (o_wb_stb)&&(r_len[9:2] == 8'h00)
-			&&((~r_len[1])
-				||((~r_len[0])&&(~i_wb_stall)));
+			&&((!r_len[1])
+				||((!r_len[0])&&(!i_wb_stall)));
 	end
 
+`ifdef	FORMAL
+	reg	f_past_valid;
+
+	initial	f_past_valid = 1'b0;
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+`endif // FORMAL
 endmodule

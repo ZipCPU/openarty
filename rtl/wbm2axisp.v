@@ -404,5 +404,8 @@ module wbm2axisp #(
 				||((o_axi_awvalid)&&(!i_axi_awready))
 				||((o_axi_wvalid )&&(!i_axi_wready ))
 				||((o_axi_arvalid)&&(!i_axi_arready)));
+
+	wire	[2:0]	unused;
+	assign	unused = { i_axi_bresp[0], i_axi_rresp[0], i_axi_rlast };
 endmodule
 

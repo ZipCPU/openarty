@@ -178,7 +178,7 @@
 	wire	w_console_rx_stb, w_console_tx_stb, w_console_busy;
 	wire	[6:0]	w_console_rx_data, w_console_tx_data;
 @MAIN.INSERT=
-	wbconsole console(@$(SLAVE.BUS.CLOCK.WIRE), 1'b0,
+	wbconsole #(.LGFLEN(6)) console(@$(SLAVE.BUS.CLOCK.WIRE), 1'b0,
  			wb_cyc, (wb_stb)&&(@$(PREFIX)_sel), wb_we,
 				wb_addr[1:0], wb_data,
  			@$(PREFIX)_ack, @$(PREFIX)_stall, @$(PREFIX)_data,
@@ -199,6 +199,7 @@ typedef struct  CONSOLE_S {
 	unsigned	u_rx, u_tx;
 } CONSOLE;
 
+#define	_@$(PREFIX)_txbusy	((_uart->u_fifo & 0x10000)==0)
 @BDEF.IONAME= io_console
 @BDEF.IOTYPE= CONSOLE
 @BDEF.OSDEF=	_BOARD_HAS_BUSCONSOLE

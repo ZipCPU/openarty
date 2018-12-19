@@ -88,6 +88,13 @@
 	assign	i_qspi_dat = i_qspi_pedge;
 ##
 ##
+@XDC.INSERT=
+set_property SLEW FAST [get_ports o_qspi_cs_n]
+set_property SLEW FAST [get_ports o_qspi_sck]
+set_property SLEW FAST [get_ports io_qspi_dat[0]]
+set_property SLEW FAST [get_ports io_qspi_dat[1]]
+set_property SLEW FAST [get_ports io_qspi_dat[2]]
+set_property SLEW FAST [get_ports io_qspi_dat[3]]
 ##
 ##
 ##
@@ -106,7 +113,7 @@
 	wire	[31:0]	@$(PREFIX)_debug;
 @MAIN.INSERT=
 	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ),
-		.CKDELAY(0), .RDDELAY(4)
+		.CKDELAY(0), .RDDELAY(3)
 `ifdef	FLASHCFG_ACCESS
 		, .OPT_CFG(1'b1)
 `else
@@ -149,30 +156,11 @@
 #endif // @$(ACCESS)
 @SIM.TICK +=
 #ifdef	@$(ACCESS)
-		{ static int lastsck = 0; int iqspi;
-
-			if (lastsck)
-				(*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
-					0, m_core->o_qspi_dat);
-
-			iqspi = (*m_@$(MEM.NAME))(m_core->o_qspi_cs_n,
-				1, m_core->o_qspi_dat);
-
-
-			if (m_core->o_qspi_mod&2) {
-				if (m_core->o_qspi_mod&1)
-					;
-				else
-					iqspi = m_core->o_qspi_dat;
-			} else {
-				iqspi &= 0x002;
-				iqspi |= m_core->o_qspi_dat&1;
-				iqspi |= 0x0c;
-			}
-
-			m_core->i_qspi_dat = iqspi;
-			lastsck = m_core->o_qspi_sck;
-		}
+		m_core->i_qspi_dat = m_@$(MEM.NAME)->simtick(
+			m_core->o_qspi_cs_n,
+			m_core->o_qspi_sck,
+			m_core->o_qspi_dat,
+			m_core->o_qspi_mod);
 #endif // @$(ACCESS)
 @SIM.LOAD +=
 #ifdef	@$(ACCESS)
@@ -222,29 +210,3 @@
 @BDEF.OSVAL=static volatile @$(BDEF.IOTYPE) * const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)(@$[0x%08x](REGBASE)));
 @RTL.MAKE.GROUP= FLASH
 @RTL.MAKE.FILES= qflexpress.v
-#
-#
-#
-# Flash debug
-@PREFIX=flashdbg
-@NADDR=2
-@ACCESS=FLASH_SCOPE
-@DEPENDS=FLASH_ACCESS
-@SLAVE.TYPE=OTHER
-@SLAVE.BUS=wb
-@MAIN.INSERT=
-	wbscopc #(12)
-	@$(PREFIX)i(i_clk, 1'b1, flash_dbg_trigger, flash_debug[30:0],
-		i_clk, wb_cyc, (wb_stb)&&(@$(PREFIX)_sel), wb_we,
-		wb_addr[0], wb_data, @$(PREFIX)_ack, @$(PREFIX)_stall,
-		@$(PREFIX)_data, @$(PREFIX)_int);
-@MAIN.ALT=
-	assign	@$(PREFIX)_int = 0;
-@INT.FLASHDBG.WIRE=@$(PREFIX)_int
-@INT.FLASHDBG.PIC=buspic
-@REGS.NOTE=// Flash debug / scope
-@REGS.N=1
-@REGS.0=0 R_QSCOPE  QSCOPE
-@REGS.1=1 R_QSCOPED QSCOPED
-@RTL.MAKE.GROUP=FLASHDBG
-@RTL.MAKE.FILES=wbscopc.v

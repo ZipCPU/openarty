@@ -54,40 +54,9 @@
 @$RESET_ADDRESS=@$(flash.REGBASE)+(4<<20)
 @INT.ZIP.WIRE=zip_cpu_int
 @INT.ZIP.BUS=buspic
-@LD.FILE=board.ld
-@LD.DEFNS=
-/* LD.DEFNS from zipmaster.txt */
-_kram  = 0; /* No high-speed kernel RAM */
-_ram   = ORIGIN(bkram);
-_rom   = ORIGIN(flash);
-_top_of_stack = ORIGIN(bkram) + LENGTH(bkram);
-
-@LD.SCRIPT=
-/* LD.SCRIPT from zipmaster.txt */
-SECTIONS
-{
-       .rocode @$[0x%08x](RESET_ADDRESS) : ALIGN(4) {
-               _boot_address = .;
-               *(.start) *(.boot)
-       } > flash
-       _kram_start = . ;
-       _kram_end = . ;
-       _ram_image_start = . ;
-       .kernel : ALIGN_WITH_INPUT {
-               *(.kernel)
-               *(.text.startup)
-               *(.text*)
-               *(.rodata*) *(.strings)
-               *(.data) *(COMMON)
-               }> bkram AT> flash
-       _ram_image_end = . ;
-       .bss : ALIGN_WITH_INPUT {
-               *(.bss)
-               _bss_image_end = . ;
-               } > bkram
-       _top_of_heap = .;
-}
 @CACHABLE.FILE=iscachable.v
+@LGICACHE=10
+@LGDCACHE=10
 @TOP.PORTLIST=
 # 		// A reset wire for the ZipCPU
 # 		i_cpu_resetn
@@ -134,7 +103,8 @@ SECTIONS
 	//
 	//
 	assign	zip_int_vector = { alt_int_vector[14:8], sys_int_vector[14:6] };
-	zipsystem #(RESET_ADDRESS,ZIP_ADDRESS_WIDTH,10,ZIP_START_HALTED,ZIP_INTS)
+	zipsystem #(RESET_ADDRESS,ZIP_ADDRESS_WIDTH,@$(LGICACHE),@$(LGDCACHE),
+			ZIP_START_HALTED,ZIP_INTS)
 		swic(i_clk, (i_reset)||(i_cpu_reset),
 			// Zippys wishbone interface
 			zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
@@ -145,7 +115,7 @@ SECTIONS
 			wbu_addr[0],
 			wbu_data, zip_dbg_ack, zip_dbg_stall, zip_dbg_data,
 			zip_debug);
-	assign	zip_trigger = zip_debug[0];
+	assign	zip_trigger = zip_debug[31];
 @BDEF.INCLUDE=
 #include <design.h>
 #include <cpudefs.h>
@@ -196,6 +166,7 @@ SECTIONS
 
 #define	CPUVAR(A)	VVAR(_swic__DOT__thecpu__DOT_ ## A)
 
+#define	cpu_reset 	VVAR(_swic__DOT__cmd_reset)
 #define	cpu_break 	VVAR(_swic__DOT__cpu_break)
 #define	cpu_cmd_halt	VVAR(_swic__DOT__cmd_halt)
 #define	cpu_ipc		CPUVAR(_ipc)

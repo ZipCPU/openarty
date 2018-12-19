@@ -46,7 +46,7 @@
 	// memory generator provided clock(s)
 
 	// Build our master clock
-	wire	s_clk, sys_clk, mem_clk_200mhz,
+	wire	sys_clk, mem_clk_200mhz,
 		clk1_unused, clk2_unused, enet_clk, clk4_unused,
 		clk5_unused, clk_feedback, clk_locked, mem_clk_200mhz_nobuf,
 		mem_clk_nobuf, clk_feedback_bufd;
@@ -101,30 +101,59 @@
 	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
 	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));
 `endif
-
 ##
 @PREFIX=eth_rx_clk_p
-@CLOCK.TOP=i_eth_rx_clk
 @CLOCK.NAME=eth_rx_clk
 @CLOCK.WIRE=i_eth_rx_clk
 @CLOCK.FREQUENCY=25000000
+@TOP.MAIN=
+		eth_rx_clk
+@MAIN.PORTLIST=
+		i_eth_rx_clk
+@MAIN.IODECL=
+	// With no ethernet included, this clock will be unused
+	// Verilator lint_off UNUSED
+	input	wire	i_eth_rx_clk;
+	// Verilator lint_on  UNUSED
 ##
 @PREFIX=eth_tx_clk_p
-@CLOCK.TOP=i_eth_tx_clk
 @CLOCK.NAME=eth_tx_clk
 @CLOCK.WIRE=i_eth_tx_clk
 @CLOCK.FREQUENCY=25000000
+@TOP.MAIN=
+		eth_tx_clk
+@MAIN.PORTLIST=
+		i_eth_tx_clk
+@MAIN.IODECL=
+	// With no ethernet included, this clock will be unused
+	// Verilator lint_off UNUSED
+	input	wire	i_eth_tx_clk;
+	// Verilator lint_on  UNUSED
+@REGDEFS.H.DEFNS=
+#define	ENETCLKFREQHZ @$(CLOCK.FREQUENCY)
 ##
 @PREFIX=sysclk
 @CLOCK.NAME=clk
 @CLOCK.WIRE=i_clk
 @CLOCK.FREQUENCY=82500000
+@REGDEFS.H.DEFNS=
+#define	CLKFREQHZ @$(CLOCK.FREQUENCY)
 @BDEF.DEFN=
-#define	CLKFREQHZ $(CLOCK.FREQUENCY)
+#define	CLKFREQHZ @$(CLOCK.FREQUENCY)
 ##
 @PREFIX=crystal_oscillator
 @CLOCK.NAME=crystal_clk
 @CLOCK.WIRE=no_clk
 @CLOCK.TOP=sys_clk_i
 @CLOCK.FREQUENCY=100000000
+@TOP.MAIN=
+		sys_clk_i
+@MAIN.PORTLIST=
+		no_clk
+@MAIN.IODECL=
+	// This clock is unused in main, AutoFPGA still wants it though
+	// Verilator lint_off UNUSED
+	input	wire	no_clk;
+	// Verilator lint_on  UNUSED
+##
 ##

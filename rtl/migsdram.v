@@ -276,12 +276,15 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 		);
 
 	// Convert from active low to active high, *and* hold the system in
-	// reset until the memory comes up.	
-	initial	o_sys_reset = 1'b1;
-	always @(posedge o_sys_clk)
-		o_sys_reset <= (w_sys_reset)
-				||(!init_calib_complete)
-				||(!mmcm_locked);
+	// reset until the memory comes up.
+	// initial	o_sys_reset = 1'b1;
+	// always @(posedge o_sys_clk)
+	// 	but ... w_sys_reset is already synchronous with o_sys_clk
+	always @(*)
+		o_sys_reset <= (w_sys_reset);
+			// These other conditions are captured internally
+			//	||(!init_calib_complete)
+			//	||(!mmcm_locked);
 `else
 	BUFG	sysclk(i_clk, o_sys_clk);
 	initial	o_sys_reset <= 1'b1;

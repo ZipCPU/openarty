@@ -85,7 +85,7 @@ module	rtcgps(i_clk, i_reset,
 	wire		sw_running, ck_ppd;
 
 	reg	ck_wr, tm_wr, sw_wr, al_wr, wr_zero;
-	reg	[31:0]	wr_data;
+	reg	[25:0]	wr_data;
 	reg	[3:3]	wr_sel;
 	reg	[2:0]	wr_valid;
 
@@ -110,7 +110,7 @@ module	rtcgps(i_clk, i_reset,
 	always @(posedge i_clk)
 	begin
 
-		wr_data <= i_wb_data;
+		wr_data <= i_wb_data[25:0];
 		wr_sel[3]   <= i_wb_sel[3];
 		wr_valid[0] <= (i_wb_sel[0])&&(i_wb_data[3:0] <= 4'h9)
 				&&(i_wb_data[7:4] <= 4'h5);
@@ -240,7 +240,7 @@ module	rtcgps(i_clk, i_reset,
 	// Make verilator happy
 	// verilator lint_off UNUSED
 	wire	[6:0] unused;
-	assign	unused = { i_wb_cyc, wr_data[31:26] };
+	assign	unused = { i_wb_cyc, i_wb_data[31:26] };
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL

@@ -50,15 +50,18 @@ all:	data
 BASE    := global.txt dlyarbiter.txt icape.txt
 AUX     := version.txt buserr.txt pic.txt pwrcount.txt
 IO      := spio.txt clrspio.txt # gpio.txt
-RTC     := rtcgps.txt
+GFX     := wboledrgb.txt
+RTC     := rtcgps.txt rtcdate.txt
 NETWORK := mdio.txt  enet.txt
 MEMORY  := bkram.txt flash.txt sdram.txt # wbhyperram.txt
 GPS     := gps.txt
 CPU     := zipmaster.txt
 DBGBUS  := wbuconsole.txt
 SDCARD  := sdspi.txt
+SCOPES  := # flashscope.txt cpuscope.txt enetscope.txt
+LDSCRIPT:= mem_flash_bkram.txt mem_bkram_only.txt
 DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC) $(GPS)	\
-	$(MEMORY) $(DBGBUS) $(CPU)
+	$(MEMORY) $(DBGBUS) $(CPU) $(SCOPES) $(GFX) $(SDCARD) $(LDSCRIPT)
 
 AUTOFPGA := autofpga
 $(AUTOFPGA):

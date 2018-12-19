@@ -1,5 +1,6 @@
 board.h
 board.ld
+bkram.ld
 build.xdc
 main.v
 regdefs.h

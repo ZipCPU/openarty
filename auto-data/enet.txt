@@ -105,7 +105,13 @@ static volatile unsigned *const @$(BDEF.IONAME)tx = ((unsigned *)@$[0x%08x](REGB
 	//
 	wire	[31:0]	netp_debug;
 @MAIN.INSERT=
-	enetpackets	#(12)
+	enetpackets	#(.MEMORY_ADDRESS_WIDTH(12)
+`ifdef	ENETRX_SCOPE
+		, .RXSCOPE(1)
+`else	// ENETRX_SCOPE
+		, .RXSCOPE(0)
+`endif
+		)
 		netctrl(i_clk, i_reset, wb_cyc,(wb_stb)&&((netp_sel)||(netb_sel)),
 			wb_we, { (netb_sel), wb_addr[10:0] }, wb_data, wb_sel,
 				netp_ack, netp_stall, netp_data,

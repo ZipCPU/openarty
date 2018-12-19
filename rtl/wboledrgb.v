@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	wboled.v
+// Filename: 	wboledrgb.v
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
@@ -142,7 +142,7 @@
 //
 `default_nettype	none
 //
-module	wboled(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
+module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 			o_ack, o_stall, o_data,
 		o_sck, o_cs_n, o_mosi, o_dbit,
 		o_pwr, o_int);
@@ -162,7 +162,7 @@ module	wboled(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	reg	[31:0]	dev_word;
 	reg	[1:0]	dev_len;
 	wire		dev_busy;
-	lloled	#(CBITS)
+	lloledrgb	#(CBITS)
 		lwlvl(i_clk, dev_wr, dev_dbit, dev_word, dev_len, dev_busy,
 			o_sck, o_cs_n, o_mosi, o_dbit);
 

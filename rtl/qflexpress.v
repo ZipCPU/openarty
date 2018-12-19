@@ -82,20 +82,19 @@ module	qflexpress(i_clk, i_reset,
 	// the 32-bit address flash chips.
 	parameter	LGFLASHSZ=24;
 	//
-	// OPT_STARTUP enables the configuration logic port, and hence the
-	// ability to erase and program the flash, as well as the ability
-	// to perform other commands such as read-manufacturer ID, adjust
-	// configuration registers, etc.
+	// OPT_PIPE makes it possible to string multiple requests together,
+	// with no intervening need to shutdown the QSPI connection and send a
+	// new address
 	parameter [0:0]	OPT_PIPE    = 1'b1;
 	//
-	// OPT_STARTUP enables the configuration logic port, and hence the
+	// OPT_CFG enables the configuration logic port, and hence the
 	// ability to erase and program the flash, as well as the ability
 	// to perform other commands such as read-manufacturer ID, adjust
 	// configuration registers, etc.
 	parameter [0:0]	OPT_CFG     = 1'b1;
 	//
 	// OPT_STARTUP enables the startup logic
-	parameter [0:0]	OPT_STARTUP = 1'b0;
+	parameter [0:0]	OPT_STARTUP = 1'b1;
 	//
 	// CKDELAY is the number of clock delays from when o_qspi_sck is set
 	// until the actual clock takes place.  Values of 0 and 1 have been
@@ -234,7 +233,7 @@ module	qflexpress(i_clk, i_reset,
 		integer k;
 		initial begin
 		for(k=0; k<128; k=k+1)
-			m_cmd_word[k] = 7'h1ff;
+			m_cmd_word[k] = 7'h7f;
 		// cmd_word= m_ctr_flag, m_mod[1:0],
 		//			m_cs_n, m_clk, m_data[3:0]
 		// Start off idle
@@ -424,21 +423,25 @@ module	qflexpress(i_clk, i_reset,
 	end endgenerate
 
 
+	reg	[(32+4*CKDELAY)-1:0]	data_pipe;
+	reg	pre_ack = 1'b0;
+	reg	actual_sck;
+	reg	r_last_cfg;
+
 	//
 	//
 	// Data / access portion
 	//
 	//
-	reg	[(32+4*CKDELAY)-1:0]	data_pipe;
 	initial	data_pipe = 0;
 	always @(posedge i_clk)
 	begin
 		if (!o_wb_stall)
 		begin
 			// Set the high bits to zero initially
-			data_pipe[(32+4*CKDELAY)-1:0] <= 0;
+			data_pipe <= 0;
 
-			data_pipe[31:0] <= { {(24-LGFLASHSZ){1'b0}},
+			data_pipe[8+LGFLASHSZ-1:0] <= {
 					i_wb_addr, 2'b00, 4'ha, 4'h0 };
 
 			if (cfg_write)
@@ -468,7 +471,6 @@ module	qflexpress(i_clk, i_reset,
 	// risking losing XIP mode or any other mode we might be in, we'll
 	// keep track of whether this operation should be ack'd upon
 	// completion
-	reg	pre_ack = 1'b0;
 	always @(posedge i_clk)
 	if ((i_reset)||(!i_wb_cyc))
 		pre_ack <= 1'b0;
@@ -602,7 +604,6 @@ module	qflexpress(i_clk, i_reset,
 	else
 		dly_ack <= 1'b0;
 
-	reg	actual_sck;
 	generate if (CKDELAY == 0)
 	begin
 
@@ -739,7 +740,6 @@ module	qflexpress(i_clk, i_reset,
 		cfg_dir   <= i_wb_data[DIR_BIT];
 	end
 
-	reg	r_last_cfg;
 	initial	r_last_cfg = 1'b0;
 	always @(posedge i_clk)
 		r_last_cfg <= cfg_mode;

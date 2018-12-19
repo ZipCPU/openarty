@@ -68,61 +68,61 @@ module	wbureadcw(i_clk, i_stb, i_valid, i_hexbits,
 
 	wire	w_stb;
 	assign	w_stb = ((r_len == cw_len)&&(cw_len != 0))
-			||((i_stb)&&(~i_valid)&&(lastcw == 2'b01));
+			||((i_stb)&&(!i_valid)&&(lastcw == 2'b01));
 
 	// r_len is the length of the codeword as it exists
 	// in our register
 	initial r_len = 3'h0;
 	always @(posedge i_clk)
-		if ((i_stb)&&(~i_valid)) // Newline reset
-			r_len <= 0;
-		else if (w_stb) // reset/restart w/o newline
-			r_len <= (i_stb)? 3'h1:3'h0;
-		else if (i_stb) //in middle of word
-			r_len <= r_len + 3'h1;
+	if ((i_stb)&&(!i_valid)) // Newline reset
+		r_len <= 0;
+	else if (w_stb) // reset/restart w/o newline
+		r_len <= (i_stb)? 3'h1:3'h0;
+	else if (i_stb) //in middle of word
+		r_len <= r_len + 3'h1;
 
 	reg	[35:0]	shiftreg;
 	always @(posedge i_clk)
-		if (w_stb)
-			shiftreg[35:30] <= i_hexbits;
-		else if (i_stb) case(r_len)
-		3'b000: shiftreg[35:30] <= i_hexbits;
-		3'b001: shiftreg[29:24] <= i_hexbits;
-		3'b010: shiftreg[23:18] <= i_hexbits;
-		3'b011: shiftreg[17:12] <= i_hexbits;
-		3'b100: shiftreg[11: 6] <= i_hexbits;
-		3'b101: shiftreg[ 5: 0] <= i_hexbits;
-		default: begin end
-		endcase
+	if (w_stb)
+		shiftreg[35:30] <= i_hexbits;
+	else if (i_stb) case(r_len)
+	3'b000: shiftreg[35:30] <= i_hexbits;
+	3'b001: shiftreg[29:24] <= i_hexbits;
+	3'b010: shiftreg[23:18] <= i_hexbits;
+	3'b011: shiftreg[17:12] <= i_hexbits;
+	3'b100: shiftreg[11: 6] <= i_hexbits;
+	3'b101: shiftreg[ 5: 0] <= i_hexbits;
+	default: begin end
+	endcase
 
 	always @(posedge i_clk)
-		if (o_stb)
-			lastcw <= o_codword[35:34];
+	if (o_stb)
+		lastcw <= o_codword[35:34];
 	always @(posedge i_clk)
-		if ((i_stb)&&(~i_valid)&&(lastcw == 2'b01))
-			o_codword[35:30] <= 6'h2e;
-		else
-			o_codword <= shiftreg;
+	if ((i_stb)&&(!i_valid)&&(lastcw == 2'b01))
+		o_codword[35:30] <= 6'h2e;
+	else
+		o_codword <= shiftreg;
 
 	// How long do we expect this codeword to be?
 	initial	cw_len = 3'b000;
 	always @(posedge i_clk)
-		if ((i_stb)&&(~i_valid))
-			cw_len <= 0;
-		else if ((i_stb)&&((cw_len == 0)||(w_stb)))
-		begin
-			if (i_hexbits[5:4] == 2'b11) // 2b vector read
-				cw_len <= 3'h2;
-			else if (i_hexbits[5:4] == 2'b10) // 1b vector read
-				cw_len <= 3'h1;
-			else if (i_hexbits[5:3] == 3'b010) // 2b compressed wr
-				cw_len <= 3'h2;
-			else if (i_hexbits[5:3] == 3'b001) // 2b compressed addr
-				cw_len <= 3'b010 + { 1'b0, i_hexbits[2:1] };
-			else // long write or set address
-				cw_len <= 3'h6;
-		end else if (w_stb)
-			cw_len <= 0;
+	if ((i_stb)&&(!i_valid))
+		cw_len <= 0;
+	else if ((i_stb)&&((cw_len == 0)||(w_stb)))
+	begin
+		if (i_hexbits[5:4] == 2'b11) // 2b vector read
+			cw_len <= 3'h2;
+		else if (i_hexbits[5:4] == 2'b10) // 1b vector read
+			cw_len <= 3'h1;
+		else if (i_hexbits[5:3] == 3'b010) // 2b compressed wr
+			cw_len <= 3'h2;
+		else if (i_hexbits[5:3] == 3'b001) // 2b compressed addr
+			cw_len <= 3'b010 + { 1'b0, i_hexbits[2:1] };
+		else // long write or set address
+			cw_len <= 3'h6;
+	end else if (w_stb)
+		cw_len <= 0;
 
 	always @(posedge i_clk)
 		o_stb <= w_stb;
