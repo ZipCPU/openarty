@@ -93,16 +93,17 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 	wire	z, n, v;
 	reg	c, pre_sign, set_ovfl, keep_sgn_on_ovfl;
 	always @(posedge i_clk)
-		if (i_stb) // 1 LUT
-			set_ovfl<=(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
-				||((i_op==4'h2)&&(i_a[31] == i_b[31])) // ADD
-				||(i_op == 4'h6) // LSL
-				||(i_op == 4'h5)); // LSR
+	if (i_stb) // 1 LUT
+		set_ovfl<=(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
+			||((i_op==4'h2)&&(i_a[31] == i_b[31])) // ADD
+			||(i_op == 4'h6) // LSL
+			||(i_op == 4'h5)); // LSR
+
 	always @(posedge i_clk)
-		if (i_stb) // 1 LUT
-			keep_sgn_on_ovfl<=
-				(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
-				||((i_op==4'h2)&&(i_a[31] == i_b[31]))); // ADD
+	if (i_stb) // 1 LUT
+		keep_sgn_on_ovfl<=
+			(((i_op==4'h0)&&(i_a[31] != i_b[31]))//SUB&CMP
+			||((i_op==4'h2)&&(i_a[31] == i_b[31]))); // ADD
 
 	wire	[63:0]	mpy_result; // Where we dump the multiply result
 	wire	mpyhi;		// Return the high half of the multiply
@@ -155,12 +156,12 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 	reg	r_busy;
 	initial	r_busy = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			r_busy <= 1'b0;
-		else if (IMPLEMENT_MPY > 1)
-			r_busy <= ((i_stb)&&(this_is_a_multiply_op))||mpybusy;
-		else
-			r_busy <= 1'b0;
+	if (i_reset)
+		r_busy <= 1'b0;
+	else if (IMPLEMENT_MPY > 1)
+		r_busy <= ((i_stb)&&(this_is_a_multiply_op))||mpybusy;
+	else
+		r_busy <= 1'b0;
 
 	assign	o_busy = (r_busy); // ||((IMPLEMENT_MPY>1)&&(this_is_a_multiply_op));
 
@@ -174,12 +175,12 @@ module	cpuops(i_clk,i_reset, i_stb, i_op, i_a, i_b, o_c, o_f, o_valid,
 
 	initial	o_valid = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			o_valid <= 1'b0;
-		else if (IMPLEMENT_MPY <= 1)
-			o_valid <= (i_stb);
-		else
-			o_valid <=((i_stb)&&(!this_is_a_multiply_op))||(mpydone);
+	if (i_reset)
+		o_valid <= 1'b0;
+	else if (IMPLEMENT_MPY <= 1)
+		o_valid <= (i_stb);
+	else
+		o_valid <=((i_stb)&&(!this_is_a_multiply_op))||(mpydone);
 
 `ifdef	FORMAL
 // Formal properties for this module are maintained elsewhere

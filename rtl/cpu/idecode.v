@@ -128,7 +128,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	assign	pf_valid = (i_pf_valid)&&(!o_early_branch_stb);
 
 
-	reg	[15:0]	r_nxt_half;
+	reg	[14:0]	r_nxt_half;
 
 	generate if (OPT_CIS)
 	begin : SET_IWORD
@@ -136,13 +136,13 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		assign	iword = (o_phase)
 				// set second half as a NOOP ... but really
 				// shouldn't matter
-			? { r_nxt_half[15:0], i_instruction[15:0] }
+			? { 1'b1, r_nxt_half[14:0], i_instruction[15:0] }
 			: i_instruction;
 	end else begin : CLR_IWORD
 		assign	iword = { 1'b0, i_instruction[30:0] };
 
 		// verilator lint_off UNUSED
-		wire	[15:0]	unused_nxt_half;
+		wire	[14:0]	unused_nxt_half;
 		assign		unused_nxt_half = r_nxt_half;
 		// verilator lint_on  UNUSED
 	end endgenerate
@@ -153,7 +153,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		if (OPT_CIS)
 		begin : CIS_EARLY_BRANCHING
 
-			assign	w_cis_ljmp = (iword[31:16] == 16'hfcf8);
+			assign	w_cis_ljmp = (o_phase)&&(iword[31:16] == 16'hfcf8);
 
 		end else begin : NOCIS_EARLY_BRANCH
 
@@ -175,18 +175,18 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	begin : GEN_CIS_OP
 
 		always @(*)
-			if (!iword[`CISBIT])
-				w_cis_op = iword[26:22];
-			else case(iword[26:24])
-			3'h0: w_cis_op = 5'h00;
-			3'h1: w_cis_op = 5'h01;
-			3'h2: w_cis_op = 5'h02;
-			3'h3: w_cis_op = 5'h10;
-			3'h4: w_cis_op = 5'h12;
-			3'h5: w_cis_op = 5'h13;
-			3'h6: w_cis_op = 5'h18;
-			3'h7: w_cis_op = 5'h0d;
-			endcase
+		if (!iword[`CISBIT])
+			w_cis_op = iword[26:22];
+		else case(iword[26:24])
+		3'h0: w_cis_op = 5'h00;	// ADD
+		3'h1: w_cis_op = 5'h01;	// AND
+		3'h2: w_cis_op = 5'h02;	// SUB
+		3'h3: w_cis_op = 5'h10;	// BREV
+		3'h4: w_cis_op = 5'h12;	// LW
+		3'h5: w_cis_op = 5'h13;	// SW
+		3'h6: w_cis_op = 5'h18;	// LDI
+		3'h7: w_cis_op = 5'h0d;	// MOV
+		endcase
 
 	end else begin : GEN_NOCIS_OP
 
@@ -380,43 +380,43 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 
 	initial	o_illegal = 1'b0;
 	always @(posedge i_clk)
-		if (i_ce)
-		begin
-			if (OPT_PIPELINED)
-				o_illegal <= ((i_illegal)
-						&&((!o_phase)||(!o_valid)))
-					||((o_illegal)&&(o_phase)&&(o_valid));
-			else
-				o_illegal <= (i_illegal)&&(!o_phase);
-			if ((!OPT_CIS)&&(i_instruction[`CISBIT]))
-				o_illegal <= 1'b1;
-			if ((!OPT_MPY)&&(w_mpy))
-				o_illegal <= 1'b1;
+	if (i_ce)
+	begin
+		if (OPT_PIPELINED)
+			o_illegal <= ((i_illegal)
+					&&((!o_phase)||(!o_valid)))
+				||((o_illegal)&&(o_phase)&&(o_valid));
+		else
+			o_illegal <= (i_illegal)&&(!o_phase);
+		if ((!OPT_CIS)&&(i_instruction[`CISBIT]))
+			o_illegal <= 1'b1;
+		if ((!OPT_MPY)&&(w_mpy))
+			o_illegal <= 1'b1;
 
-			if ((!OPT_DIVIDE)&&(w_div))
-				o_illegal <= 1'b1;
-			else if ((OPT_DIVIDE)&&(w_div)&&(w_dcdR[3:1]==3'h7))
-				o_illegal <= 1'b1;
+		if ((!OPT_DIVIDE)&&(w_div))
+			o_illegal <= 1'b1;
+		else if ((OPT_DIVIDE)&&(w_div)&&(w_dcdR[3:1]==3'h7))
+			o_illegal <= 1'b1;
 
 
-			if ((!OPT_FPU)&&(w_fpu))
-				o_illegal <= 1'b1;
+		if ((!OPT_FPU)&&(w_fpu))
+			o_illegal <= 1'b1;
 
-			if ((!OPT_SIM)&&(w_sim))
-			// Simulation instructions on real hardware should
-			// always cause an illegal instruction error
-				o_illegal <= 1'b1;
+		if ((!OPT_SIM)&&(w_sim))
+		// Simulation instructions on real hardware should
+		// always cause an illegal instruction error
+			o_illegal <= 1'b1;
 
-			// There are two (missing) special instructions
-			// These should cause an illegal instruction error
-			if ((w_dcdR[3:1]==3'h7)&&(w_cis_op[4:1]==4'b1101))
-				o_illegal <= 1'b1;
+		// There are two (missing) special instructions
+		// These should cause an illegal instruction error
+		if ((w_dcdR[3:1]==3'h7)&&(w_cis_op[4:1]==4'b1101))
+			o_illegal <= 1'b1;
 
-			// If the lock function isn't implemented, this should
-			// also cause an illegal instruction error
-			if ((!OPT_LOCK)&&(w_lock))
-				o_illegal <= 1'b1;
-		end
+		// If the lock function isn't implemented, this should
+		// also cause an illegal instruction error
+		if ((!OPT_LOCK)&&(w_lock))
+			o_illegal <= 1'b1;
+	end
 
 	initial	o_pc = 0;
 	always @(posedge i_clk)
@@ -449,71 +449,71 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 	initial	o_FP   = 0;
 	initial	o_lock = 0;
 	always @(posedge i_clk)
-		if (i_ce)
+	if (i_ce)
+	begin
+		// Under what condition will we execute this
+		// instruction?  Only the load immediate instruction
+		// is completely unconditional.
+		o_cond <= w_cond;
+		// Don't change the flags on conditional instructions,
+		// UNLESS: the conditional instruction was a CMP
+		// or TST instruction.
+		o_wF <= w_wF;
+
+		// Record what operation/op-code (4-bits) we are doing
+		//	Note that LDI magically becomes a MOV
+		// 	instruction here.  That way it's a pass through
+		//	the ALU.  Likewise, the two compare instructions
+		//	CMP and TST becomes SUB and AND here as well.
+		// We keep only the bottom four bits, since we've
+		// already done the rest of the decode necessary to
+		// settle between the other instructions.  For example,
+		// o_FP plus these four bits uniquely defines the FP
+		// instruction, o_DV plus the bottom of these defines
+		// the divide, etc.
+		o_op <= w_cis_op[3:0];
+		if ((w_ldi)||(w_noop)||(w_lock))
+			o_op <= 4'hd;
+
+		// Default values
+		o_dcdR <= { w_dcdR_cc, w_dcdR_pc, w_dcdR};
+		o_dcdA <= { w_dcdA_cc, w_dcdA_pc, w_dcdA};
+		o_dcdB <= { w_dcdB_cc, w_dcdB_pc, w_dcdB};
+		o_wR  <= w_wR;
+		o_rA  <= w_rA;
+		o_rB  <= w_rB;
+		r_I    <= w_I;
+		o_zI   <= w_Iz;
+
+		// Turn a NOOP into an ALU operation--subtract in
+		// particular, although it doesn't really matter as long
+		// as it doesn't take longer than one clock.  Note
+		// also that this depends upon not setting any registers
+		// or flags, which should already be true.
+		o_ALU  <=  (w_ALU)||(w_ldi)||(w_cmptst)||(w_noop)
+				||((!OPT_LOCK)&&(w_lock));
+		o_M    <=  w_mem;
+		o_DV   <=  (OPT_DIVIDE)&&(w_div);
+		o_FP   <=  (OPT_FPU)&&(w_fpu);
+
+		o_break <= w_break;
+		o_lock  <= (OPT_LOCK)&&(w_lock);
+
+		if (OPT_CIS)
+			r_nxt_half <= { iword[14:0] };
+		else
+			r_nxt_half <= 0;
+
+		if (OPT_SIM)
 		begin
-			// Under what condition will we execute this
-			// instruction?  Only the load immediate instruction
-			// is completely unconditional.
-			o_cond <= w_cond;
-			// Don't change the flags on conditional instructions,
-			// UNLESS: the conditional instruction was a CMP
-			// or TST instruction.
-			o_wF <= w_wF;
-
-			// Record what operation/op-code (4-bits) we are doing
-			//	Note that LDI magically becomes a MOV
-			// 	instruction here.  That way it's a pass through
-			//	the ALU.  Likewise, the two compare instructions
-			//	CMP and TST becomes SUB and AND here as well.
-			// We keep only the bottom four bits, since we've
-			// already done the rest of the decode necessary to
-			// settle between the other instructions.  For example,
-			// o_FP plus these four bits uniquely defines the FP
-			// instruction, o_DV plus the bottom of these defines
-			// the divide, etc.
-			o_op <= w_cis_op[3:0];
-			if ((w_ldi)||(w_noop)||(w_lock))
-				o_op <= 4'hd;
-
-			// Default values
-			o_dcdR <= { w_dcdR_cc, w_dcdR_pc, w_dcdR};
-			o_dcdA <= { w_dcdA_cc, w_dcdA_pc, w_dcdA};
-			o_dcdB <= { w_dcdB_cc, w_dcdB_pc, w_dcdB};
-			o_wR  <= w_wR;
-			o_rA  <= w_rA;
-			o_rB  <= w_rB;
-			r_I    <= w_I;
-			o_zI   <= w_Iz;
-
-			// Turn a NOOP into an ALU operation--subtract in
-			// particular, although it doesn't really matter as long
-			// as it doesn't take longer than one clock.  Note
-			// also that this depends upon not setting any registers
-			// or flags, which should already be true.
-			o_ALU  <=  (w_ALU)||(w_ldi)||(w_cmptst)||(w_noop)
-					||((!OPT_LOCK)&&(w_lock));
-			o_M    <=  w_mem;
-			o_DV   <=  (OPT_DIVIDE)&&(w_div);
-			o_FP   <=  (OPT_FPU)&&(w_fpu);
-
-			o_break <= w_break;
-			o_lock  <= (OPT_LOCK)&&(w_lock);
-
-			if (OPT_CIS)
-				r_nxt_half <= { iword[`CISBIT], iword[14:0] };
-			else
-				r_nxt_half <= 0;
-
-			if (OPT_SIM)
-			begin
-				// Support the SIM instruction(s)
-				o_sim <= (w_sim)||(w_noop);
-				o_sim_immv <= iword[22:0];
-			end else begin
-				o_sim <= 1'b0;
-				o_sim_immv <= 0;
-			end
+			// Support the SIM instruction(s)
+			o_sim <= (w_sim)||(w_noop);
+			o_sim_immv <= iword[22:0];
+		end else begin
+			o_sim <= 1'b0;
+			o_sim_immv <= 0;
 		end
+	end
 
 	assign	o_preA = w_dcdA;
 	assign	o_preB = w_dcdB;
@@ -527,23 +527,23 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 
 		initial r_ljmp = 1'b0;
 		always @(posedge i_clk)
-			if (i_reset)
+		if (i_reset)
+			r_ljmp <= 1'b0;
+		else if (i_ce)
+		begin
+			if ((r_ljmp)&&(pf_valid))
 				r_ljmp <= 1'b0;
-			else if (i_ce)
+			else if (o_early_branch_stb)
+				r_ljmp <= 1'b0;
+			else if (pf_valid)
 			begin
-				if ((r_ljmp)&&(pf_valid))
-					r_ljmp <= 1'b0;
-				else if (o_early_branch_stb)
-					r_ljmp <= 1'b0;
-				else if (pf_valid)
-				begin
-					if ((OPT_CIS)&&(iword[`CISBIT]))
-						r_ljmp <= w_cis_ljmp;
-					else
-						r_ljmp <= (w_ljmp);
-				end else if ((OPT_CIS)&&(o_phase)&&(iword[`CISBIT]))
+				if ((OPT_CIS)&&(iword[`CISBIT]))
 					r_ljmp <= w_cis_ljmp;
-			end
+				else
+					r_ljmp <= (w_ljmp);
+			end else if ((OPT_CIS)&&(o_phase)&&(iword[`CISBIT]))
+				r_ljmp <= w_cis_ljmp;
+		end
 		assign	o_ljmp = r_ljmp;
 
 		initial	r_early_branch     = 1'b0;
@@ -586,19 +586,19 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 
 		initial	r_branch_pc = 0;
 		always @(posedge i_clk)
-			if (i_ce)
-			begin
-				if (r_ljmp)
-					r_branch_pc <= { iword[(AW+1):2],
-							2'b00 };
-				else begin
-				// Add x,PC
-				r_branch_pc[AW+1:2] <= i_pc[AW+1:2]
-					+ {{(AW-15){iword[17]}},iword[16:2]}
-					+ {{(AW-1){1'b0}},1'b1};
-				r_branch_pc[1:0] <= 2'b00;
-				end
+		if (i_ce)
+		begin
+			if (r_ljmp)
+				r_branch_pc <= { iword[(AW+1):2],
+						2'b00 };
+			else begin
+			// Add x,PC
+			r_branch_pc[AW+1:2] <= i_pc[AW+1:2]
+				+ {{(AW-15){iword[17]}},iword[16:2]}
+				+ {{(AW-1){1'b0}},1'b1};
+			r_branch_pc[1:0] <= 2'b00;
 			end
+		end
 
 		assign	w_ljmp_dly         = r_ljmp;
 		assign	o_early_branch     = r_early_branch;
@@ -641,7 +641,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		// If this function is true, then the instruction associated
 		// with the current output *may* have a pipeable instruction
 		// following it.
-		// 
+		//
 		initial	r_insn_is_pipeable = 1'b0;
 		always @(posedge i_clk)
 		if (i_reset)
@@ -673,7 +673,7 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 				&&((w_cis_op[0])||(w_dcdB != w_dcdA));
 		end // else
 			// The pipeline is stalled
-		
+
 
 		initial	r_pipe = 1'b0;
 		always @(posedge i_clk)
@@ -712,6 +712,11 @@ module	idecode(i_clk, i_reset, i_ce, i_stalled,
 		assign o_pipe = 1'b0;
 		always @(*)
 			r_insn_is_pipeable = 1'b0;
+
+		// verilator lint_off UNUSED
+		wire	unused_pipable;
+		assign	unused_pipable = r_insn_is_pipeable;
+		// verilator lint_on  UNUSED
 	end endgenerate
 
 	initial	r_valid = 1'b0;

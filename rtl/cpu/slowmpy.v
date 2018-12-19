@@ -133,12 +133,11 @@ module	slowmpy(i_clk, i_reset, i_stb, i_a, i_b, i_aux, o_busy,
 	end
 
 `ifdef	FORMAL
+`define	ASSERT	assert
 `ifdef	SLOWMPY
 `define	ASSUME	assume
-`define	ASSERT	assert
 `else
 `define	ASSUME	assert
-`define	ASSERT	assume
 `endif
 
 	reg	f_past_valid;

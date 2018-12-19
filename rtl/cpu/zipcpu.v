@@ -137,7 +137,7 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 		// Accounting/CPU usage interface
 		o_op_stall, o_pf_stall, o_i_count
 `ifdef	DEBUG_SCOPE
-		, o_debug
+		, o_debug // , o_dcache_debug
 `endif
 		);
 	// Parameters
@@ -231,6 +231,7 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	//
 `ifdef	DEBUG_SCOPE
 	output	reg	[31:0]	o_debug;
+	// output	wire	[31:0]	o_dcache_debug;
 `endif
 	//}}}
 
@@ -1581,6 +1582,7 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 				mem_stb_gbl, mem_stb_lcl,
 				mem_we, mem_addr, mem_data, mem_sel,
 				mem_ack, mem_stall, mem_err, i_wb_data
+				// , o_dcache_debug
 			);
 		///}}}
 	end else begin : NO_CACHE

@@ -79,6 +79,7 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 `ifdef	FORMAL
 		, f_nreqs, f_nacks, f_outstanding, f_pc
 `endif
+		// , o_debug
 	);
 	parameter	LGCACHELEN = 12,
 			ADDRESS_WIDTH=30,
@@ -126,6 +127,8 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	// Wishbone bus slave response inputs
 	input	wire			i_wb_ack, i_wb_stall, i_wb_err;
 	input	wire	[(DW-1):0]	i_wb_data;
+	//
+	// output	reg	[31:0]		o_debug;
 
 
 	reg	cyc, stb, last_ack, end_of_line, last_line_stb;
@@ -138,6 +141,13 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	reg	[((1<<LGNLINES)-1):0] c_v;	// One bit per cache line, is it valid?
 	reg	[(AW-LS-1):0]	c_vtags	[0:((1<<LGNLINES)-1)];
 	reg	[(DW-1):0]	c_mem	[0:((1<<CS)-1)];
+	reg			set_vflag;
+	reg	[1:0]		state;
+	reg	[(CS-1):0]	wr_addr;
+	reg	[(DW-1):0]	cached_idata, cached_rdata;
+	reg	[DW-1:0]	pre_data;
+	reg			lock_gbl, lock_lcl;
+
 
 	// To simplify writing to the cache, and the job of the synthesizer to
 	// recognize that a cache write needs to take place, we'll take an extra
@@ -184,6 +194,11 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 
 	reg	wr_cstb, r_iv, in_cache;
 	reg	[(AW-LS-1):0]	r_itag;
+	reg	[DW/8-1:0]	r_sel;
+	reg	[(NAUX+4-1):0]	req_data;
+	reg			gie;
+
+
 
 	//
 	// The one-clock delayed read values from the cache.
@@ -268,8 +283,6 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 				&&((r_itag != r_ctag)||(!r_iv));
 	end
 
-	reg	[DW/8-1:0]	r_sel;
-
 	initial	r_sel = 4'hf;
 	always @(posedge i_clk)
 	if (i_reset)
@@ -302,15 +315,11 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 		endcase
 	end
 
-	reg	[(NAUX+4-1):0]	req_data;
-	reg			gie;
-
 	generate if (OPT_PIPE)
 	begin : OPT_PIPE_FIFO
 		reg	[NAUX+4-2:0]	fifo_data [0:((1<<OPT_FIFO_DEPTH)-1)];
 
 		reg	[DP:0]		wraddr, rdaddr;
-		reg	[NAUX+4-2:0]	r_req_data, r_last_data;
 
 		always @(posedge i_clk)
 		if (i_pipe_stb)
@@ -321,8 +330,15 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 		if (i_pipe_stb)
 			gie <= i_oreg[NAUX-1];
 
+`ifdef	NO_BKRAM
+		reg	[NAUX+4-2:0]	r_req_data, r_last_data;
+		reg			single_write;
+
 		always @(posedge i_clk)
 			r_req_data <= fifo_data[rdaddr[DP-1:0]];
+
+		always @(posedge i_clk)
+			single_write <= (rdaddr == wraddr)&&(i_pipe_stb);
 
 		always @(posedge i_clk)
 		if (i_pipe_stb)
@@ -332,11 +348,21 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 		always @(*)
 		begin
 			req_data[NAUX+4-1] = gie;
-			if ((r_svalid)||(state == DC_READS))
+			// if ((r_svalid)||(state == DC_READ))
+			if (single_write)
 				req_data[NAUX+4-2:0] = r_last_data;
 			else
 				req_data[NAUX+4-2:0] = r_req_data;
 		end
+
+		always @(*)
+			`ASSERT(req_data == fifo_data[rdaddr[DP-1:0]]);
+`else
+		always @(*)
+			req_data[NAUX+4-2:0] = fifo_data[rdaddr[DP-1:0]];
+		always @(*)
+			req_data[NAUX+4-1] = gie;
+`endif
 
 		initial	wraddr = 0;
 		always @(posedge i_clk)
@@ -356,10 +382,27 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 		else if ((state == DC_READS)&&(i_wb_ack))
 			rdaddr <= rdaddr + 1'b1;
 
-
 		always @(posedge i_clk)
 			o_wreg <= req_data[(NAUX+4-1):4];
 
+		/*
+		reg	fifo_err;
+		always @(posedge i_clk)
+		begin
+			fifo_err <= 1'b0;
+			if ((!o_busy)&&(rdaddr != wraddr))
+				fifo_err <= 1'b1;
+			if ((!r_dvalid)&&(!r_svalid)&&(!r_rd_pending))
+				fifo_err <= (npending != (wraddr-rdaddr));
+		end
+
+		always @(*)
+		o_debug = { i_pipe_stb, state, cyc, stb,	//  5b
+				fifo_err, i_oreg[3:0], o_wreg, 		// 10b
+				rdaddr, wraddr, 		// 10b
+				i_wb_ack, i_wb_err, o_pipe_stalled, o_busy,//4b
+				r_svalid, r_dvalid, r_rd_pending };
+		*/
 	end else begin : NO_FIFO
 
 		always @(posedge i_clk)
@@ -367,16 +410,20 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 			req_data <= { i_oreg, i_op[2:1], i_addr[1:0] };
 
 		always @(*)
-			o_wreg <= req_data[(NAUX+4-1):4];
+			o_wreg = req_data[(NAUX+4-1):4];
 
+		/*
+		always @(*)
+		o_debug = { i_pipe_stb, state, cyc, stb,	//  5b
+				i_oreg, o_wreg, 		// 10b
+				10'hb,		 		// 10b
+				i_wb_ack, i_wb_err, o_pipe_stalled, o_busy,//4b
+				r_svalid, r_dvalid, r_rd_pending };
+		*/
 
 	end endgenerate
 		
 
-
-	reg			set_vflag;
-	reg	[1:0]		state;
-	reg	[(CS-1):0]	wr_addr;
 
 	initial	r_wb_cyc_gbl = 0;
 	initial	r_wb_cyc_lcl = 0;
@@ -684,8 +731,6 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	// going to be our output will need to be determined with combinatorial
 	// logic on the output.
 	//
-	reg	[(DW-1):0]	cached_idata, cached_rdata;
-
 	generate if (OPT_DUAL_READ_PORT)
 	begin
 
@@ -710,7 +755,6 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 // 2. The cache, second clock, assuming the data was in the cache at all
 // 3. The cache, after filling the cache
 // 4. The wishbone state machine, upon reading the value desired.
-	reg	[DW-1:0]	pre_data;
 	always @(*)
 		if (r_svalid)
 			pre_data = cached_idata;
@@ -776,7 +820,6 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 	else
 		o_pipe_stalled = o_busy;
 
-	reg	lock_gbl, lock_lcl;
 	initial	lock_gbl = 0;
 	initial	lock_lcl = 0;
 	always @(posedge i_clk)

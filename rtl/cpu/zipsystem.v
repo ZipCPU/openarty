@@ -173,11 +173,12 @@ module	zipsystem(i_clk, i_reset,
 		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data,
 			o_dbg_ack, o_dbg_stall, o_dbg_data
 `ifdef	DEBUG_SCOPE
-		, o_cpu_debug
+		, o_cpu_debug // , o_dcache_debug
 `endif
 		);
 	parameter	RESET_ADDRESS=32'h1000_0000, ADDRESS_WIDTH=30,
-			LGICACHE=10;
+			LGICACHE=10,
+			LGDCACHE=0;	// Set to zero for no data cache
 	parameter [0:0]	START_HALTED=1;
 	parameter	EXTERNAL_INTERRUPTS=1,
 `ifdef	OPT_MULTIPLY
@@ -230,7 +231,7 @@ module	zipsystem(i_clk, i_reset,
 	output	wire	[31:0]	o_dbg_data;
 	//
 `ifdef	DEBUG_SCOPE
-	output	wire	[31:0]	o_cpu_debug;
+	output	wire	[31:0]	o_cpu_debug; // , o_dcache_debug;
 `endif
 
 	wire	[31:0]	ext_idata;
@@ -731,6 +732,7 @@ module	zipsystem(i_clk, i_reset,
 	zipcpu	#(	.RESET_ADDRESS(RESET_ADDRESS),
 			.ADDRESS_WIDTH(VIRTUAL_ADDRESS_WIDTH),
 			.LGICACHE(LGICACHE),
+			.OPT_LGDCACHE(LGDCACHE),
 			.IMPLEMENT_MPY(IMPLEMENT_MPY),
 			.IMPLEMENT_DIVIDE(IMPLEMENT_DIVIDE),
 			.IMPLEMENT_FPU(IMPLEMENT_FPU),
@@ -748,7 +750,7 @@ module	zipsystem(i_clk, i_reset,
 				cpu_ack, cpu_stall, cpu_idata, cpu_err,
 			cpu_op_stall, cpu_pf_stall, cpu_i_count
 `ifdef	DEBUG_SCOPE
-			, o_cpu_debug
+			, o_cpu_debug // , o_dcache_debug
 `endif
 			);
 
