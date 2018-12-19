@@ -52,7 +52,7 @@ void	idle_task(void) {
 
 extern short	splash[], mug[];
 
-#define	MICROSECOND		(CLOCKFREQ_HZ/1000000)
+#define	MICROSECOND		(CLKFREQHZ/1000000)
 #define	OLEDRGB_DISPLAY_OFF
 
 
@@ -66,23 +66,23 @@ extern short	splash[], mug[];
  */
 void	timer_delay(int counts) {
 	// Clear the PIC.  We want to exit from here on timer counts alone
-	zip->z_pic = CLEARPIC;
+	_zip->z_pic = CLEARPIC;
 
 	if (counts > 10) {
 		// Set our timer to count down the given number of counts
-		zip->z_tma = counts;
-		zip->z_pic = EINT(SYSINT_TMA);
+		_zip->z_tma = counts;
+		_zip->z_pic = EINT(SYSINT_TMA);
 		zip_rtu();
-		zip->z_pic = CLEARPIC;
+		_zip->z_pic = CLEARPIC;
 	} // else anything less has likely already passed
 }
 
 void	wait_on_interrupt(int mask) {
 	// Clear our interrupt only, but disable all others
-	zip->z_pic = DALLPIC|mask;
-	zip->z_pic = EINT(mask);
+	_zip->z_pic = DALLPIC|mask;
+	_zip->z_pic = EINT(mask);
 	zip_rtu();
-	zip->z_pic = DINT(mask)|mask;
+	_zip->z_pic = DINT(mask)|mask;
 }
 
 void oled_clear(void);
@@ -168,12 +168,12 @@ void	oled_init(void) {
 	oled_clear();
 
 	// Wait 5ms
-	timer_delay(CLOCKFREQ_HZ/200);
+	timer_delay(CLKFREQHZ/200);
 
 	// Turn on VCC and wait 100ms
 	_oledrgb->o_data = OLEDRGB_VCCEN;
 	// Wait 100 ms
-	timer_delay(CLOCKFREQ_HZ/10);
+	timer_delay(CLKFREQHZ/10);
 
 	// Send Display On command
 	_oledrgb->o_ctrl = OLEDRGB_DISPLAYON;
@@ -300,7 +300,7 @@ void	main(int argc, char **argv) {
 
 	// Clear the PIC.  We'll come back and use it later.  We clear it here
 	// partly in order to avoid a race condition later.
-	zip->z_pic = CLEARPIC;
+	_zip->z_pic = CLEARPIC;
 
 	// Wait till we've had power for at least a quarter second
 	if (0) {
@@ -308,17 +308,17 @@ void	main(int argc, char **argv) {
 		// the master_ce line high within the CPU, and so it generates
 		// a whole lot of debug information in our Verilator simulation,
 		// busmaster_tb.
-		int pwrcount = _pwrcount;
+		int pwrcount = *_pwrcount;
 		do {
-			pwrcount = _pwrcount;
-		} while((pwrcount>0)&&(pwrcount < CLOCKFREQ_HZ/4));
+			pwrcount = *_pwrcount;
+		} while((pwrcount>0)&&(pwrcount < CLKFREQHZ/4));
 	} else {
 		// By using the timer and sleeping instead, the simulator can
 		// be made to run a *lot* faster, with a *lot* less debugging
 		// ... junk.
-		int pwrcount = _pwrcount;
-		if ((pwrcount > 0)&&(pwrcount < CLOCKFREQ_HZ/4)) {
-			pwrcount = CLOCKFREQ_HZ/4 - pwrcount;
+		int pwrcount = *_pwrcount;
+		if ((pwrcount > 0)&&(pwrcount < CLKFREQHZ/4)) {
+			pwrcount = CLKFREQHZ/4 - pwrcount;
 			timer_delay(pwrcount);
 		}
 	}
@@ -329,11 +329,11 @@ void	main(int argc, char **argv) {
 	if (_oledrgb->o_data & 0x07) {
 		_oledrgb->o_data = OLEDRGB_VCC_DISABLE;
 		// Wait 100 ms
-		timer_delay(CLOCKFREQ_HZ/10);
+		timer_delay(CLKFREQHZ/10);
 		// Shutdown the entire devices power
 		_oledrgb->o_data = OLEDRGB_POWER_DOWN;
 		// Wait 100 ms
-		timer_delay(CLOCKFREQ_HZ/10);
+		timer_delay(CLKFREQHZ/10);
 
 		// Now let's try to restart it
 	}
@@ -400,15 +400,15 @@ void	main(int argc, char **argv) {
 
 		// Wait 25 seconds.  The LEDs are for a fun effect.
 		*_spio = 0x0f01;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 		*_spio = 0x0f03;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 		*_spio = 0x0f07;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 		*_spio = 0x0f0f;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 		*_spio = 0x0f0e;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 
 
 		// Display a second image.
@@ -418,7 +418,7 @@ void	main(int argc, char **argv) {
 
 		// Leave this one in effect for 5 seconds only.
 		*_spio = 0x0f08;
-		timer_delay(CLOCKFREQ_HZ*5);
+		timer_delay(CLKFREQHZ*5);
 	}
 
 	// We'll never get here, so this line is really just for form.

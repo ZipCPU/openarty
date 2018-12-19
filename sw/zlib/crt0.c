@@ -179,14 +179,6 @@ asm("\t.section\t.start,\"ax\",@progbits\n"
 	"\tJSR\texit\n"	"\t; Call the _exit as part of exiting\n"
 "\t.global\t_exit\n"
 "_exit:\n"
-#ifdef	_HAS_WBUART
-	"\tLW 0x45c,R2\n"
-	"\tTEST 0xffc,R2\n"
-	"\tBNZ _exit\n"
-	"\tLSR	16,R2\n"
-	"\tTEST 0xffc,R2\n"
-	"\tBNZ _exit\n"
-#endif
 	"\tNEXIT\tR1\n"		"\t; If in simulation, call an exit function\n"
 "_kernel_is_dead:"		"\t; Halt the CPU\n"
 	"\tHALT\n"		"\t; We should *never* continue following a\n"
@@ -215,8 +207,12 @@ extern	void	_bootloader(void) __attribute__ ((section (".boot")));
 //
 #ifndef	SKIP_BOOTLOADER
 void	_bootloader(void) {
-	if (_rom == NULL)
+	if (_rom == NULL) {
+		int	*wrp = _ram_image_end;
+		while(wrp < _ram_image_end)
+			*wrp++ = 0;
 		return;
+	}
 
 	int *ramend = _ram_image_end, *bsend = _bss_image_end,
 	    *kramdev = (_kram) ? _kram : _ram;

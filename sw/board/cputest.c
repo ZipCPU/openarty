@@ -54,11 +54,13 @@
 #define	TIMER		_zip->z_tma
 #define	COUNTER		_zip->z_m.ac_ck
 
-// #define	HAVE_SCOPE
+#ifdef	ZIPSCOPE_SCOPE
+#define	HAVE_SCOPE
+#endif
 #ifdef	HAVE_SCOPE
-#define	SCOPEc			_sys->io_scope[0].s_ctrl
+#define	SCOPEc			_zipscope->s_ctrl
 #define	SCOPE_DELAY		4
-#define	TRIGGER_SCOPE_NOW	(WBSCOPE_TRIGGER|SCOPE_DELAY)
+#define	TRIGGER_SCOPE_NOW	((unsigned)(WBSCOPE_TRIGGER|SCOPE_DELAY))
 #define	PREPARE_SCOPE		SCOPE_DELAY
 #else
 #endif
@@ -611,11 +613,6 @@ asm("\t.text\n\t.global\thard_mpyshi\n"
 	"\tRETN\n");
 
 void	debugmpy(char *str, int a, int b, int s, int r) {
-#ifdef	HAVE_SCOPE
-	// Trigger the scope, if it hasn't been triggered yet
-	// but ... dont reset it if it has been.
-	SCOPEc = TRIGGER_SCOPE_NOW;
-#endif
 	txstr("\r\n"); txstr(str); txhex(a);
 	txstr(" x "); txhex(b);
 	txstr(" = "); txhex(s);
@@ -1095,31 +1092,27 @@ void	wait(unsigned int msk) {
 
 asm("\n\t.text\nidle_task:\n\tWAIT\n\tBRA\tidle_task\n");
 
-__attribute__((noinline))
-void	txchr(char v) {
-#ifdef	_ZIP_HAS_WBUART
-	while(_uart->u_fifo & 0x010000)
-		;
-	uint8_t c = v;
-	_uart->u_tx = (unsigned)c;
-#endif
-/*
-	if (zip_cc() & CC_GIE) {
-		while(*UARTTX & 0x100)
-			;
-	} else
-		wait(INT_UARTTX);
-	*UARTTX = v;
-*/
-}
-
 #ifdef	_BOARD_HAS_BUSCONSOLE
 #define	_ZIP_HAS_WBUART
 #endif
 
+__attribute__((noinline))
+void	txchr(char v) {
+#ifdef	_ZIP_HAS_WBUART
+#define	TXBUSY	((_uart->u_fifo & 0x010000)==0)
+	while(TXBUSY)
+		;
+	uint8_t c = v;
+	_uart->u_tx = (unsigned)c;
+#else
+#error "No uart defined"
+#endif
+	// asm("\tNOUT %0\n" : : "r"(v));
+}
+
 void	wait_for_uart_idle(void) {
 #ifdef	_ZIP_HAS_WBUART
-	while(_uart->u_fifo & 0x100)	// While the FIFO is non-empty
+	while(TXBUSY)	// While the FIFO is non-empty
 		;
 #else
 #error "No uart defined"
@@ -1252,7 +1245,6 @@ void entry(void) {
 	int	start_time, i;
 	int	cc_fail, cis_insns = 0;
 
-
 	for(i=0; i<32; i++)
 		testlist[i] = -1;
 
@@ -1266,13 +1258,15 @@ void entry(void) {
 	SCOPEc = PREPARE_SCOPE;
 #endif
 
+
 	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
-	UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
+	// UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	// *UART_CTRL = 25; // 9600 Baud, 8-bit chars, no parity, one stop bit
 	//
 
 	txstr("\r\n");
+
 	txstr("Running CPU self-test\r\n");
 	txstr("-----------------------------------\r\n");
 

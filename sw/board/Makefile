@@ -81,7 +81,7 @@ $(OBJDIR)/%.txt: $(OBJDIR)/%.o
 
 #
 # The CPUTest program here is special--it doesn't use the C library.  Hence,
-# it must have the -fno-builtin flag in order to build, and the -Tartyram.ld
+# it must have the -fno-builtin flag in order to build, and the -Tbkram.ld
 # linker script to build something that doesn't go into flash but directly into
 # RAM instead.
 #
@@ -96,10 +96,10 @@ $(OBJDIR)/cmptst.o: cmptst.c
 	$(mk-objdir)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-cputest: $(OBJDIR)/cputest.o artyram.ld
-	$(CC) $(CFLAGS) -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputest.map $(OBJDIR)/cputest.o -o $@
-cputestcis: $(OBJDIR)/cputestcis.o artyram.ld
-	$(CC) $(CFLAGS) -T artyram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputestcis.map $(OBJDIR)/cputestcis.o -o $@
+cputest: $(OBJDIR)/cputest.o bkram.ld
+	$(CC) $(CFLAGS) -T bkram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputest.map $(OBJDIR)/cputest.o -o $@
+cputestcis: $(OBJDIR)/cputestcis.o bkram.ld
+	$(CC) $(CFLAGS) -T bkram.ld -fno-builtin -Wl,-Map=$(OBJDIR)/cputestcis.map $(OBJDIR)/cputestcis.o -o $@
 
 
 #
@@ -113,8 +113,9 @@ exmulti: $(OBJDIR)/exmulti.o board.ld
 gpsdump: $(OBJDIR)/gpsdump.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gpsdump.o -o $@
 
-hello: $(OBJDIR)/hello.o board.ld
+hello: $(OBJDIR)/hello.o bkram.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/hello.o -o $@
+	# $(CC) $(CFLAGS) -T bkram.ld -L../zlib -Wl,--start-group -larty -lgcc $(OBJDIR)/hello.o -o $@
 
 gettysburg: $(OBJDIR)/gettysburg.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gettysburg.o -o $@
