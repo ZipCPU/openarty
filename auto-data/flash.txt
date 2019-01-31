@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -143,7 +143,7 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 @BDEF.OSDEF=_BOARD_HAS_@$(DEVID)
 @BDEF.OSVAL=extern int _@$(PREFIX)[1];
 @LD.PERM=	rx
-@LD.NAME=	flash
+@LD.NAME=	@$(PREFIX)
 @SIM.INCLUDE+=
 #include "flashsim.h"
 @SIM.DEFNS+=
@@ -173,11 +173,14 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 ## Now the control interface
 @PREFIX=flashcfg
 @NADDR= 1
-@ACCESS=FLASHCFG_ACCESS
-@DEPENDS= FLASH_ACCESS
 @DEVID=FLASHCFG
-# This cannot be a DOUBLE peripheral type, since our response may take more
-# than two clock cycles.
+@ACCESS=@$(DEVID)_ACCESS
+@DEPENDS= FLASH_ACCESS
+## Although this is really a SLAVE.TYPE=SINGLE interface, it receives its
+## acknowledgements from the flash above.  SLAVE.TYPE=SINGLE will create
+## acknowledgements in the interconnect, resulting in bus errors.  As a result,
+## this must be a SLAVE.TYPE=OTHER
+##
 @SLAVE.TYPE=OTHER
 @SLAVE.BUS=wb
 @MAIN.INSERT=
@@ -204,9 +207,10 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 #define	SUBSECTOROF(A)	((A) & (-1<<12))
 #define	PAGEOF(A)	((A) & (-1<<8))
 
-@BDEF.IONAME= io_flctl
+@BDEF.IONAME= _@$(PREFIX)
 @BDEF.OSDEF= _BOARD_HAS_@$(DEVID)
 @BDEF.IOTYPE=unsigned
 @BDEF.OSVAL=static volatile @$(BDEF.IOTYPE) * const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)(@$[0x%08x](REGBASE)));
+##
 @RTL.MAKE.GROUP= FLASH
 @RTL.MAKE.FILES= qflexpress.v

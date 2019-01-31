@@ -23,7 +23,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017-2018, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -55,7 +55,6 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 			i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
 		o_illegal);
 	parameter		ADDRESS_WIDTH=30, AUX_WIDTH = 1;
-	parameter	[0:0]	F_OPT_CLK2FFLOGIC=1'b0;
 	localparam		AW=ADDRESS_WIDTH, DW = 32;
 	input	wire			i_clk, i_reset, i_new_pc, i_clear_cache,
 						i_stall_n;
@@ -81,6 +80,8 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 
 	reg	[(DW-1):0]	cache_word;
 	reg			cache_valid;
+	reg	[1:0]		inflight;
+	reg			cache_illegal;
 
 	initial	o_wb_cyc = 1'b0;
 	initial	o_wb_stb = 1'b0;
@@ -115,7 +116,6 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 			o_wb_stb <= 1'b1;
 		end
 
-	reg	[1:0]	inflight;
 	initial	inflight = 2'b00;
 	always @(posedge i_clk)
 	if (!o_wb_cyc)
@@ -163,7 +163,6 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 		else if (i_stall_n)
 			o_valid <= cache_valid;
 
-	initial	o_insn = {(32){1'b1}};
 	always @(posedge i_clk)
 	if ((!o_valid)||(i_stall_n))
 	begin
@@ -214,7 +213,6 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 		if ((o_wb_cyc)&&(i_wb_ack))
 			cache_word <= i_wb_data;
 
-	reg	cache_illegal;
 	initial	cache_illegal = 1'b0;
 	always @(posedge i_clk)
 	if ((i_reset)||(i_clear_cache)||(i_new_pc))

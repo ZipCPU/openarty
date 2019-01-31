@@ -48,7 +48,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2016-2018, Gisselquist Technology, LLC
+// Copyright (C) 2016-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -536,7 +536,7 @@ module	dcache(i_clk, i_reset, i_pipe_stb, i_lock,
 				state <= DC_READC;
 				o_wb_addr <= { r_ctag, {(LS){1'b0}} };
 
-				c_waddr <= { r_ctag[CS-LS-1:0], {(LS){1'b0}} }-1;
+				c_waddr <= { r_ctag[CS-LS-1:0], {(LS){1'b0}} }-1'b1;
 				cyc <= 1'b1;
 				stb <= 1'b1;
 				r_wb_cyc_gbl <= 1'b1;

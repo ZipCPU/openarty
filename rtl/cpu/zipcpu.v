@@ -74,7 +74,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2018, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //{{{
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -472,11 +472,11 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	begin : GEN_OP_STALL
 		reg	r_cc_invalid_for_dcd;
 		always @(posedge i_clk)
-			r_cc_invalid_for_dcd <= (wr_flags_ce)
-				||(wr_reg_ce)&&(wr_reg_id[3:0] == `CPU_CC_REG)
-				||(op_valid)&&((op_wF)||((op_wR)&&(op_R[3:0] == `CPU_CC_REG)))
-				||((alu_wF)||((alu_wR)&&(alu_reg[3:0] == `CPU_CC_REG)))
-				||(mem_busy)||(div_busy)||(fpu_busy);
+			r_cc_invalid_for_dcd <=
+				(set_cond)&&(op_valid)
+					&&((op_wF)||((op_wR)&&(op_R[4:0] == { op_gie, `CPU_CC_REG })))
+				||((r_cc_invalid_for_dcd)
+					&&((alu_busy)||(mem_rdbusy)||(div_busy)||(fpu_busy)));
 
 		assign	cc_invalid_for_dcd = r_cc_invalid_for_dcd;
 
@@ -619,7 +619,8 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 	//}}}
 
 	assign	master_stall = (!master_ce)||(!op_valid)||(ill_err_i)
-			||(ibus_err_flag)||(idiv_err_flag)||(pending_interrupt)
+			||(ibus_err_flag)||(idiv_err_flag)
+			||(pending_interrupt)&&(!alu_phase)
 			||(alu_busy)||(div_busy)||(fpu_busy)||(op_break)
 			||((OPT_PIPELINED)&&(
 				((OPT_LOCK)&&(prelock_stall))
@@ -2413,11 +2414,17 @@ module	zipcpu(i_clk, i_reset, i_interrupt,
 
 `ifdef	DEBUG_SCOPE
 	//{{{
+	reg	[10:0]	dbg_trigger_counter;
+	always @(posedge i_clk)
+	if (alu_pc_valid)
+		dbg_trigger_counter <= 0;
+	else if ((!i_halt)&&(!sleep))
+		dbg_trigger_counter <= dbg_trigger_counter + 1'b1;
 
 	reg		debug_trigger;
 	initial	debug_trigger = 1'b0;
 	always @(posedge i_clk)
-		debug_trigger <= (!i_halt)&&(o_break);
+		debug_trigger <= ((!i_halt)&&(o_break))||(&dbg_trigger_counter);
 
 	wire	[31:0]	debug_flags;
 	assign debug_flags = { debug_trigger, 3'b101,

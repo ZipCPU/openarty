@@ -109,7 +109,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2016, Gisselquist Technology, LLC
+// Copyright (C) 2016-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -159,8 +159,18 @@ module	enetpackets(i_wb_clk, i_reset,
 	//
 	o_debug
 	);
+	// MEMORY_ADDRESS_WIDTH is the number of bits necessary to specify
+	// an octet in our memory area.  Here, a MEMORY_ADDRESS_WIDTH of 12
+	// will allow us to have 2^12 or 4096 length packets
 	parameter	MEMORY_ADDRESS_WIDTH = 12; // Log_2 octet width:11..14
 	parameter [0:0]	RXSCOPE = 1'b1;
+	//
+	//
+	// MAW is our memory address width, in words
+	//	We'll disallow ourselves to have more than 2^14 or 16384 byte
+	//		packets
+	//	We'll disallow ourselves to have less than 2^11 or 2048 byte
+	//		packets
 	localparam	MAW =((MEMORY_ADDRESS_WIDTH>14)? 14: // width of words
 			((MEMORY_ADDRESS_WIDTH<11)? 11:MEMORY_ADDRESS_WIDTH))-2;
 	input	wire		i_wb_clk, i_reset;
@@ -188,6 +198,14 @@ module	enetpackets(i_wb_clk, i_reset,
 	//
 	output	wire	[31:0]	o_debug;
 
+	/////////////////////////////////////
+	//
+	//
+	// Wishbone control
+	//
+	//
+	/////////////////////////////////////
+	// {{{
 	reg	wr_ctrl;
 	reg	[2:0]	wr_addr;
 	reg	[31:0]	wr_data;
@@ -363,6 +381,8 @@ module	enetpackets(i_wb_clk, i_reset,
 		o_wb_ack <= pre_ack;
 	end
 
+	// }}}
+
 	/////////////////////////////////////
 	//
 	//
@@ -372,6 +392,7 @@ module	enetpackets(i_wb_clk, i_reset,
 	//
 	//
 	/////////////////////////////////////
+	// {{{
 `ifdef	TX_SYNCHRONOUS_WITH_WB_CLK
 	reg	[(MAW+1):0]	n_tx_len;
 	wire	n_tx_cmd, n_tx_cancel;
@@ -536,16 +557,15 @@ module	enetpackets(i_wb_clk, i_reset,
 
 
 
-
+	// }}}
 	/////////////////////////////////////
-	//
 	//
 	//
 	// Receiver code
 	//
 	//
-	//
 	/////////////////////////////////////
+	// {{{
 `ifdef	RX_SYNCHRONOUS_WITH_WB_CLK
 	reg	last_rx_clk, rx_clk_stb;
 	(* ASYNC_REG="TRUE" *) reg r_rx_clk;
@@ -742,13 +762,22 @@ module	enetpackets(i_wb_clk, i_reset,
 			counter_rx_crc <= 32'h0;
 		else if (rx_crc_stb)
 			counter_rx_crc <= counter_rx_crc + 32'h1;
+	// }}}
 
 	assign	o_tx_int = !tx_busy;
 	assign	o_rx_int = (rx_valid)&&(!rx_clear);
 	assign	o_wb_stall = 1'b0;
 
-	generate if (RXSSCOPE)
-	begin : RXSCOPE
+	/////////////////////////////////////
+	//
+	//
+	// Scope code
+	//
+	//
+	/////////////////////////////////////
+	// {{{
+	generate if (RXSCOPE)
+	begin : RXSCOPE_DEF
 
 		assign	o_debug = { i_net_dv, n_eop, w_rxwr,
 			w_npre, w_npred,
@@ -758,7 +787,7 @@ module	enetpackets(i_wb_clk, i_reset,
 			n_rx_valid, n_rx_busy, i_net_crs, i_net_dv,	// 4'b
 			i_net_rxd };					// 4'b
 
-	end else begin : TXSCOPE
+	end else begin : TXSCOPE_DEF
 
 
 		assign	o_debug = { n_tx_cmd,

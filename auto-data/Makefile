@@ -14,7 +14,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -50,18 +50,19 @@ all:	data
 BASE    := global.txt dlyarbiter.txt icape.txt
 AUX     := version.txt buserr.txt pic.txt pwrcount.txt
 IO      := spio.txt clrspio.txt # gpio.txt
-GFX     := wboledrgb.txt
 RTC     := rtcgps.txt rtcdate.txt
-NETWORK := mdio.txt  enet.txt
-MEMORY  := bkram.txt flash.txt sdram.txt # wbhyperram.txt
-GPS     := gps.txt
-CPU     := zipmaster.txt
 DBGBUS  := wbuconsole.txt
+MEMORY  := bkram.txt flash.txt sdram.txt # wbhyperram.txt
+CPU     := zipmaster.txt
+NETWORK := mdio.txt enet.txt
+GPS     := gps.txt
 SDCARD  := sdspi.txt
-SCOPES  := # flashscope.txt cpuscope.txt enetscope.txt
-LDSCRIPT:= mem_flash_bkram.txt mem_bkram_only.txt
-DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC) $(GPS)	\
-	$(MEMORY) $(DBGBUS) $(CPU) $(SCOPES) $(GFX) $(SDCARD) $(LDSCRIPT)
+GFX     := wboledrgb.txt
+SCOPES  := enetscope.txt mdioscope.txt # flashscope.txt cpuscope.txt
+LDSCRIPT:= mem_flash_bkram.txt mem_bkram_only.txt mem_sdram_bkram.txt
+DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC)			\
+	$(DBGBUS) $(MEMORY) $(CPU) $(NETWORK) $(GPS) $(SDCARD) $(GFX)	\
+	$(SCOPES) $(LDSCRIPT)
 
 AUTOFPGA := autofpga
 $(AUTOFPGA):
@@ -69,10 +70,6 @@ $(AUTOFPGA):
 .PHONY: data
 data: $(AUTOFPGA) $(DATA)
 	$(AUTOFPGA) -d -o . $(DATA)
-
-define	notify-on-change
-	@bash -c 'cmp $(1) $(2)/$(1); if [[ $$? != 0 ]]; then echo "Files $(1) and $(2)/$(1) differ"; fi'
-endef
 
 clean:
 	rm -f toplevel.v main.v regdefs.h regdefs.cpp board.h board.ld

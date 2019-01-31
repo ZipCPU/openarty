@@ -30,7 +30,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015,2017-2018, Gisselquist Technology, LLC
+// Copyright (C) 2015,2017-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -62,7 +62,6 @@ module	prefetch(i_clk, i_reset, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
 			i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
 	parameter		ADDRESS_WIDTH=30, DATA_WIDTH=32;
-	parameter	[0:0]	F_OPT_CLK2FFLOGIC = 1'b0;
 	localparam		AW=ADDRESS_WIDTH,
 				DW=DATA_WIDTH;
 	input	wire			i_clk, i_reset;
@@ -98,44 +97,44 @@ module	prefetch(i_clk, i_reset, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	initial	o_wb_cyc = 1'b0;
 	initial	o_wb_stb = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||((o_wb_cyc)&&((i_wb_ack)||(i_wb_err))))
+	if ((i_reset)||((o_wb_cyc)&&((i_wb_ack)||(i_wb_err))))
+	begin
+		// End any bus cycle on a reset, or a return ACK
+		// or error.
+		o_wb_cyc <= 1'b0;
+		o_wb_stb <= 1'b0;
+	end else if ((!o_wb_cyc)&&(
+			// Start if the last instruction output was
+			// accepted, *and* it wasn't a bus error
+			// response
+			((i_stalled_n)&&(!o_illegal))
+			// Start if the last bus result ended up
+			// invalid
+			||(invalid)
+			// Start on any request for a new address
+			||(i_new_pc)))
+	begin
+		// Initiate a bus transaction
+		o_wb_cyc <= 1'b1;
+		o_wb_stb <= 1'b1;
+	end else if (o_wb_cyc)
+	begin
+		// If our request has been accepted, then drop the
+		// strobe line
+		if (!i_wb_stall)
+			o_wb_stb <= 1'b0;
+
+		// Abort on new-pc
+		// ... clear_cache  is identical, save that it will
+		// immediately be followed by a new PC, so we don't
+		// need to worry about that other than to drop
+		// CYC and STB here.
+		if (i_new_pc)
 		begin
-			// End any bus cycle on a reset, or a return ACK
-			// or error.
 			o_wb_cyc <= 1'b0;
 			o_wb_stb <= 1'b0;
-		end else if ((!o_wb_cyc)&&(
-				// Start if the last instruction output was
-				// accepted, *and* it wasn't a bus error
-				// response
-				((i_stalled_n)&&(!o_illegal))
-				// Start if the last bus result ended up
-				// invalid
-				||(invalid)
-				// Start on any request for a new address
-				||(i_new_pc)))
-		begin
-			// Initiate a bus transaction
-			o_wb_cyc <= 1'b1;
-			o_wb_stb <= 1'b1;
-		end else if (o_wb_cyc)
-		begin
-			// If our request has been accepted, then drop the
-			// strobe line
-			if (!i_wb_stall)
-				o_wb_stb <= 1'b0;
-
-			// Abort on new-pc
-			// ... clear_cache  is identical, save that it will
-			// immediately be followed by a new PC, so we don't
-			// need to worry about that other than to drop
-			// CYC and STB here.
-			if (i_new_pc)
-			begin
-				o_wb_cyc <= 1'b0;
-				o_wb_stb <= 1'b0;
-			end
 		end
+	end
 
 	//
 	// If during the current bus request, a command came in from the CPU
@@ -145,10 +144,10 @@ module	prefetch(i_clk, i_reset, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	//
 	initial	invalid = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(!o_wb_cyc))
-			invalid <= 1'b0;
-		else if (i_new_pc)
-			invalid <= 1'b1;
+	if ((i_reset)||(!o_wb_cyc))
+		invalid <= 1'b0;
+	else if (i_new_pc)
+		invalid <= 1'b1;
 
 	// The wishbone request address, o_wb_addr
 	//
@@ -161,10 +160,10 @@ module	prefetch(i_clk, i_reset, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	//
 	initial	o_wb_addr= 0;
 	always @(posedge i_clk)
-		if (i_new_pc)
-			o_wb_addr  <= i_pc[AW+1:2];
-		else if ((o_valid)&&(i_stalled_n)&&(!o_illegal))
-			o_wb_addr  <= o_wb_addr + 1'b1;
+	if (i_new_pc)
+		o_wb_addr  <= i_pc[AW+1:2];
+	else if ((o_valid)&&(i_stalled_n)&&(!o_illegal))
+		o_wb_addr  <= o_wb_addr + 1'b1;
 
 	// The instruction returned is given by the data returned from the bus.
 	always @(posedge i_clk)
@@ -182,39 +181,39 @@ module	prefetch(i_clk, i_reset, i_new_pc, i_clear_cache, i_stalled_n, i_pc,
 	initial o_valid   = 1'b0;
 	initial o_illegal = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(i_new_pc)||(i_clear_cache))
-		begin
-			// On any reset, request for a new PC (i.e. a branch),
-			// or a request to clear our cache (i.e. the data
-			// in memory may have changed), we invalidate any
-			// output.
-			o_valid   <= 1'b0;
-			o_illegal <= 1'b0;
-		end else if ((o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
-		begin
-			// Otherwise, at the end of our bus cycle, the
-			// answer will be valid.  Well, not quite.  If the
-			// user requested something mid-cycle (i_new_pc)
-			// or (i_clear_cache), then we'll have to redo the
-			// bus request, so we aren't valid.
-			//
-			o_valid   <= 1'b1;
-			o_illegal <= ( i_wb_err);
-		end else if (i_stalled_n)
-		begin
-			// Once the CPU accepts any result we produce, clear
-			// the valid flag, lest we send two identical
-			// instructions to the CPU.
-			//
-			o_valid <= 1'b0;
-			//
-			// o_illegal doesn't change ... that way we don't
-			// access the bus again until a new address request
-			// is given to us, via i_new_pc, or we are asked
-			//  to check again via i_clear_cache
-			//
-			// o_illegal <= (!i_stalled_n);
-		end
+	if ((i_reset)||(i_new_pc)||(i_clear_cache))
+	begin
+		// On any reset, request for a new PC (i.e. a branch),
+		// or a request to clear our cache (i.e. the data
+		// in memory may have changed), we invalidate any
+		// output.
+		o_valid   <= 1'b0;
+		o_illegal <= 1'b0;
+	end else if ((o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
+	begin
+		// Otherwise, at the end of our bus cycle, the
+		// answer will be valid.  Well, not quite.  If the
+		// user requested something mid-cycle (i_new_pc)
+		// or (i_clear_cache), then we'll have to redo the
+		// bus request, so we aren't valid.
+		//
+		o_valid   <= 1'b1;
+		o_illegal <= ( i_wb_err);
+	end else if (i_stalled_n)
+	begin
+		// Once the CPU accepts any result we produce, clear
+		// the valid flag, lest we send two identical
+		// instructions to the CPU.
+		//
+		o_valid <= 1'b0;
+		//
+		// o_illegal doesn't change ... that way we don't
+		// access the bus again until a new address request
+		// is given to us, via i_new_pc, or we are asked
+		//  to check again via i_clear_cache
+		//
+		// o_illegal <= (!i_stalled_n);
+	end
 
 	// The o_pc output shares its value with the (last) wishbone address
 	assign	o_pc = { o_wb_addr, 2'b00 };

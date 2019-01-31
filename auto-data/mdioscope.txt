@@ -1,17 +1,18 @@
 ################################################################################
 ##
-## Filename: 	clock.txt
+## Filename: 	mdioscope.txt
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	
+## Purpose:	Describes how to connect a wishbone scope to the MDIO interface
+##		associated with the ethernet port for debugging purposes.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
 ##
-## Copyright (C) 2018-2019, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -35,17 +36,20 @@
 ################################################################################
 ##
 ##
-@PREFIX=clock
-@CLOCK.NAME=clk
-@CLOCK.TOP=sys_clk_i
-@$CLOCK.FREQUENCY=100000000
-@CLOCK.WIRE=i_clk
-@TOP.DEFNS=
-	wire	s_clk, s_reset;
-@TOP.INSERT=
-	assign	s_clk = sys_clk_i;
-	assign	s_reset = 1'b0;
-@REGDEFS.H.DEFNS=
-#define	CLKFREQHZ	@$(CLOCK.FREQUENCY)
-@BDEF.DEFN=
-#define	CLKFREQHZ	@$(CLOCK.FREQUENCY)
+@PREFIX=mdioscope
+@NADDR=2
+@DEVID=MDIOSCOPE
+@DEPENDS=NETCTRL_ACCESS
+@TARGET=mdio
+@MAIN.DEFNS=
+	wire	mdio_dbg_trigger;
+@MAIN.INSERT=
+  @$(+.MAIN.INSERT)
+
+	assign	mdio_dbg_trigger = mdio_debug[31];
+@INT.MDIOSCOPE.WIRE=@$(PREFIX)_int
+@INT.MDIOSCOPE.PIC=buspic
+@LOG_CAPTURE_SIZE=9
+@DATA_CLOCK=i_clk
+@SYNCHRONOUS=1
+@INCLUDEFILE=wbscope.txt

@@ -1,17 +1,20 @@
 ################################################################################
 ##
-## Filename: 	clock.txt
+## Filename: 	mem_sdram_bkram.txt
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	
+## Purpose:	Describes a memory model containing nothing more than SDRAM
+##		and block RAM.  This will be used to create a linker script
+##	that can be used to link ZipCPU programs.
+##
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
 ##
-## Copyright (C) 2018-2019, Gisselquist Technology, LLC
+## Copyright (C) 2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -35,17 +38,43 @@
 ################################################################################
 ##
 ##
-@PREFIX=clock
-@CLOCK.NAME=clk
-@CLOCK.TOP=sys_clk_i
-@$CLOCK.FREQUENCY=100000000
-@CLOCK.WIRE=i_clk
-@TOP.DEFNS=
-	wire	s_clk, s_reset;
-@TOP.INSERT=
-	assign	s_clk = sys_clk_i;
-	assign	s_reset = 1'b0;
-@REGDEFS.H.DEFNS=
-#define	CLKFREQHZ	@$(CLOCK.FREQUENCY)
-@BDEF.DEFN=
-#define	CLKFREQHZ	@$(CLOCK.FREQUENCY)
+##
+@PREFIX=mem_sdram_bkram
+@MASTER.TYPE=CPU
+@MASTER.BUS=zip
+@LD.FILE=sdram.ld
+@LD.DEFNS=
+/* LD.DEFNS from zipmaster.txt */
+_kram  = ORIGIN(bkram); /* No high-speed kernel RAM */
+_ram   = ORIGIN(sdram);
+_rom   = 0;
+_top_of_stack = ORIGIN(bkram) + LENGTH(bkram);
+
+@LD.SCRIPT=
+/* LD.SCRIPT from zipmaster.txt */
+SECTIONS
+{
+	.rocode ORIGIN(bkram): ALIGN(4) {
+		_boot_address = .;
+		*(.start) *(.boot)
+	} > bkram
+	_kram_start = . ;
+	.kernel : ALIGN_WITH_INPUT {
+		*(.kernel)
+		*(.text.startup)
+		_kram_end = . ;
+		}> bkram
+	_ram_image_start = . ;
+	.ramcod : ALIGN_WITH_INPUT {
+		*(.text*)
+		*(.rodata*) *(.strings)
+		*(.data) *(COMMON)
+		_ram_image_end = . ;
+		}> sdram
+	.bss : ALIGN_WITH_INPUT {
+		*(.bss)
+		_bss_image_end = . ;
+		} > sdram
+	_top_of_heap = .;
+}
+#

@@ -52,7 +52,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -98,12 +98,12 @@ module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
 	initial	r_clr_led_b = 9'h000;
 
 	always @(posedge i_clk)
-		if (i_stb)
-		begin
-			r_clr_led_r <= { i_data[26], i_data[23:16] };
-			r_clr_led_g <= { i_data[25], i_data[15: 8] };
-			r_clr_led_b <= { i_data[24], i_data[ 7: 0] };
-		end
+	if (i_stb)
+	begin
+		r_clr_led_r <= { i_data[26], i_data[23:16] };
+		r_clr_led_g <= { i_data[25], i_data[15: 8] };
+		r_clr_led_b <= { i_data[24], i_data[ 7: 0] };
+	end
 
 	assign	o_data = { 5'h0,
 			r_clr_led_r[8], r_clr_led_g[8], r_clr_led_b[8],

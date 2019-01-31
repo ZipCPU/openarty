@@ -14,7 +14,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -44,14 +44,14 @@
 @MASTER.BUS=zip
 @LD.FILE=bkram.ld
 @LD.DEFNS=
-/* LD.DEFNS from zipmaster.txt */
+/* LD.DEFNS from @$(PREFIX) */
 _kram  = 0; /* No high-speed kernel RAM */
 _ram   = ORIGIN(bkram);
 _rom   = 0;
 _top_of_stack = ORIGIN(bkram) + LENGTH(bkram);
 
 @LD.SCRIPT=
-/* LD.SCRIPT from zipmaster.txt */
+/* LD.SCRIPT from @$(PREFIX) */
 SECTIONS
 {
        .ramcode ORIGIN(bkram) : ALIGN(4) {

@@ -22,18 +22,18 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 
 ##RGB LEDs
 
-# set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[0]}]
+# set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[0]}]
 # set_property -dict { PACKAGE_PIN F6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[0]}]
-# set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[0]}]
-# set_property -dict { PACKAGE_PIN G4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[1]}]
+# set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[0]}]
+# set_property -dict { PACKAGE_PIN G4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[1]}]
 # set_property -dict { PACKAGE_PIN J4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[1]}]
-# set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[1]}]
-# set_property -dict { PACKAGE_PIN H4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[2]}]
+# set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[1]}]
+# set_property -dict { PACKAGE_PIN H4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[2]}]
 # set_property -dict { PACKAGE_PIN J2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[2]}]
-# set_property -dict { PACKAGE_PIN J3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[2]}]
-# set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[3]}]
+# set_property -dict { PACKAGE_PIN J3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[2]}]
+# set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[3]}]
 # set_property -dict { PACKAGE_PIN H6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[3]}]
-# set_property -dict { PACKAGE_PIN K1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[3]}]
+# set_property -dict { PACKAGE_PIN K1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[3]}]
 
 ##LEDs
 

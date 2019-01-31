@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016, Gisselquist Technology, LLC
+// Copyright (C) 2015-2016,2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -44,6 +44,7 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 			o_wb_ack, o_wb_stall, o_wb_data,
 		i_err, i_count, i_step);
 	parameter	DW=32, RW=64;
+	parameter	CLOCK_FREQUENCY_HZ = 81_250_000;
 	input	wire			i_clk, i_lcl_pps;
 	output	reg			o_pps;	// To our local circuitry
 	// Wishbone Configuration interface
@@ -71,7 +72,7 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	//
 	//
 	initial	r_jump = 0; 
-	initial	r_maxcount = 32'd81200000; 
+	initial	r_maxcount = CLOCK_FREQUENCY_HZ;
 	always @(posedge i_clk)
 		if ((i_wb_cyc_stb)&&(i_wb_we))
 		begin
@@ -91,17 +92,17 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	initial	r_lcl = 32'h000;
 	initial	r_halt = 1'b0;
 	always @(posedge i_clk)
-		case (i_wb_addr)
-			3'b000: o_wb_data <= r_maxcount;
-			3'b001: begin o_wb_data <= r_lcl; r_halt <= 1'b1; end // { 31'h00, r_halt };
-			3'b010: begin o_wb_data <= i_err[63:32]; r_halt <= 1'b1; end
-			3'b011: o_wb_data <= r_err[31:0];
-			3'b100: o_wb_data <= r_count[63:32];
-			3'b101: o_wb_data <= r_count[31:0];
-			3'b110: o_wb_data <= r_step[63:32];
-			3'b111: begin o_wb_data <= r_step[31:0]; r_halt <= 1'b0; end
-			// default: o_wb_data <= 0;
-		endcase
+	case (i_wb_addr)
+		3'b000: o_wb_data <= r_maxcount;
+		3'b001: begin o_wb_data <= r_lcl; r_halt <= 1'b1; end // { 31'h00, r_halt };
+		3'b010: begin o_wb_data <= i_err[63:32]; r_halt <= 1'b1; end
+		3'b011: o_wb_data <= r_err[31:0];
+		3'b100: o_wb_data <= r_count[63:32];
+		3'b101: o_wb_data <= r_count[31:0];
+		3'b110: o_wb_data <= r_step[63:32];
+		3'b111: begin o_wb_data <= r_step[31:0]; r_halt <= 1'b0; end
+		// default: o_wb_data <= 0;
+	endcase
 
 	always @(posedge i_clk)
 		o_wb_ack <= i_wb_cyc_stb;
@@ -115,29 +116,28 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	//
 	reg	[31:0]	r_ctr;
 	always @(posedge i_clk)
-		if (r_ctr >= r_maxcount-1)
-			r_ctr <= r_ctr+1-r_maxcount+r_jump;
-		else
-			r_ctr <= r_ctr+1+r_jump;
+	if (r_ctr >= r_maxcount-1)
+		r_ctr <= r_ctr+1-r_maxcount+r_jump;
+	else
+		r_ctr <= r_ctr+1+r_jump;
 	always @(posedge i_clk)
-		if (r_ctr >= r_maxcount-1)
-			o_pps <= 1'b1;
-		else
-			o_pps <= 1'b0;
+	if (r_ctr >= r_maxcount-1)
+		o_pps <= 1'b1;
+	else
+		o_pps <= 1'b0;
 
 	reg	[31:0]	lcl_counter;
 	always @(posedge i_clk)
-		lcl_counter <= lcl_counter + 32'h001;
+	lcl_counter <= lcl_counter + 32'h001;
 
 	always @(posedge i_clk)
-		if ((~r_halt)&&(i_lcl_pps))
-		begin
-			r_err   <= i_err[31:0];
-			r_count <= i_count;
-			r_step  <= i_step;
-			r_lcl   <= lcl_counter;
-		end
-
+	if ((!r_halt)&&(i_lcl_pps))
+	begin
+		r_err   <= i_err[31:0];
+		r_count <= i_count;
+		r_step  <= i_step;
+		r_lcl   <= lcl_counter;
+	end
 
 endmodule
 

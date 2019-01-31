@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -49,9 +49,10 @@
 		// GPIO ports
 		i_@$(PREFIX), o_@$(PREFIX)
 @TOP.IODECL=
+	// GPIO wires
 	localparam	NGPI = @$(NUMINPUT), NGPO=@$(NUMOUTPUT);
 	// GPIO ports
-	input		[(@$(NUMINPUT)-1):0]	i_@$(PREFIX);
+	input	wire	[(@$(NUMINPUT)-1):0]	i_@$(PREFIX);
 	output	wire	[(@$(NUMOUTPUT)-1):0]	o_@$(PREFIX);
 @TOP.MAIN=
 		// GPIO wires
@@ -83,8 +84,10 @@
 //
 // @$(DEVID) input wires
 //
-//
 #define	@$(DEVID)_IN(WIRE)	(((WIRE)>>16)&1)
+//
+// @$(DEVID) output wires
+//
 #define	@$(DEVID)_SET(WIRE)	(((WIRE)<<16)|(WIRE))
 #define	@$(DEVID)_CLR(WIRE)	 ((WIRE)<<16)
 //

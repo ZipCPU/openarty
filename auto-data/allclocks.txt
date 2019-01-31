@@ -1,10 +1,48 @@
+################################################################################
+##
+## Filename: 	allclocks.txt
+##
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2018-2019, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
 @PREFIX=allclocks
 @ACCESS=ALLCLOCKS_PRESENT
 @TOP.PORTLIST=
 		// In support of all clocks
-		i_reset_btn
+		i_reset_btn, o_eth_ref_clk
 @TOP.IODECL=
 	input	wire	i_reset_btn;
+	output	wire	o_eth_ref_clk;
 @TOP.DEFNS=
 	wire	s_clk, s_reset;
 	wire	eth_rx_clk, eth_tx_clk;
@@ -100,6 +138,8 @@
 
 	BUFG	eth_rx(.I(i_eth_rx_clk), .O(eth_rx_clk));
 	BUFG	eth_tx(.I(i_eth_tx_clk), .O(eth_tx_clk));
+
+	assign	o_eth_ref_clk = enet_clk;
 `endif
 ##
 @PREFIX=eth_rx_clk_p

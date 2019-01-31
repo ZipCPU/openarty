@@ -15,7 +15,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -103,15 +103,20 @@ typedef	struct	GPSTRACKER_S	{
 @BDEF.IOTYPE= GPSTRACKER
 @BDEF.OSVAL=
 static volatile @$(BDEF.IOTYPE) *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x%08x]REGBASE);
+##
+##
+##
 @PREFIX=gtb
 @NADDR=8
 @SLAVE.TYPE=DOUBLE
 @SLAVE.BUS=wb
+@CLOCK.NAME=clk
 @MAIN.DEFNS=
 	wire	tb_pps;
 @MAIN.INSERT=
 `ifdef	GPSTRK_ACCESS
-	gpsclock_tb ppstb(i_clk, ck_pps, tb_pps,
+	gpsclock_tb #(.CLOCK_FREQUENCY_HZ(@$(CLOCK.FREQUENCY)))
+		ppstb(i_clk, ck_pps, tb_pps,
 			(wb_stb)&&(gtb_sel), wb_we, wb_addr[2:0], wb_data,
 				gtb_ack, gtb_stall, gtb_data,
 			gps_err, gps_now, gps_step);

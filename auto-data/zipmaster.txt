@@ -14,7 +14,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2017-2018, Gisselquist Technology, LLC
+## Copyright (C) 2017-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -51,12 +51,13 @@
 @BUS.CLOCK=clk
 @SCOPE.TRIGGER=zip_trigger
 @SCOPE.DATA=zip_debug
+@CPURESET=i_cpu_reset
 @$RESET_ADDRESS=@$(flash.REGBASE)+(4<<20)
 @INT.ZIP.WIRE=zip_cpu_int
 @INT.ZIP.BUS=buspic
 @CACHABLE.FILE=iscachable.v
 @LGICACHE=10
-@LGDCACHE=10
+@LGDCACHE=0
 @TOP.PORTLIST=
 # 		// A reset wire for the ZipCPU
 # 		i_cpu_resetn
@@ -67,21 +68,21 @@
  		// Reset wire for the ZipCPU
  		s_reset
 @MAIN.PORTLIST=
-		i_cpu_reset
+		@$(CPURESET)
 @MAIN.IODECL=
-	input	wire		i_cpu_reset;
+	input	wire		@$(CPURESET);
 @MAIN.PARAM=
 	//
 	//
 	// Variables/definitions needed by the ZipCPU BUS master
 	//
 	//
-	// A 32-bit address indicating where teh ZipCPU should start running
+	// A 32-bit address indicating where the ZipCPU should start running
 	// from
 	localparam	RESET_ADDRESS = @$RESET_ADDRESS;
 	//
 	// The number of valid bits on the bus
-	localparam	ZIP_ADDRESS_WIDTH = @$(MASTER.BUS.AWID);	// Zip-CPU address width
+	localparam	ZIP_ADDRESS_WIDTH = @$(BUS.AWID); // Zip-CPU address width
 	//
 	// Number of ZipCPU interrupts
 	localparam	ZIP_INTS = 16;
@@ -95,7 +96,7 @@
 	// All we define here is a set of scope wires
 	wire	[31:0]	zip_debug;
 	wire		zip_trigger;
-	wire	[15:0] zip_int_vector;
+	wire	[ZIP_INTS-1:0] zip_int_vector;
 @MAIN.INSERT=
 	//
 	//
@@ -105,7 +106,7 @@
 	assign	zip_int_vector = { alt_int_vector[14:8], sys_int_vector[14:6] };
 	zipsystem #(RESET_ADDRESS,ZIP_ADDRESS_WIDTH,@$(LGICACHE),@$(LGDCACHE),
 			ZIP_START_HALTED,ZIP_INTS)
-		swic(i_clk, (i_reset)||(i_cpu_reset),
+		swic(i_clk, (i_reset)||(@$(CPURESET)),
 			// Zippys wishbone interface
 			zip_cyc, zip_stb, zip_we, zip_addr, zip_data, zip_sel,
 					zip_ack, zip_stall, zip_idata, zip_err,
@@ -166,7 +167,7 @@
 
 #define	CPUVAR(A)	VVAR(_swic__DOT__thecpu__DOT_ ## A)
 
-#define	cpu_reset 	VVAR(_swic__DOT__cmd_reset)
+#define	cpu_reset	VVAR(_swic__DOT__cmd_reset)
 #define	cpu_break 	VVAR(_swic__DOT__cpu_break)
 #define	cpu_cmd_halt	VVAR(_swic__DOT__cmd_halt)
 #define	cpu_ipc		CPUVAR(_ipc)
@@ -210,7 +211,7 @@
 @SIM.CLRRESET=
 		m_core->i_cpu_reset = 0;
 @SIM.METHODS=
-
+#ifdef	@$(ACCESS)
 	void	loadelf(const char *elfname) {
 		ELFSECTION	**secpp, *secp;
 		uint32_t	entry;
@@ -381,7 +382,7 @@
 				m_core->cpu_upc);
 		} fflush(stdout);
 	}
-
+#endif
 @SIM.TICK=
 #ifdef	@$(ACCESS)
 		// ZipCPU Sim instruction support
