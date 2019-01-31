@@ -22,18 +22,18 @@ set_property -dict { PACKAGE_PIN A10 IOSTANDARD LVCMOS33 } [get_ports {i_sw[3]}]
 
 ##RGB LEDs
 
-set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[0]}]
+set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[0]}]
 set_property -dict { PACKAGE_PIN F6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[0]}]
-set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[0]}]
-set_property -dict { PACKAGE_PIN G4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[1]}]
+set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[0]}]
+set_property -dict { PACKAGE_PIN G4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[1]}]
 set_property -dict { PACKAGE_PIN J4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[1]}]
-set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[1]}]
-set_property -dict { PACKAGE_PIN H4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[2]}]
+set_property -dict { PACKAGE_PIN G3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[1]}]
+set_property -dict { PACKAGE_PIN H4 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[2]}]
 set_property -dict { PACKAGE_PIN J2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[2]}]
-set_property -dict { PACKAGE_PIN J3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[2]}]
-set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[3]}]
+set_property -dict { PACKAGE_PIN J3 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[2]}]
+set_property -dict { PACKAGE_PIN K2 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[3]}]
 set_property -dict { PACKAGE_PIN H6 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledg[3]}]
-set_property -dict { PACKAGE_PIN K1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledb[3]}]
+set_property -dict { PACKAGE_PIN K1 IOSTANDARD LVCMOS33 } [get_ports {o_clr_ledr[3]}]
 
 ##LEDs
 
@@ -192,25 +192,25 @@ set_property -dict { PACKAGE_PIN C2 IOSTANDARD LVCMOS33 } [get_ports i_reset_btn
 
 ##SMSC Ethernet PHY
 
-# set_property -dict { PACKAGE_PIN D17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_col }]; #IO_L16N_T2_A27_15 Sch=eth_col
-# set_property -dict { PACKAGE_PIN G14   IOSTANDARD LVCMOS33 } [get_ports { i_eth_crs }]; #IO_L15N_T2_DQS_ADV_B_15 Sch=eth_crs
-# set_property -dict { PACKAGE_PIN F16 IOSTANDARD LVCMOS33 } [get_ports o_eth_mdclk]
-# set_property -dict { PACKAGE_PIN K13 IOSTANDARD LVCMOS33 } [get_ports io_eth_mdio]
-# set_property -dict { PACKAGE_PIN G18   IOSTANDARD LVCMOS33 } [get_ports { o_eth_ref_clk }]; #IO_L22P_T3_A17_15 Sch=eth_ref_clk
-# set_property -dict { PACKAGE_PIN C16   IOSTANDARD LVCMOS33 } [get_ports { o_eth_rstn }]; #IO_L20P_T3_A20_15 Sch=eth_rstn
+set_property -dict { PACKAGE_PIN D17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_col }]; #IO_L16N_T2_A27_15 Sch=eth_col
+set_property -dict { PACKAGE_PIN G14   IOSTANDARD LVCMOS33 } [get_ports { i_eth_crs }]; #IO_L15N_T2_DQS_ADV_B_15 Sch=eth_crs
+set_property -dict { PACKAGE_PIN F16 IOSTANDARD LVCMOS33 } [get_ports o_eth_mdclk]
+set_property -dict { PACKAGE_PIN K13 IOSTANDARD LVCMOS33 } [get_ports io_eth_mdio]
+set_property -dict { PACKAGE_PIN G18   IOSTANDARD LVCMOS33 } [get_ports { o_eth_ref_clk }]; #IO_L22P_T3_A17_15 Sch=eth_ref_clk
+set_property -dict { PACKAGE_PIN C16   IOSTANDARD LVCMOS33 } [get_ports { o_eth_rstn }]; #IO_L20P_T3_A20_15 Sch=eth_rstn
 set_property -dict { PACKAGE_PIN F15   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rx_clk }]; #IO_L14P_T2_SRCC_15 Sch=eth_rx_clk
-# set_property -dict { PACKAGE_PIN G16   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rx_dv }]; #IO_L13N_T2_MRCC_15 Sch=eth_rx_dv
-# set_property -dict { PACKAGE_PIN D18   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[0] }]; #IO_L21N_T3_DQS_A18_15 Sch=eth_rxd[0]
-# set_property -dict { PACKAGE_PIN E17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[1] }]; #IO_L16P_T2_A28_15 Sch=eth_rxd[1]
-# set_property -dict { PACKAGE_PIN E18   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[2] }]; #IO_L21P_T3_DQS_15 Sch=eth_rxd[2]
-# set_property -dict { PACKAGE_PIN G17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[3] }]; #IO_L18N_T2_A23_15 Sch=eth_rxd[3]
-# set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxerr }]; #IO_L20N_T3_A19_15 Sch=eth_rxerr
+set_property -dict { PACKAGE_PIN G16   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rx_dv }]; #IO_L13N_T2_MRCC_15 Sch=eth_rx_dv
+set_property -dict { PACKAGE_PIN D18   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[0] }]; #IO_L21N_T3_DQS_A18_15 Sch=eth_rxd[0]
+set_property -dict { PACKAGE_PIN E17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[1] }]; #IO_L16P_T2_A28_15 Sch=eth_rxd[1]
+set_property -dict { PACKAGE_PIN E18   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[2] }]; #IO_L21P_T3_DQS_15 Sch=eth_rxd[2]
+set_property -dict { PACKAGE_PIN G17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxd[3] }]; #IO_L18N_T2_A23_15 Sch=eth_rxd[3]
+set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS33 } [get_ports { i_eth_rxerr }]; #IO_L20N_T3_A19_15 Sch=eth_rxerr
 set_property -dict { PACKAGE_PIN H16   IOSTANDARD LVCMOS33 } [get_ports { i_eth_tx_clk }]; #IO_L13P_T2_MRCC_15 Sch=eth_tx_clk
-# set_property -dict { PACKAGE_PIN H15   IOSTANDARD LVCMOS33 } [get_ports { o_eth_tx_en }]; #IO_L19N_T3_A21_VREF_15 Sch=eth_tx_en
-# set_property -dict { PACKAGE_PIN H14   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[0] }]; #IO_L15P_T2_DQS_15 Sch=eth_txd[0]
-# set_property -dict { PACKAGE_PIN J14   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[1] }]; #IO_L19P_T3_A22_15 Sch=eth_txd[1]
-# set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[2] }]; #IO_L17N_T2_A25_15 Sch=eth_txd[2]
-# set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[3] }]; #IO_L18P_T2_A24_15 Sch=eth_txd[3]
+set_property -dict { PACKAGE_PIN H15   IOSTANDARD LVCMOS33 } [get_ports { o_eth_tx_en }]; #IO_L19N_T3_A21_VREF_15 Sch=eth_tx_en
+set_property -dict { PACKAGE_PIN H14   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[0] }]; #IO_L15P_T2_DQS_15 Sch=eth_txd[0]
+set_property -dict { PACKAGE_PIN J14   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[1] }]; #IO_L19P_T3_A22_15 Sch=eth_txd[1]
+set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[2] }]; #IO_L17N_T2_A25_15 Sch=eth_txd[2]
+set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports { o_eth_txd[3] }]; #IO_L18P_T2_A24_15 Sch=eth_txd[3]
 
 # Ethernet generated clocks from the chip
 #
@@ -346,6 +346,39 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]
 
 
 ## Adding in any XDC_INSERT tags
+
+## From enetscope
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *scope*/*br_*}] -to [get_cells -hier -filter {NAME=~*scope*/*q_*}] 12.3
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *scope*/*br_*}] -to [get_cells -hier -filter {NAME=~*scope*/*dr_*}] 12.3
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *scopei*/*waddr*}] -to [get_cells -hier -filter {NAME=~*scopei*/*this_addr*}] 12.3
+## From netp
+create_clock -period 40.000 -name eth_tx_pin -add [get_ports {i_eth_tx_clk}]
+create_clock -period 40.000 -name eth_rx_pin -add [get_ports {i_eth_rx_clk}]
+
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/o_net_reset*}] -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_tx_busy*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]  -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_len*}]      -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/config_*}]     -to [get_cells -hier -filter {NAME =~ *netctrl/n_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cm*}]       -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cm*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/tx_cancel*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_cancel*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]      -to [get_cells -hier -filter {NAME =~ *netctrl/txmaci/r_hw*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/hw_mac*}]      -to [get_cells -hier -filter {NAME =~ *netctrl/rxmaci/r_hw*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txprei/r_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txmaci/o_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txcrci/o_v*}]  -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/txpadi/o_v*}]  -to [get_cells -hier -filter {NAME =~ *netctrl/r_tx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_val*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_val*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_busy*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_busy*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_len*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_len*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_miss*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/rx_miss_pi*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/p_rx_cle*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/r_rx_clear*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_crce*}]   -to [get_cells -hier -filter {NAME =~ *netctrl/rx_crc_pip*}] 12.3;
+set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_rx_err*}]    -to [get_cells -hier -filter {NAME =~ *netctrl/rx_err_pip*}] 12.3;
+
+
 
 ## From flash
 set_property SLEW FAST [get_ports o_qspi_cs_n]

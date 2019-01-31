@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -48,6 +48,7 @@
 #include "port.h"
 #include "regdefs.h"
 #include "ttybus.h"
+#include "design.h"
 
 FPGA	*m_fpga;
 void	closeup(int v) {
@@ -71,7 +72,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-#ifndef	MDIO_ACCESS
+#ifndef	NETCTRL_ACCESS
 	printf(
 "This program depends upon the MDIO interface.  This interface was not\n"
 "built into your design.  Please add it in and try again.\n");
@@ -257,4 +258,3 @@ int main(int argc, char **argv) {
 	delete	m_fpga;
 #endif
 }
-

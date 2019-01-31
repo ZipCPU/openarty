@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2018, Gisselquist Technology, LLC
+## Copyright (C) 2015-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -39,7 +39,7 @@
 .PHONY: all
 PROGRAMS := wbregs netuart wbsettime wbprogram netsetup manping	\
 	zipload zipstate zipdbg divutb dumpflash flashid
-SCOPES := flashscope etxscope erxscope cpuscope dcachescope
+SCOPES := flashscope etxscope erxscope cpuscope dcachescope mdioscope
 all: $(PROGRAMS) $(SCOPES) gps
 CXX := g++
 OBJDIR := obj-pc
@@ -48,7 +48,7 @@ SOURCES := wbregs.cpp wbprogram.cpp netuart.cpp wbsettime.cpp		\
 	dumpflash.cpp flashscope.cpp flashdrvr.cpp flashid.cpp		\
 	scopecls.cpp sdramscope.cpp					\
 	zipload.cpp zipstate.cpp zipdbg.cpp		\
-	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp dcachescope.cpp		\
+	erxscope.cpp etxscope.cpp netsetup.cpp cpuscope.cpp dcachescope.cpp \
 	 mdioscope.cpp manping.cpp $(BUSSRCS)
 	# ziprun.cpp cfgscope.cpp
 HEADERS := llcomms.h ttybus.h devbus.h

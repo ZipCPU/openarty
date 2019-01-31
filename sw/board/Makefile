@@ -11,7 +11,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2016-2018, Gisselquist Technology, LLC
+## Copyright (C) 2016-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -55,6 +55,7 @@ HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
 LFLAGS  := -T board.ld -L../zlib -Wl,--start-group -larty -lgcc
+LFLAGSD := -T sdram.ld -L../zlib -Wl,--start-group -larty -lgcc
 CFLAGS  := -O3 -I../zlib -I../../rtl
 #
 # For source analysis, the following macros are defined:
@@ -125,7 +126,7 @@ oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
 
 simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/zipcpu.o
 simple_ping: $(OBJDIR)/arp.o $(OBJDIR)/ipcksum.o $(OBJDIR)/ipcksum.o
-	$(CC) -Wl,-Map=simple_ping.map $(CFLAGS) $(LFLAGS) $^ -o simple_ping
+	$(CC) -Wl,-Map=simple_ping.map $(CFLAGS) $(LFLAGS) $^ -o $@
 
 cmptst: $(OBJDIR)/cmptst.o
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/cmptst.o -o $@

@@ -66,7 +66,7 @@
 @MAIN.ALT=
 	assign	@$(PREFIX)_int = 0;
 @REGS.NOTE=// @$(PREFIX) scope
-@REGS.N=1
+@REGS.N=2
 @REGS.0=0 R_@$(DEVID)  @$(DEVID)
 @REGS.1=1 R_@$(DEVID)D @$(DEVID)D
 @RTL.MAKE.GROUP=SCOPE

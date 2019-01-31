@@ -13,7 +13,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2017, Gisselquist Technology, LLC
+## Copyright (C) 2015-2019, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -127,6 +127,7 @@ autodata: check-autofpga
 	$(call copyif-changed,auto-data/board.h,sw/zlib/board.h)
 	$(call copyif-changed,auto-data/board.ld,sw/board/board.ld)
 	$(call copyif-changed,auto-data/bkram.ld,sw/board/bkram.ld)
+	$(call copyif-changed,auto-data/sdram.ld,sw/board/sdram.ld)
 	$(call copyif-changed,auto-data/rtl.make.inc,rtl/make.inc)
 	$(call copyif-changed,auto-data/testb.h,sim/verilated/testb.h)
 	$(call copyif-changed,auto-data/main_tb.cpp,sim/verilated/main_tb.cpp)

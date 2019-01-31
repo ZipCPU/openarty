@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2018, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -108,6 +108,8 @@ unsigned getmap_address(const char *map_fname, const char *name) {
 }
 
 char	*getmap_name(const char *map_fname, const unsigned val) {
+	if (!map_fname)
+		return NULL;
 	FILE	*fmp = fopen(map_fname, "r");
 	char	line[512];
 	if (NULL == fmp) {
@@ -200,10 +202,11 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	const char *nm, *named_address = argv[0];
+	const char *nm = NULL, *named_address = argv[0];
 	unsigned address, value;
 
 	if (isvalue(named_address)) {
+		printf("Named address = %s\n", named_address);
 		address = strtoul(named_address, NULL, 0);
 		if (map_file)
 			nm = getmap_name(map_file, address);

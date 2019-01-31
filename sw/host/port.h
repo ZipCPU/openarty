@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2018, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -45,7 +45,7 @@
 // computer, test it, and when/if it doesn't work we can replace the device
 // with the test-bench.  Across the network, no one will know any better that
 // anything had changed.
-#define	FPGAHOST	"localhost"
+#define	FPGAHOST	"jericho"
 #define	FPGATTY		"/dev/ttyUSB1"
 #define	FPGAPORT	6510
 

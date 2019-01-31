@@ -618,7 +618,7 @@ module	main(i_clk, i_reset,
 	assign	      wb_dio_sel = ((wb_addr[26:21] &  6'h3f) ==  6'h0c); // 0x6000000 - 0x60000ff
 //x2	Was a master bus as well
 	assign	        netb_sel = ((wb_addr[26:21] &  6'h3f) ==  6'h0d); // 0x6800000 - 0x6801fff
-	assign	       bkram_sel = ((wb_addr[26:21] &  6'h3f) ==  6'h0e); // 0x7000000 - 0x701ffff
+	assign	       bkram_sel = ((wb_addr[26:21] &  6'h3f) ==  6'h0e); // 0x7000000 - 0x700ffff
 	assign	       flash_sel = ((wb_addr[26:21] &  6'h3e) ==  6'h10); // 0x8000000 - 0x8ffffff
 	assign	       sdram_sel = ((wb_addr[26:21] &  6'h30) ==  6'h20); // 0x10000000 - 0x17ffffff
 	//
@@ -1742,10 +1742,10 @@ module	main(i_clk, i_reset,
 `endif	// RTC_ACCESS
 
 `ifdef	BKRAM_ACCESS
-	memdev #(.LGMEMSZ(17), .EXTRACLOCK(1))
+	memdev #(.LGMEMSZ(16), .EXTRACLOCK(1))
 		bkrami(i_clk, i_reset,
 			(wb_cyc), (wb_stb)&&(bkram_sel), wb_we,
-				wb_addr[(17-3):0], wb_data, wb_sel,
+				wb_addr[(16-3):0], wb_data, wb_sel,
 				bkram_ack, bkram_stall, bkram_data);
 `else	// BKRAM_ACCESS
 
@@ -1800,7 +1800,7 @@ module	main(i_clk, i_reset,
 
 `ifdef	NETCTRL_ACCESS
 	wire[31:0]	mdio_debug;
-	enetctrl #(2)
+	enetctrl #(6)
 		mdio(i_clk, i_reset, wb_cyc, (wb_stb)&&(mdio_sel), wb_we,
 				wb_addr[4:0], wb_data[15:0],
 			mdio_ack, mdio_stall, mdio_data,

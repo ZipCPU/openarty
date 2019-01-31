@@ -22,7 +22,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2018, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -107,7 +107,7 @@ public:
 	TTYBUS(LLCOMMSI *comms) : m_dev(comms) { init(); }
 	virtual	~TTYBUS(void) {
 		m_dev->close();
-		if (m_buf) delete[] m_buf; m_buf = NULL;
+		if (m_buf) { delete[] m_buf; m_buf = NULL; };
 		delete m_rdbuf; m_rdbuf = NULL;
 		delete	m_dev;
 	}

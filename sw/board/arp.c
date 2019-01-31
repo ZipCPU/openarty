@@ -52,6 +52,7 @@
 //
 //
 ///////////
+unsigned	arp_requests_sent = 0;
 
 typedef	struct	{
 	int		valid;
@@ -97,8 +98,13 @@ void	send_arp_request(int ipaddr) {
 	pkt[7] = 0;
 	pkt[8] = ipaddr;
 
+arp_requests_sent++;
+
 	// Send our packet
 	syscall(KTRAPID_SENDPKT,0,(unsigned)pkt, 9*4);
+
+for(volatile int k=0; k<2000; k++);
+	;
 }
 
 int	arp_lookup(unsigned ipaddr, unsigned long *mac) {

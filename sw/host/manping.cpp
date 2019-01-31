@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -48,6 +48,7 @@
 #include "port.h"
 #include "regdefs.h"
 #include "ttybus.h"
+#include "design.h"
 
 #define	TXGO		0x04000
 #define	NOHWCRC		0x08000
@@ -220,7 +221,7 @@ void	clear_scope(FPGA *fpga) {
 }
 
 int main(int argc, char **argv) {
-#ifndef	ENET_ACCESS
+#ifndef	ETHERNET_ACCESS
 	fprintf(stderr,
 "The ethernet core was not included in this design.  Reconfigure your\n"
 "autofpga settings, and build this again if you want to test your network\n"
@@ -274,9 +275,15 @@ int main(int argc, char **argv) {
 	smac[3] = 0xe8; smac[4] = 0xb0; smac[5] = 0x96;
 
 	// Similarly with the destination IP of the computer I wish to test with
-	dip[0] = 192; dip[1] = 168; dip[2] = 10; dip[3] = 1;
+	dip[0] = 192; dip[1] = 168; dip[2] = 15; dip[3] = 1;
 	// and let's pick a source IP just ... somewhere on that network
-	sip[0] = 192; sip[1] = 168; sip[2] = 10; sip[3] = 22;
+	sip[0] = 192; sip[1] = 168; sip[2] = 15; sip[3] = 22;
+
+// #define	SIMULATION
+#ifdef	SIMULATION
+	for(int i=0; i<6; i++)	dmac[i] = smac[i];
+	for(int i=0; i<4; i++)	dip[i] = dip[i];
+#endif
 
 	clear_scope(m_fpga);
 

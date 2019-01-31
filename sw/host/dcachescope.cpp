@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2018, Gisselquist Technology, LLC
+// Copyright (C) 2018-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -51,6 +51,7 @@
 #include "scopecls.h"
 #include "ttybus.h"
 
+#ifdef	R_DCACHESCOPE
 #define	WBSCOPE		R_DCACHESCOPE
 #define	WBSCOPEDATA	R_DCACHESCOPED
 
@@ -119,10 +120,11 @@ public:
 		register_trace("pending", 1,  0);
 	}
 };
+#endif	// R_DCACHESCOPE
 
 int main(int argc, char **argv) {
-#ifndef	R_ZIPSCOPE
-	printf("This design was not built with a CPU scope within it.\n");
+#ifndef	R_DCACHESCOPE
+	printf("This design was not built with a D-cache scope within it.\n");
 #else
 	FPGAOPEN(m_fpga);
 

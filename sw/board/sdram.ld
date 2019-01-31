@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Filename:	bkram.ld
+* Filename:	sdram.ld
 *
 * Project:	OpenArty, an entirely open SoC based upon the Arty platform
 *
@@ -61,33 +61,37 @@ MEMORY
 _bkram    = ORIGIN(bkram);
 _flash    = ORIGIN(flash);
 _sdram    = ORIGIN(sdram);
-/* LD.DEFNS from mem_bkram_only */
-_kram  = 0; /* No high-speed kernel RAM */
-_ram   = ORIGIN(bkram);
+/* LD.DEFNS from zipmaster.txt */
+_kram  = ORIGIN(bkram); /* No high-speed kernel RAM */
+_ram   = ORIGIN(sdram);
 _rom   = 0;
 _top_of_stack = ORIGIN(bkram) + LENGTH(bkram);
 
 
-/* LD.SCRIPT from mem_bkram_only */
+/* LD.SCRIPT from zipmaster.txt */
 SECTIONS
 {
-       .ramcode ORIGIN(bkram) : ALIGN(4) {
-               _boot_address = .;
-               _kram_start = .;
-               _kram_end = .;
-       		_ram_image_start = . ;
-               *(.start) *(.boot)
-               *(.kernel)
-               *(.text.startup)
-               *(.text*)
-               *(.rodata*) *(.strings)
-               *(.data) *(COMMON)
-               }> bkram
-       _ram_image_end = . ;
-       .bss : ALIGN_WITH_INPUT {
-               *(.bss)
-               _bss_image_end = . ;
-               } > bkram
-       _top_of_heap = .;
+	.rocode ORIGIN(bkram): ALIGN(4) {
+		_boot_address = .;
+		*(.start) *(.boot)
+	} > bkram
+	_kram_start = . ;
+	.kernel : ALIGN_WITH_INPUT {
+		*(.kernel)
+		*(.text.startup)
+		_kram_end = . ;
+		}> bkram
+	_ram_image_start = . ;
+	.ramcod : ALIGN_WITH_INPUT {
+		*(.text*)
+		*(.rodata*) *(.strings)
+		*(.data) *(COMMON)
+		_ram_image_end = . ;
+		}> sdram
+	.bss : ALIGN_WITH_INPUT {
+		*(.bss)
+		_bss_image_end = . ;
+		} > sdram
+	_top_of_heap = .;
 }
 

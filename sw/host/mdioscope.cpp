@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -47,9 +47,10 @@
 #include "port.h"
 #include "regdefs.h"
 #include "scopecls.h"
+#include "ttybus.h"
 
-#define	WBSCOPE		R_NETSCOPE
-#define	WBSCOPEDATA	R_NETSCOPED
+#define	WBSCOPE		R_MDIOSCOPE
+#define	WBSCOPEDATA	R_MDIOSCOPED
 
 FPGA	*m_fpga;
 void	closeup(int v) {
@@ -75,8 +76,8 @@ public:
 		wbdata  = (val>>16)&0x03f;
 
 		rclk    = (val>>22)&1;
-		zreg    = (val>>10)&1;
-		zclk    = (val>>9)&1;
+		zreg    = (val>>15)&1;
+		zclk    = (val>>14)&1;
 		regpos  = (val>>8)&0x3f;
 		rpend   = (val>>7)&1;
 		ctstate = (val>>4)&7;
@@ -93,20 +94,57 @@ public:
 			(rpend)?"R":" ",
 			(mdclk)?"CLK":"   ", (mdwe)?"WE":"  ",(omdio),(imdio));
 	}
+
+	virtual	void define_traces(void) {
+		register_trace("o_wb_stall", 1, 31);
+		register_trace("i_wb_stb",   1, 30);
+		register_trace("i_wb_we",    1, 29);
+		register_trace("i_wb_addr",  5, 24);
+		//
+		register_trace("o_wb_ack",     1, 23);
+		register_trace("rclk",         1, 22);
+		register_trace("o_wb_data",    6, 16);
+		//
+		register_trace("zreg_pos",     1, 15);
+		register_trace("zclk",         1, 14);
+		register_trace("reg_pos",      6,  8);
+		//
+		register_trace("read_pending", 1,  7);
+		register_trace("ctrl_state",   3,  4);
+		//
+		register_trace("o_mdclk",    1,  3);
+		register_trace("o_mdwe",     1,  2);
+		register_trace("o_mdio",     1,  1);
+		register_trace("i_mdio",     1,  0);
+	}
 };
 
 int main(int argc, char **argv) {
+#ifndef	R_MDIOSCOPE
+	printf(
+"This design was not built with an MDIO network scope attached.\n"
+"\n"
+"To use this design, create and enable the MDIO network controller, and the\n"
+"MDIO scope from\n"
+"that.  To do this, you'll need to adjust the flash configuration file\n"
+"used by AutoFPGA found in the auto-data/ directory, and then include it\n"
+"within the Makefile of the same directory.\n");
+#else
 	FPGAOPEN(m_fpga);
 
 	signal(SIGSTOP, closeup);
 	signal(SIGHUP, closeup);
 
-	MDIOSCOPE *scope = new MDIOSCOPE(m_fpga, WBSCOPE, false);
+	MDIOSCOPE *scope = new MDIOSCOPE(m_fpga, WBSCOPE, true);
+	scope->set_clkfreq_hz(CLKFREQHZ);
 	if (!scope->ready()) {
 		printf("Scope is not yet ready:\n");
 		scope->decode_control();
-	} else
-		scope->read();
+	} else {
+		scope->print();
+		scope->writevcd("mdio.vcd");
+	}
 	delete	m_fpga;
+#endif
 }
 
