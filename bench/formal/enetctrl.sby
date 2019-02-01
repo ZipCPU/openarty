@@ -1,0 +1,23 @@
+[tasks]
+cvr
+prf
+
+[options]
+cvr: mode cover
+cvr: depth 258
+prf: mode prove
+prf: depth 10
+
+[engines]
+smtbmc
+
+[script]
+read_verilog -formal fwb_slave.v
+read_verilog -formal enetctrl.v
+cvr: chparam -set CLKBITS     2 enetctrl
+cvr: chparam -set F_OPT_COVER 1 enetctrl
+prep -top enetctrl
+
+[files]
+fwb_slave.v
+../../rtl/enetctrl.v

@@ -1,0 +1,103 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Sat Jan  5 12:18:20 2019
+[*]
+[dumpfile] "/home/dan/jericho/work/rnd/opencores/openarty/trunk/bench/formal/enetctrl_prf/engine_0/trace.vcd"
+[dumpfile_mtime] "Sat Jan  5 12:14:23 2019"
+[dumpfile_size] 66584
+[savefile] "/home/dan/jericho/work/rnd/opencores/openarty/trunk/bench/formal/enetctrl.gtkw"
+[timestart] 589
+[size] 1882 907
+[pos] -1 -1
+*-5.061276 750 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 270
+[signals_width] 220
+[sst_expanded] 1
+[sst_vpaned_height] 252
+@28
+enetctrl.f_past_valid
+enetctrl.i_reset
+enetctrl.i_clk
+@200
+-
+@28
+[color] 3
+enetctrl.o_mdclk
+[color] 3
+enetctrl.o_mdio
+[color] 3
+enetctrl.o_mdwe
+[color] 3
+enetctrl.i_mdio
+@200
+-
+@28
+enetctrl.i_wb_cyc
+enetctrl.i_wb_stb
+enetctrl.i_wb_we
+@22
+enetctrl.i_wb_addr[4:0]
+enetctrl.i_wb_data[15:0]
+@28
+[color] 2
+enetctrl.o_wb_stall
+[color] 2
+enetctrl.o_wb_ack
+@22
+[color] 2
+enetctrl.o_wb_data[31:0]
+@200
+-
+@28
+[color] 3
+enetctrl.f_nacks[2:0]
+[color] 3
+enetctrl.f_nreqs[2:0]
+[color] 3
+enetctrl.f_outstanding[2:0]
+enetctrl.pre_ack
+@200
+-
+@28
+enetctrl.clk_counter[1:0]
+enetctrl.rclk
+enetctrl.zclk
+@200
+-
+@22
+enetctrl.reg_pos[5:0]
+@28
+enetctrl.zreg_pos
+@200
+-
+@28
+enetctrl.ctrl_state[2:0]
+enetctrl.read_pending
+enetctrl.write_pending
+@200
+-
+@22
+enetctrl.f_read_steps[33:0]
+enetctrl.f_write_steps[33:0]
+@28
+enetctrl.in_idle
+@c00022
+enetctrl.r_addr[4:0]
+@28
+(0)enetctrl.r_addr[4:0]
+(1)enetctrl.r_addr[4:0]
+(2)enetctrl.r_addr[4:0]
+(3)enetctrl.r_addr[4:0]
+(4)enetctrl.r_addr[4:0]
+@1401200
+-group_end
+@23
+enetctrl.f_addr[4:0]
+@22
+enetctrl.r_data[15:0]
+enetctrl.f_data[15:0]
+enetctrl.r_wb_data[15:0]
+enetctrl.read_reg[15:0]
+enetctrl.write_reg[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

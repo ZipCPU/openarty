@@ -429,7 +429,7 @@ static volatile ENETMDIO *const _mdio = ((ENETMDIO *)92274688);
 
 
 #define	SYSINT_GPSRXF	SYSINT(11)
-#define	SYSINT_GPSTXF	SYSINT(10)
+#define	SYSINT_GPSTXF	ALTINT(10)
 #define	SYSINT_GPSRX	ALTINT(8)
 #define	SYSINT_GPSTX	ALTINT(9)
 

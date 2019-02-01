@@ -61,6 +61,7 @@
 #include "uartsim.h"
 #include "memsim.h"
 #include "byteswap.h"
+#include "enetctrlsim.h"
 //
 // SIM.DEFINES
 //
@@ -178,6 +179,9 @@ public:
 #ifdef	SDRAM_ACCESS
 	MEMSIM	*m_sdram;
 #endif	// SDRAM_ACCESS
+#ifdef	NETCTRL_ACCESS
+	ENETCTRLSIM	*m_mdio;
+#endif // NETCTRL_ACCESS
 	MAINTB(void) {
 		// SIM.INIT
 		//
@@ -203,6 +207,10 @@ public:
 #ifdef	SDRAM_ACCESS
 		m_sdram = new MEMSIM(0x20000000);
 #endif	// SDRAM_ACCESS
+		// From mdio
+#ifdef	NETCTRL_ACCESS
+		m_mdio = new ENETCTRLSIM;
+#endif // NETCTRL_ACCESS
 	}
 
 	void	reset(void) {
@@ -303,6 +311,13 @@ public:
 			m_core->i_sdram_data);
 #endif	// SDRAM_ACCESS
 
+		// SIM.TICK from mdio
+#ifdef	NETCTRL_ACCESS
+		m_core->i_mdio = (*m_mdio)(0, m_core->o_mdclk,
+				((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1);
+#else
+		m_core->i_mdio = ((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1;
+#endif // NETCTRL_ACCESS
 		writeout = false;
 		//
 		// SIM.DBGCONDITION

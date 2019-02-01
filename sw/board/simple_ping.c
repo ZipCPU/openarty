@@ -144,13 +144,6 @@ unsigned	pkt_id = 0;
 #define	LED_GIEMODE	0x0808
 #define	LED_FAULT	0x0f0f
 
-// #define	SET_WATCHDOG	_zip->z_wdt = 0x7f000000
-#define	SET_WATCHDOG
-#ifdef	_BOARD_HAS_ZIPSCOPE
-#define	SET_SCOPE	_zipscope->s_ctrl = 0x040
-#else
-#define	SET_SCOPE
-#endif
 //
 // We'll give our user 64kW of global variables
 //
@@ -216,23 +209,18 @@ void	user_task(void) {
 	while(1) {
 		do {
 			unsigned long	mac;
-			SET_WATCHDOG;
 
-	_clrled[3] = 0x0200000;
 
 			// Rate limit our ARP searching to one Hz
 			rtc = _rtc->r_clock;
 
 			if (arp_lookup(ping_ip_addr, &ping_mac_addr) == 0)
 				arp_lookup(my_ip_router, &mac);
-	_clrled[3] = 0x0202000;
 
 			while(((_netp->n_rxcmd & ENET_RXAVAIL)==0)
 					&&(_rtc->r_clock == rtc))
 				user_heartbeats++;
-	_clrled[3] = 0x0203000;
 		} while((_netp->n_rxcmd & ENET_RXAVAIL)==0);
-	_clrled[3] = 0x0002000;
 
 		// Okay, now we have a receive packet ... let's process it
 		int	etype = _netbrx[1] & 0x0ffff;
@@ -274,7 +262,6 @@ void	user_task(void) {
 					ping_rx_count++;
 				} else if (icmp_type == ICMP_ECHO) {
 					// Someone is pinging us
-	_clrled[3] = 0x0002020;
 					uping_reply(ip[3],ip);
 					icmp_echo_requests++;
 					*_spio = LED_RXPINGRX;
@@ -298,7 +285,6 @@ void	user_task(void) {
 				sha[1] |= sha[0]<<16;
 				sha[0] >>= 16;
 				sip = (epayload[3]<<16)|(epayload[4]>>16);
-	_clrled[3] = 0x0002040;
 				arp_requests_received++;
 				send_arp_reply(sha[0], sha[1], sip);
 			} else if ((epayload[1] == 0x06040002) // Reply
@@ -312,12 +298,10 @@ void	user_task(void) {
 				sip = (epayload[3]<<16)|(epayload[4]>>16);
 				if (sip == ping_ip_addr)
 					ping_mac_addr = sha;
-	_clrled[3] = 0x0000040;
 				arp_table_add(sip, sha);
 			}
 		}
 	}
-	_clrled[3] = 0x0000000;
 }
 
 
@@ -425,38 +409,31 @@ int main(int argc, char **argv) {
 
 	_netp->n_rxcmd = ENET_RXCLRERR|ENET_RXCLR;
 
-SET_SCOPE;
 	*_spio = LED_GIEMODE;
 	while(1) {
 		unsigned	picv, bmsr;
 
-		SET_WATCHDOG;
 		heartbeats++;
 
 		// Wait while the link is being negotiated
 		// --- Read the MDIO status register
 		bmsr = _mdio->e_v[MDIO_BMSR];
-/*
 		if ((bmsr & 4)==0) {
 			// Link is down, do nothing this time through
 			_clrled[1] = LEDC_BRIGHTRED;
 			_clrled[2] = LEDC_BRIGHTRED;
 			_clrled[3] = LEDC_BRIGHTRED;
 		} else {
-			// *_spio = 0x0200;
 			_clrled[1] = LEDC_GREEN;
 			send_ping();
 			_clrled[2] = LEDC_BRIGHTRED; // Have we received a response?
 			_clrled[3] = LEDC_BRIGHTRED; // Was it our ping response?
 		}
-*/
-	send_ping();
 
 		// Clear any timer or PPS interrupts, disable all others
 		_zip->z_pic = DALLPIC;
 		_zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS|SYSINT_ENETRX);
 		do {
-			SET_WATCHDOG;
 			if ((_zip->z_pic & INTNOW)==0) {
 				// Run the user process if no
 				// interrupts are pending
@@ -571,7 +548,6 @@ SET_SCOPE;
 			lastpps = 1;
 			_zip->z_tma = CLKFREQHZ | TMR_INTERVAL;
 		}
-		printf("PPS\n");
 	}
 #endif // _BOARD_HAS_ENET
 }
