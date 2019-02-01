@@ -47,7 +47,8 @@
 		o_eth_mdclk, io_eth_mdio
 @TOP.IODECL=
 	// Ethernet control (MDIO)
-	output	wire		o_eth_mdclk, io_eth_mdio;
+	output	wire		o_eth_mdclk;
+	inout	wire		io_eth_mdio;
 @TOP.DEFNS=
 	// Ethernet control (MDIO)
 	wire		w_mdio, w_mdwe;
@@ -64,7 +65,7 @@
 	input	wire		i_mdio;
 @MAIN.INSERT=
 	wire[31:0]	mdio_debug;
-	enetctrl #(6)
+	enetctrl #(2)
 		mdio(i_clk, i_reset, wb_cyc, (wb_stb)&&(mdio_sel), wb_we,
 				wb_addr[4:0], wb_data[15:0],
 			mdio_ack, mdio_stall, mdio_data,
@@ -129,5 +130,23 @@ typedef struct ENETMDIO_S {
 @BDEF.IONAME= io_netmdio
 @BDEF.OSDEF= _BOARD_HAS_NETMDIO
 @BDEF.OSVAL= static volatile @$THIS.BDEF.IOTYPE *const _mdio = ((@$THIS.BDEF.IOTYPE *)@$THIS.BASE);
+@SIM.CLOCK=clk
+@SIM.INCLUDE=
+#include "enetctrlsim.h"
+@SIM.DEFNS=
+#ifdef	@$(ACCESS)
+	ENETCTRLSIM	*m_mdio;
+#endif // @$(ACCESS)
+@SIM.INIT=
+#ifdef	@$(ACCESS)
+		m_mdio = new ENETCTRLSIM;
+#endif // @$(ACCESS)
+@SIM.TICK=
+#ifdef	@$(ACCESS)
+		m_core->i_mdio = (*m_mdio)(0, m_core->o_mdclk,
+				((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1);
+#else
+		m_core->i_mdio = ((m_core->o_mdwe)&&(!m_core->o_mdio))?0:1;
+#endif // @$(ACCESS)
 @RTL.MAKE.GROUP=ENETMDIO
 @RTL.MAKE.FILES=enetctrl.v

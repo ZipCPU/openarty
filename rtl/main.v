@@ -1800,7 +1800,7 @@ module	main(i_clk, i_reset,
 
 `ifdef	NETCTRL_ACCESS
 	wire[31:0]	mdio_debug;
-	enetctrl #(6)
+	enetctrl #(2)
 		mdio(i_clk, i_reset, wb_cyc, (wb_stb)&&(mdio_sel), wb_we,
 				wb_addr[4:0], wb_data[15:0],
 			mdio_ack, mdio_stall, mdio_data,

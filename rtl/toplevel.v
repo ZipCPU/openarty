@@ -167,7 +167,8 @@ module	toplevel(sys_clk_i,
 	input	wire	[4-1:0]	i_btn;
 	output	wire	[4-1:0]	o_led;
 	// Ethernet control (MDIO)
-	output	wire		o_eth_mdclk, io_eth_mdio;
+	output	wire		o_eth_mdclk;
+	inout	wire		io_eth_mdio;
 
 
 	//
