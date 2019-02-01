@@ -240,8 +240,8 @@ module	qflexpress(i_clk, i_reset,
 		// Start off idle
 		//	This is really redundant since all of our commands are
 		//	idle's.
-		m_cmd_word[7'h35] = { 1'b1, 6'h3f };
-		m_cmd_word[7'h36] = { 1'b1, 6'h3f };
+		m_cmd_word[7'h1b] = { 1'b1, 6'h3f };
+		m_cmd_word[7'h1c] = { 1'b1, 6'h3f };
 		//
 		// Since we don't know what mode we started in, whether the
 		// device was left in XIP mode or some other mode, we'll start
@@ -255,25 +255,57 @@ module	qflexpress(i_clk, i_reset,
 		// is initially in XIP or not.
 		//
 		// Exit any QSPI mode we might've been in
-		m_cmd_word[7'h37] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 1
-		m_cmd_word[7'h38] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 2
-		m_cmd_word[7'h39] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 3
-		m_cmd_word[7'h3a] = { 1'b0, NORMAL_SPI, 4'hf }; // Mode byte
-		m_cmd_word[7'h3b] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h3c] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h3d] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h3e] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h3f] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h40] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h41] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h42] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h43] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h44] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h45] = { 1'b0, NORMAL_SPI, 4'hf };
-		m_cmd_word[7'h46] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h1d] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 1
+		m_cmd_word[7'h1e] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 2
+		m_cmd_word[7'h1f] = { 1'b0, NORMAL_SPI, 4'hf }; // Addr 3
+		m_cmd_word[7'h20] = { 1'b0, NORMAL_SPI, 4'hf }; // Mode byte
+		m_cmd_word[7'h21] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h22] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h23] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h24] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h25] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h26] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h27] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h28] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h29] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h2a] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h2b] = { 1'b0, NORMAL_SPI, 4'hf };
+		m_cmd_word[7'h2c] = { 1'b0, NORMAL_SPI, 4'hf };
+		// Idle
+		m_cmd_word[7'h2d] = { 1'b1, 6'h3f };
+		// Write enhanced configuration register
+		// The write enable must come first: 06
+		m_cmd_word[7'h2e] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h2f] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h30] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h31] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h32] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h33] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h34] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h35] = { 1'b0, NORMAL_SPI, 4'h0 };
+		// Idle
+		m_cmd_word[7'h36] = { 1'b1, 6'h3f };
+		// Write enhanced configuration register, 0x81, 0xfb
+		m_cmd_word[7'h37] = { 1'b0, NORMAL_SPI, 4'h1 };	// 0x81
+		m_cmd_word[7'h38] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h39] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h3a] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h3b] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h3c] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h3d] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h3e] = { 1'b0, NORMAL_SPI, 4'h1 };
+		//
+		m_cmd_word[7'h3f] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h40] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h41] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h42] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h43] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h44] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h45] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h46] = { 1'b0, NORMAL_SPI, 4'h1 };
 		// Idle
 		m_cmd_word[7'h47] = { 1'b1, 6'h3f };
-		// Write enhanced configuration register
+		// Write enhanced volatile configuration register
 		// The write enable must come first: 06
 		m_cmd_word[7'h48] = { 1'b0, NORMAL_SPI, 4'h0 };
 		m_cmd_word[7'h49] = { 1'b0, NORMAL_SPI, 4'h0 };
@@ -285,10 +317,10 @@ module	qflexpress(i_clk, i_reset,
 		m_cmd_word[7'h4f] = { 1'b0, NORMAL_SPI, 4'h0 };
 		// Idle
 		m_cmd_word[7'h50] = { 1'b1, 6'h3f };
-		// Write enhanced configuration register, 0x81, 0xfb
-		m_cmd_word[7'h51] = { 1'b0, NORMAL_SPI, 4'h1 };	// 0x81
-		m_cmd_word[7'h52] = { 1'b0, NORMAL_SPI, 4'h0 };
-		m_cmd_word[7'h53] = { 1'b0, NORMAL_SPI, 4'h0 };
+		// Write enhanced volatile configuration register, 0x61, 0xde
+		m_cmd_word[7'h51] = { 1'b0, NORMAL_SPI, 4'h0 };	// 0x61
+		m_cmd_word[7'h52] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h53] = { 1'b0, NORMAL_SPI, 4'h1 };
 		m_cmd_word[7'h54] = { 1'b0, NORMAL_SPI, 4'h0 };
 		m_cmd_word[7'h55] = { 1'b0, NORMAL_SPI, 4'h0 };
 		m_cmd_word[7'h56] = { 1'b0, NORMAL_SPI, 4'h0 };
@@ -297,12 +329,12 @@ module	qflexpress(i_clk, i_reset,
 		//
 		m_cmd_word[7'h59] = { 1'b0, NORMAL_SPI, 4'h1 };
 		m_cmd_word[7'h5a] = { 1'b0, NORMAL_SPI, 4'h1 };
-		m_cmd_word[7'h5b] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5b] = { 1'b0, NORMAL_SPI, 4'h0 };
 		m_cmd_word[7'h5c] = { 1'b0, NORMAL_SPI, 4'h1 };
-		m_cmd_word[7'h5d] = { 1'b0, NORMAL_SPI, 4'h0 };
-		m_cmd_word[7'h5e] = { 1'b0, NORMAL_SPI, 4'h0 };
+		m_cmd_word[7'h5d] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h5e] = { 1'b0, NORMAL_SPI, 4'h1 };
 		m_cmd_word[7'h5f] = { 1'b0, NORMAL_SPI, 4'h1 };
-		m_cmd_word[7'h60] = { 1'b0, NORMAL_SPI, 4'h1 };
+		m_cmd_word[7'h60] = { 1'b0, NORMAL_SPI, 4'h0 };
 		// Idle
 		m_cmd_word[7'h61] = { 1'b1, 6'h3f };
 		// Enter into QSPI mode, 0xeb, 0,0,0
