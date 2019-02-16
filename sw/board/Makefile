@@ -55,8 +55,9 @@ HEADERS :=
 DUMPRTL := -fdump-rtl-all
 DUMPTREE:= -fdump-tree-all
 LFLAGS  := -T board.ld -L../zlib -Wl,--start-group -larty -lgcc
+INCS    := -I../zlib -I../../rtl -I.
 LFLAGSD := -T sdram.ld -L../zlib -Wl,--start-group -larty -lgcc
-CFLAGS  := -O3 -I../zlib -I../../rtl
+CFLAGS  := -O3 $(INCS)
 #
 # For source analysis, the following macros are defined:
 #
@@ -150,8 +151,9 @@ tags: $(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
 
+.PHONY: clean
 clean:
-	rm -rf $(PROGRAMS)
+	rm -f $(PROGRAMS)
 	rm -rf $(addsuffix .map,$(PROGRAMS))
 	rm -rf $(addsuffix .txt,$(PROGRAMS))
 	rm -rf $(OBJDIR)/

@@ -4,7 +4,8 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	To command the network to ping a target.
+// Purpose:	To manually construct a packet, to be sent to the network port,
+//		to command the network to ping a target.
 //
 //
 // Creator:	Dan Gisselquist, Ph.D.

@@ -265,10 +265,21 @@ int	main(int argc, char **argv) {
 	if ((argc > 1)&&(NULL != strstr(argv[1], "/ttyUSB"))) {
 		// printf("Opening %s\n", argv[1]);
 		tty = open(argv[1], O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+		printf("Could not open tty\n");
+			fprintf(stderr, "Could not open tty device, %s\n", argv[1]);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else if (argc == 1) {
 		const	char *deftty = "/dev/ttyUSB2";
 		// printf("Opening %s\n", deftty);
 		tty = open(deftty, O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+			fprintf(stderr, "Attempted to guess the TTY, but could not open %s\n", deftty);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else {
 		printf("Unknown argument: %s\n", argv[1]);
 		exit(-2);

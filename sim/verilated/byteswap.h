@@ -4,7 +4,10 @@
 //
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
-// Purpose:	
+// Purpose:	To convert between little endian and big endian byte orders,
+//		and to handle conversions between character strings and
+//	bit-endian words made from those characters.
+//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
