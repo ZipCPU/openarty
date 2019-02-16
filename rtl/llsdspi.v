@@ -92,7 +92,6 @@
 `define	LLSDSPI_WAIT	4'h2
 `define	LLSDSPI_START	4'h3
 //
-// verilator lint_off DECLFILENAME
 module	llsdspi(i_clk, i_speed, i_cs, i_stb, i_byte, 
 		o_cs_n, o_sclk, o_mosi, i_miso,
 		o_stb, o_byte, o_idle, i_bus_grant);

@@ -19,7 +19,7 @@
 //	transiting from the Wishbone (as master) to the AXI bus (as slave) and
 //	back again.
 //
-//	Since the AXI bus allows transactions to be reordered, whereas the 
+//	Since the AXI bus allows transactions to be reordered, whereas the
 //	wishbone does not, this core can be configured to reorder return
 //	transactions as well.
 //
@@ -28,7 +28,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2018-2019, Gisselquist Technology, LLC
+// Copyright (C) 2016-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -61,10 +61,10 @@ module wbm2axisp #(
 	parameter C_AXI_ADDR_WIDTH	= 28,	// AXI Address width
 	parameter DW			= 32,	// Wishbone data width
 	parameter AW			= 26,	// Wishbone address width
-	parameter STRICT_ORDER		= 0	// Reorder, or not? 0 -> Reorder
+	parameter [0:0] STRICT_ORDER	= 0	// Reorder, or not? 0 -> Reorder
 	) (
 	input	wire			i_clk,	// System clock
-	// input			i_reset,// Wishbone reset signal--unused
+	// input wire			i_reset,// Wishbone reset signal--unused
 
 // AXI write address channel signals
 	input	wire			i_axi_awready, // Slave is ready to accept

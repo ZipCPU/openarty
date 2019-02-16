@@ -140,7 +140,7 @@ autodata: check-autofpga
 # simulation class library that we can then use for simulation
 #
 .PHONY: verilated
-verilated: datestamp check-autofpga check-verilator
+verilated: datestamp check-verilator
 	+@$(SUBMAKE) rtl
 
 .PHONY: rtl
