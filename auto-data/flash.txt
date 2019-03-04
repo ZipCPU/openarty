@@ -35,9 +35,9 @@
 ################################################################################
 ##
 ##
-@PREFIX= flash
+@PREFIX=flash
 @DEVID=FLASH
-@ACCESS= FLASH_ACCESS
+@ACCESS=@$(DEVID)_ACCESS
 @$LGFLASHSZ=24
 @$NADDR=(1<<(@$LGFLASHSZ-2))
 @$NBYTES=(1<<@$LGFLASHSZ)
