@@ -80,7 +80,7 @@ SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
 #
 PROGRAMS := main_tb enetctrl_tb
 # Now the return to the "all" target, and fill in some details
-all:	$(PROGRAMS)
+all:	$(PROGRAMS) hex
 
 $(OBJDIR)/%.o: %.cpp
 	$(mk-objdir)
@@ -89,6 +89,11 @@ $(OBJDIR)/%.o: %.cpp
 $(OBJDIR)/%.o: $(VINCD)/%.cpp
 	$(mk-objdir)
 	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
+
+.PHONY: hex
+hex: $(subst $(RTLD)/,,$(wildcard $(RTLD)/*.hex))
+%.hex: $(RTLD)/%.hex
+	@bash -c "if [ ! -e $@ ]; then ln -s $< $@ ; fi"
 
 .PHONY: oledsim.o
 oledsim.o: $(OBJDIR)/oledsim.o

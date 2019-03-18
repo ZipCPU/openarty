@@ -115,7 +115,7 @@ exmulti: $(OBJDIR)/exmulti.o board.ld
 gpsdump: $(OBJDIR)/gpsdump.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gpsdump.o -o $@
 
-hello: $(OBJDIR)/hello.o bkram.ld
+hello: $(OBJDIR)/hello.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/hello.o -o $@
 	# $(CC) $(CFLAGS) -T bkram.ld -L../zlib -Wl,--start-group -larty -lgcc $(OBJDIR)/hello.o -o $@
 

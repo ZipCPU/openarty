@@ -299,8 +299,8 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 
 	// Make verilator happy
 	// verilator lint_off UNUSED
-	wire	unused;
-	assign	unused = i_lock;
+	wire	[32-AW+2+1-1:0]	unused;
+	assign	unused = { i_lock, i_addr[31:AW], i_addr[1:0] };
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL

@@ -50,7 +50,6 @@
 	// Definitions in support of the GPS driven RTC
 	localparam	[31:0]	RTC_CLKSTEP = @$[32'h%08x](CLKSTEP);
 	wire	@$(PREFIX)_ppd;
-	reg	r_@$(PREFIX)_ack;
 `ifdef	GPSTRK_ACCESS
 	wire	@$(PREFIX)_pps;
 `endif

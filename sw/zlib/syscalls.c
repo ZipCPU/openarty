@@ -51,29 +51,34 @@
 #define	UARTTX	_uart->u_tx
 #endif
 
+//
+// TXBUSY: Something is still going out the port
+#define	TXBUSY	(_uart->u_tx & 0x0100)
+
+// TXWAIT: The FIFO is full, and so nothing can be sent out the TX port
+#define	TXWAIT	((_uart->u_fifo & 0x010000)==0)
+
+// UARTTX: The register to write to in order send a value
+#define	UARTTX	_uart->u_tx
+
+// UARTRX: The register to read from in order to read a value
+#define	UARTRX	_uart->u_rx
+
 void
 _outbyte(char v) {
-#ifdef	_ZIP_HAS_WBUART
+#ifdef	UARTTX
 	if (v == '\n') {
 		// Depend upon the WBUART, not the PIC
-		while((_uart->u_fifo & 0x010000)==0)
+		while(TXWAIT)
 			;
 		UARTTX = (unsigned)'\r';
 	}
 
 	// Depend upon the WBUART, not the PIC
-	while((_uart->u_fifo & 0x010000)==0)
+	while(TXWAIT)
 		;
 	uint8_t c = v;
-	UARTTX = (unsigned)c;
-#else
-#ifdef	_ZIP_HAS_UARTTX
-	// Depend upon the WBUART, not the PIC
-	while(UARTTX & 0x100)
-		;
-	uint8_t c = v;
-	UARTTX = (unsigned)c;
-#endif
+	UARTTX = c;
 #endif
 }
 
@@ -382,3 +387,29 @@ _sbrk_r(struct _reent *reent, int sz) {
 	return	prev;
 }
 
+__attribute__((__noreturn__))
+void	_exit(int rcode) {
+	extern void	_hw_shutdown(int rcode) _ATTRIBUTE((__noreturn__));
+
+#ifdef	_BOARD_HAS_BUSCONSOLE
+	// Problem: Once u_tx & 0x100 goes low, there may still be a character
+	// or two in the bus console's pipeline.  These may prevent a newline
+	// from completing before we issue the exit command.
+	//
+	// Solution: Just to make sure any newline finishes, send a final
+	// non-newline character.  This character will still be transmitting
+	// once we are complete, but any last newline will at least have been
+	// received
+	_outbyte(' ');
+	_outbyte(' ');
+#endif
+
+	// Wait for any serial ports to flush their buffers
+#ifdef	TXBUSY
+	while(TXBUSY)
+		;
+#else
+// #error	"No console"
+#endif
+	_hw_shutdown(rcode);
+}

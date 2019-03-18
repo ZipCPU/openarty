@@ -368,6 +368,12 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			// This is a NOOP command
 			QOREG(0);
 			break;
+		case 0x61: // Write enhanced volatile configuration register
+			m_state = QSPIF_IDLE;
+			if (m_debug) printf("FLASHSIM: WRITING ENHANCED VOLATILE-CONFIGURATION-REG");
+			// We'll treat this as a NOOP command--for now
+			QOREG(0);
+			break;
 		case 0x70: // Read flag status register register
 			m_state = QSPIF_IDLE;
 			if (m_debug) printf("FLASHSIM: READING FLAG-STATUS REGISTER\n");

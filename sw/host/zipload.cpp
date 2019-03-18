@@ -197,8 +197,6 @@ int main(int argc, char **argv) {
 
 #ifdef	FLASH_ACCESS
 	flash = new FLASHDRVR(m_fpga);
-#else
-	flash = NULL;
 #endif
 
 	if (codef) try {

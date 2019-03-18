@@ -151,17 +151,17 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 @BDEF.OSVAL=extern int _@$(PREFIX)[1];
 @LD.PERM=	rx
 @LD.NAME=	@$(PREFIX)
-@SIM.INCLUDE+=
+@SIM.INCLUDE=
 #include "flashsim.h"
-@SIM.DEFNS+=
+@SIM.DEFNS=
 #ifdef	@$(ACCESS)
 	FLASHSIM	*m_@$(MEM.NAME);
 #endif // @$(ACCESS)
-@SIM.INIT+=
+@SIM.INIT=
 #ifdef	@$(ACCESS)
 		m_@$(MEM.NAME) = new FLASHSIM(FLASHLGLEN, false, @$RDDELAY, @$NDUMMY);
 #endif // @$(ACCESS)
-@SIM.TICK +=
+@SIM.TICK=
 #ifdef	@$(ACCESS)
 		m_core->i_qspi_dat = m_@$(MEM.NAME)->simtick(
 			m_core->o_qspi_cs_n,
@@ -169,7 +169,7 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 			m_core->o_qspi_dat,
 			m_core->o_qspi_mod);
 #endif // @$(ACCESS)
-@SIM.LOAD +=
+@SIM.LOAD=
 #ifdef	@$(ACCESS)
 			m_@$(MEM.NAME)->load(start, &buf[offset], wlen);
 #endif // @$(ACCESS)
@@ -195,7 +195,7 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 	// flash interface itself.  Hence, we always return zero here.
 	assign	@$(PREFIX)_ack   = 1'b0;
 	assign	@$(PREFIX)_stall = 1'b0;
-	assign	@$(PREFIX)_data  = 0;
+	assign	@$(PREFIX)_data  = flash_data;
 @REGS.NOTE= // FLASH erase/program configuration registers
 @REGS.N= 1
 @REGS.0= 0 R_@$(DEVID) @$(DEVID) QSPIC

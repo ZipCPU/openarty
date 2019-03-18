@@ -66,6 +66,14 @@ void	usage(void) {
 }
 
 int main(int argc, char **argv) {
+#ifndef	R_FLASH
+	printf(
+"The \"flashid\" program depends upon a flash being built into the design.\n"
+"This needs to be done via AutoFPGA.  When this program was built, there was\n"
+"no flash device built into the design.  Please adjust your project settings,\n"
+"and particularly the devices contained within it, before coming back and\n"
+"trying to use this program.\n");
+#else
 	FLASHDRVR	*m_flash;
 	FPGAOPEN(m_fpga);
 
@@ -86,5 +94,6 @@ int main(int argc, char **argv) {
 
 	delete	m_flash;
 	delete	m_fpga;
+#endif
 }
 

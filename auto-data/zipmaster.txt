@@ -80,7 +80,11 @@
 	//
 	// A 32-bit address indicating where the ZipCPU should start running
 	// from
+`ifdef	FLASH_ACCESS
 	localparam	RESET_ADDRESS = @$RESET_ADDRESS;
+`else
+	localparam	RESET_ADDRESS = @$(/bkram.REGBASE);
+`endif
 	//
 	// The number of valid bits on the bus
 	localparam	ZIP_ADDRESS_WIDTH = @$(BUS.AWID); // Zip-CPU address width
@@ -151,7 +155,11 @@
 #define	CPU_uCC		0x001e
 #define	CPU_uPC		0x001f
 
+#ifdef	FLASH_ACCESS
 #define	RESET_ADDRESS	@$[0x%08x](RESET_ADDRESS)
+#else
+#define	RESET_ADDRESS	@$[0x%08x](bkram.REGBASE)
+#endif
 
 
 @SIM.INCLUDE=

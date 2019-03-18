@@ -3,3 +3,6 @@ enetctrl_tb
 eqspiflash_tb
 sdcard.img
 pfile.bin
+micron.hex
+spansion.hex
+

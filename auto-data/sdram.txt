@@ -171,7 +171,7 @@ _@$(PREFIX) = ORIGIN(@$(PREFIX));
 #endif	// @$(ACCESS)
 @SIM.INIT=
 #ifdef	@$(ACCESS)
-		m_sdram = new MEMSIM(@$(NBYTES));
+		m_@$(PREFIX) = new MEMSIM(@$(NBYTES));
 #endif	// @$(ACCESS)
 @SIM.CLOCK=@$(SLAVE.BUS.CLOCK.NAME)
 @SIM.TICK=
@@ -186,4 +186,8 @@ _@$(PREFIX) = ORIGIN(@$(PREFIX));
 			m_core->i_@$(PREFIX)_stall,
 			m_core->i_@$(PREFIX)_data);
 #endif	// @$(ACCESS)
+@SIM.LOAD=
+#ifdef	@$(ACCESS)
+			m_@$(PREFIX)->load(start, &buf[offset], wlen);
+#endif // @$(ACCESS)
 

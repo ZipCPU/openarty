@@ -52,13 +52,13 @@ AUX     := version.txt buserr.txt pic.txt pwrcount.txt
 IO      := spio.txt clrspio.txt # gpio.txt
 RTC     := rtcgps.txt rtcdate.txt
 DBGBUS  := wbuconsole.txt
-MEMORY  := bkram.txt micron.txt sdram.txt # wbhyperram.txt # spansion.txt
+MEMORY  := bkram.txt sdram.txt micron.txt # spansion.txt # wbhyperram.txt
 CPU     := zipmaster.txt
 NETWORK := mdio.txt enet.txt
 GPS     := gps.txt
 SDCARD  := # sdspi.txt
 GFX     := # wboledrgb.txt
-SCOPES  := enetscope.txt mdioscope.txt # flashscope.txt cpuscope.txt
+SCOPES  := # enetscope.txt mdioscope.txt # flashscope.txt cpuscope.txt
 LDSCRIPT:= mem_flash_bkram.txt mem_bkram_only.txt mem_sdram_bkram.txt
 DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC)			\
 	$(DBGBUS) $(MEMORY) $(CPU) $(NETWORK) $(GPS) $(SDCARD) $(GFX)	\
