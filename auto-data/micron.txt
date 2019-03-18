@@ -116,7 +116,8 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 	wire	[31:0]	@$(PREFIX)_debug;
 @MAIN.INSERT=
 	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ), .OPT_CLKDIV(0),
-		.RDDELAY(@$RDDELAY), .OPT_STARTUP_FILE(@$(STARTUP_SCRIPT)),
+		.NDUMMY(@$(NDUMMY)), .RDDELAY(@$(RDDELAY)),
+		.OPT_STARTUP_FILE(@$(STARTUP_SCRIPT)),
 `ifdef	FLASHCFG_ACCESS
 		.OPT_CFG(1'b1)
 `else

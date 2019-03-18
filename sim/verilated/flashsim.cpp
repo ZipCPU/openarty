@@ -275,8 +275,8 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 
 		assert(quad_mode());
 		if (m_count == 24) {
-			// if (m_debug) printf("FLASHSIM: Entering from Quad-Read Idle to Quad-Read\n");
-			// if (m_debug) printf("FLASHSIM: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
+			if (m_debug) printf("FLASHSIM: Entering from Quad-Read Idle to Quad-Read\n");
+			if (m_debug) printf("FLASHSIM: QI/O Idle Addr = %02x\n", m_ireg&0x0ffffff);
 			m_addr = (m_ireg) & m_memmask;
 			assert((m_addr & (~(m_memmask)))==0);
 			m_state = QSPIF_QUAD_READ;
@@ -549,7 +549,7 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			} else if (m_count == 32+8) {
 				m_mode_byte = (m_ireg) & 0x0ff;
 				if (m_debug) printf("QSPI: MODE BYTE = %02x\n", m_mode_byte);
-			} else if ((m_count > 32+8+NDUMMY)&&(0 == (m_sreg&0x01))) {
+			} else if ((m_count > 32+4*NDUMMY)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
 				// printf("QSPIF[%08x]/QR = %02x\n",
 					// m_addr-1, m_oreg);
@@ -569,7 +569,7 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				if (m_debug) printf("QSPI/QR: MODE BYTE = %02x\n", m_mode_byte);
 			} else if ((m_count >= 24+4*NDUMMY)&&(0 == (m_sreg&0x01))) {
 				QOREG(m_mem[m_addr++]);
-				// if (m_debug) printf("QSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
+				if (m_debug) printf("QSPIF[%08x]/QR = %02x\n", m_addr-1, m_oreg & 0x0ff);
 			} else m_oreg = 0;
 			break;
 		case QSPIF_PP:
@@ -674,8 +674,8 @@ int	FLASHSIM::simtick(const int csn, const int sck, const int dat,
 			case 5:		printf(" (DDO)");	break;
 			} printf(",%d",mod);
 
-			printf(" -- %d %d",
-				CKDELAY, (m_ckdelay != NULL) ? m_ckdelay[0] : -2);
+			if (m_ckdelay != NULL)
+				printf(" -- %d %d", CKDELAY, m_ckdelay[0]);
 			printf("\n");
 		}
 	}

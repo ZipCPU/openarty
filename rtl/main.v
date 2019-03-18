@@ -1143,7 +1143,8 @@ module	main(i_clk, i_reset,
 	assign	buildtime_stall = 1'b0;
 `ifdef	FLASH_ACCESS
 	qflexpress #(.LGFLASHSZ(24), .OPT_CLKDIV(0),
-		.RDDELAY(3), .OPT_STARTUP_FILE("micron.hex"),
+		.NDUMMY(10), .RDDELAY(3),
+		.OPT_STARTUP_FILE("micron.hex"),
 `ifdef	FLASHCFG_ACCESS
 		.OPT_CFG(1'b1)
 `else
