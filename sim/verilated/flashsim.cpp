@@ -75,8 +75,10 @@ static	const unsigned
 	// tPP    = 1200 * MICROSECONDS,
 	// tSE    = 1500 * MILLISECONDS;
 
-FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug),
-			CKDELAY(0), RDDELAY(3), NDUMMY(10) {
+FLASHSIM::FLASHSIM(const int lglen, bool debug,
+		const int rddelay, const int ndummy)
+			: m_debug(debug), CKDELAY(0),
+			RDDELAY(rddelay), NDUMMY(ndummy) {
 	m_membytes = (1<<lglen);
 	m_memmask = (m_membytes - 1);
 	m_mem = new char[m_membytes];
@@ -623,7 +625,8 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 // aligned with the clock tick upon which it is sent.
 //
 int	FLASHSIM::simtick(const int csn, const int sck, const int dat,
-		const int mod){
+		const int mod) {
+	const bool	ODDR_IO = true;
 	int	lclsck;
 
 	if ((CKDELAY > 0)&&(m_ckdelay == NULL)) {
@@ -645,8 +648,11 @@ int	FLASHSIM::simtick(const int csn, const int sck, const int dat,
 
 	// Simulate an ODDR for the clock
 	int	r;
-	r = (*this)(csn, (lclsck != 0)?0:1, dat);
-	r = (*this)(csn, 1, dat);
+	if (ODDR_IO) {
+		r = (*this)(csn, (lclsck != 0)?0:1, dat);
+		r = (*this)(csn, 1, dat);
+	} else
+		r = (*this)(csn, lclsck, dat);
 
 	if (false) {
 		// Debug the transaction
@@ -660,7 +666,7 @@ int	FLASHSIM::simtick(const int csn, const int sck, const int dat,
 			case 3:		printf(" (QDO)");	break;
 			case 4:		printf(" (DDI)");	break;
 			case 5:		printf(" (DDO)");	break;
-			}
+			} printf(",%d",mod);
 
 			printf(" -- %d %d",
 				CKDELAY, (m_ckdelay != NULL) ? m_ckdelay[0] : -2);

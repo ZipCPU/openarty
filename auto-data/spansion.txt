@@ -1,10 +1,11 @@
 ################################################################################
 ##
-## Filename: 	flash.txt
+## Filename: 	micron.txt
 ##
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
-## Purpose:	Describes the flash in our new data format.
+## Purpose:	Describes how to set up a Micron QSPI flash controller for the
+##		new flash controller.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -42,9 +43,11 @@
 @$NADDR=(1<<(@$LGFLASHSZ-2))
 @$NBYTES=(1<<@$LGFLASHSZ)
 @NBYTES.FORMAT=0x%08x
-@ACCESS= FLASH_ACCESS
 @SLAVE.TYPE=MEMORY
 @SLAVE.BUS=wb
+@NDUMMY=6
+@RDDELAY=3
+@STARTUP_SCRIPT="spansion.hex"
 @TOP.PORTLIST=
 		// Top level Quad-SPI I/O ports
 		o_qspi_cs_n, o_qspi_sck, io_qspi_dat
@@ -112,12 +115,12 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 	wire		@$(PREFIX)_dbg_trigger;
 	wire	[31:0]	@$(PREFIX)_debug;
 @MAIN.INSERT=
-	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ),
-		.CKDELAY(0), .RDDELAY(3)
+	qflexpress #(.LGFLASHSZ(@$LGFLASHSZ), .OPT_CLKDIV(0),
+		.RDDELAY(@$RDDELAY), .OPT_STARTUP_FILE(@$(STARTUP_SCRIPT)),
 `ifdef	FLASHCFG_ACCESS
-		, .OPT_CFG(1'b1)
+		.OPT_CFG(1'b1)
 `else
-		, .OPT_CFG(1'b0)
+		.OPT_CFG(1'b0)
 `endif
 		)
 		@$(PREFIX)i(i_clk, i_reset,
@@ -139,6 +142,10 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 #define	@$(DEVID)BASE	@$[0x%08x](REGBASE)
 #define	@$(DEVID)LEN	@$NBYTES
 #define	@$(DEVID)LGLEN	@$LGFLASHSZ
+//
+#define	FLASH_RDDELAY	@$(RDDELAY)
+#define	FLASH_NDUMMY	@$(NDUMMY)
+//
 @REGS.0= 0 R_@$(DEVID) @$(DEVID)
 @BDEF.OSDEF=_BOARD_HAS_@$(DEVID)
 @BDEF.OSVAL=extern int _@$(PREFIX)[1];
@@ -152,7 +159,7 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 #endif // @$(ACCESS)
 @SIM.INIT+=
 #ifdef	@$(ACCESS)
-		m_@$(MEM.NAME) = new FLASHSIM(FLASHLGLEN);
+		m_@$(MEM.NAME) = new FLASHSIM(FLASHLGLEN, false, @$RDDELAY, @$NDUMMY);
 #endif // @$(ACCESS)
 @SIM.TICK +=
 #ifdef	@$(ACCESS)
@@ -172,7 +179,7 @@ set_property SLEW FAST [get_ports io_qspi_dat[3]]
 ##
 ## Now the control interface
 @PREFIX=flashcfg
-@NADDR= 1
+@NADDR=1
 @DEVID=FLASHCFG
 @ACCESS=@$(DEVID)_ACCESS
 @DEPENDS= FLASH_ACCESS

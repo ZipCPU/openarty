@@ -185,11 +185,11 @@ void	FLASHDRVR::restore_quadio(void) {
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE | CFG_QSPEED | CFG_WEDIR);
 	// Mode byte
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE | CFG_QSPEED | CFG_WEDIR | 0xa0);
+	// Read NDUMMY clocks worth
+	for(int k=0; k<(FLASH_NDUMMY-2)/2; k++)
+		m_fpga->writeio(R_FLASHCFG, CFG_USERMODE | CFG_QSPEED );
 	// Read a dummy byte
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE | CFG_QSPEED );
-	// Read NDUMMY clocks worth
-	for(int k=0; k<10; k++)
-		m_fpga->writeio(R_FLASHCFG, CFG_USERMODE | CFG_QSPEED );
 	// Close the interface
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE);
 	m_fpga->writeio(R_FLASHCFG, CFG_USER_CS_n);
