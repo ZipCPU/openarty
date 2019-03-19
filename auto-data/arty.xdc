@@ -71,6 +71,26 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 # set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_vccen]
 # set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_pmoden]
 
+##Pmod Header JA + JB: WB HyperRAM
+
+##set_property -dict { PACKAGE_PIN G13 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { ja[0] }]; #IO_0_15 Sch=ja[1]
+##set_property -dict { PACKAGE_PIN B11 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { ja[1] }]; #IO_L4P_T0_15 Sch=ja[2]
+# set_property -dict { PACKAGE_PIN A11 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { io_hyperram_data[3] }]; #IO_L4N_T0_15 Sch=ja[3]
+# set_property -dict { PACKAGE_PIN D12 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { o_hyperram_reset_n }]; #IO_L6P_T0_15 Sch=ja[4]
+##set_property -dict { PACKAGE_PIN D13 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { ja[7] }]; #IO_L6N_T0_VREF_15 Sch=ja[7]
+# set_property -dict { PACKAGE_PIN B18 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { io_hyperram_data[2] }]; #IO_L10P_T1_AD11P_15 Sch=ja[8]
+# set_property -dict { PACKAGE_PIN A18 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { io_hyperram_data[2] }]; #IO_L10N_T1_AD11N_15 Sch=ja[9]
+# set_property -dict { PACKAGE_PIN K16 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports { o_hyperram_csn }]; #IO_25_15 Sch=ja[10]
+
+# set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports o_hyperram_ck[1]]
+# set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports io_hyperram_data[7]]
+# set_property -dict { PACKAGE_PIN D15 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports io_hyperram_data[0]]; #IO_L12P_T1_MRCC_15 Sch=jb_p[2], no connection
+# set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports jb[4]] ## No connect
+# set_property -dict { PACKAGE_PIN J17 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports o_hyperram_ck[0]]]
+# set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports io_hyperram_data[1]]
+# set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports io_hyperram_data[6]]
+# set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 SLEW FAST } [get_ports io_hyperram_data[5]]
+
 ##Pmod Header JC: GPS (top), UART (bottom)
 
 # set_property -dict { PACKAGE_PIN U12 IOSTANDARD LVCMOS33 } [get_ports i_gps_3df]
