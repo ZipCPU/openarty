@@ -207,7 +207,7 @@ typedef	struct	GPSTB_S	{
 #ifdef	@$(ACCESS)
 		m_@$(PREFIX) = new UARTSIM(FPGAPORT+@$(SIM.PORTOFFSET));
 		m_@$(PREFIX)->setup(@$[0x%08x](UARTSETUP));
-#endif
+#endif // @$(ACCESS)
 #
 @RTL.MAKE.GROUP=GPS
 @RTL.MAKE.FILES=gpsclock_tb.v gpsclock.v bigadd.v bigsub.v bigsmpy.v
