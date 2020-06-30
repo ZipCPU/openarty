@@ -17,10 +17,6 @@ As a demonstration project, I'd love to implement an NTP server within the devic
 
 This version of the OpenArty project is built around [AutoFPGA](https://github.com/ZipCPU/autofpga).  It is designed to be highly reconfigurable, so that you can add (or remove) peripherals quickly and easily.  My specific goal is to use [AutoFPGA](https://github.com/ZipCPU/autofpga) to create a project that doesn't require all of the peripherals I've used, but may be instead built with only those peripherals on the board.
 
-The design builds, as of 201823, at an 81.25 MHz clock speed.  As of this writing, the design builds only.  I now need to go back and verify that all the peripherals still work following the transition to [AutoFPGA](https://github.com/ZipCPU/autofpga) and the [generic flash driver](rtl/qflexpress.v).
-
-So ... it's a (new) work in progress.
-
 # Repository
 
 Due to the ongoing issues with [OpenCores](http://opencores.org/project/openarty), the [official OpenArty repository](https://github.com/ZipCPU/openarty)
@@ -29,5 +25,5 @@ is being kept on [GitHub](https://github.com), under the [ZipCPU username](https
 # License
 
 Gisselquist Technology, LLC, is pleased to provide you with this entire
-OpenArty project under the [GPLv3 license](doc/gpl-v3.0.pdf).  If this doesn't work for you,
-please contact me.
+OpenArty project under the [GPLv3 license](doc/gpl-v3.0.pdf).  If this doesn't
+work for you, please feel free to contact me.
