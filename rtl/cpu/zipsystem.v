@@ -63,7 +63,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -106,7 +106,7 @@
 // If space is tight, you might not wish to have your performance and
 // accounting counters, so let's make those optional here
 //	Without this flag, Slice LUT count is 3315 (ZipSystem),2432 (ZipCPU)
-//	When including counters, 
+//	When including counters,
 //		Slice LUTs	ZipSystem	ZipCPU
 //	With Counters		3315		2432
 //	Without Counters	2796		2046
@@ -114,7 +114,7 @@
 //
 // Now, where am I placing all of my peripherals?
 `define	PERIPHBASE	32'hc0000000
-`define	INTCTRL		8'h0	// 
+`define	INTCTRL		8'h0	//
 `define	WATCHDOG	8'h1	// Interrupt generates reset signal
 `define	BUSWATCHDOG	8'h2	// Sets IVEC[0]
 `define	CTRINT		8'h3	// Sets IVEC[5]
@@ -161,24 +161,36 @@
 //
 //
 //
+`ifdef	OPT_TRADITIONAL_PFCACHE
+`define	LGICACHE_DEFAULT	10
+`else
+`define	LGICACHE_DEFAULT	0
+`endif
+//
+`ifdef	OPT_DCACHE
+`define	LGDCACHE_DEFAULT	10
+`else
+`define	LGDCACHE_DEFAULT	0
+`endif
 module	zipsystem(i_clk, i_reset,
 		// Wishbone master interface from the CPU
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
-			i_wb_ack, i_wb_stall, i_wb_data, i_wb_err,
+			i_wb_stall, i_wb_ack, i_wb_data, i_wb_err,
 		// Incoming interrupts
 		i_ext_int,
 		// Our one outgoing interrupt
 		o_ext_int,
 		// Wishbone slave interface for debugging purposes
 		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data,
-			o_dbg_ack, o_dbg_stall, o_dbg_data
+				i_dbg_sel,
+			o_dbg_stall, o_dbg_ack, o_dbg_data
 `ifdef	DEBUG_SCOPE
-		, o_cpu_debug // , o_dcache_debug
+		, o_cpu_debug
 `endif
 		);
 	parameter	RESET_ADDRESS=32'h1000_0000, ADDRESS_WIDTH=30,
-			LGICACHE=10,
-			LGDCACHE=0;	// Set to zero for no data cache
+			LGICACHE=`LGICACHE_DEFAULT,
+			LGDCACHE=`LGDCACHE_DEFAULT;	// Set to zero for no data cache
 	parameter [0:0]	START_HALTED=1;
 	parameter	EXTERNAL_INTERRUPTS=1,
 `ifdef	OPT_MULTIPLY
@@ -198,6 +210,7 @@ module	zipsystem(i_clk, i_reset,
 			IMPLEMENT_FPU=0,
 `endif
 			IMPLEMENT_LOCK=1;
+	parameter	RESET_DURATION = 0;
 	localparam	// Derived parameters
 			PHYSICAL_ADDRESS_WIDTH=ADDRESS_WIDTH,
 			PAW=ADDRESS_WIDTH,
@@ -216,7 +229,7 @@ module	zipsystem(i_clk, i_reset,
 	output	wire	[(PAW-1):0]	o_wb_addr;
 	output	wire	[31:0]	o_wb_data;
 	output	wire	[3:0]	o_wb_sel;
-	input	wire		i_wb_ack, i_wb_stall;
+	input	wire		i_wb_stall, i_wb_ack;
 	input	wire	[31:0]	i_wb_data;
 	input	wire		i_wb_err;
 	// Incoming interrupts
@@ -226,12 +239,13 @@ module	zipsystem(i_clk, i_reset,
 	// Wishbone slave
 	input	wire		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr;
 	input	wire	[31:0]	i_dbg_data;
+	input	wire	[3:0]	i_dbg_sel;
 	output	wire		o_dbg_ack;
 	output	wire		o_dbg_stall;
 	output	wire	[31:0]	o_dbg_data;
 	//
 `ifdef	DEBUG_SCOPE
-	output	wire	[31:0]	o_cpu_debug; // , o_dcache_debug;
+	output	wire	[31:0]	o_cpu_debug;
 `endif
 
 	wire	[31:0]	ext_idata;
@@ -296,9 +310,9 @@ module	zipsystem(i_clk, i_reset,
 	assign		dbg_err = 1'b0;
 	busdelay #(1,32) wbdelay(i_clk, i_reset,
 		i_dbg_cyc, i_dbg_stb, i_dbg_we, i_dbg_addr, i_dbg_data, 4'hf,
-			o_dbg_ack, o_dbg_stall, o_dbg_data, no_dbg_err,
+			o_dbg_stall, o_dbg_ack, o_dbg_data, no_dbg_err,
 		dbg_cyc, dbg_stb, dbg_we, dbg_addr, dbg_idata, dbg_sel,
-			dbg_ack, dbg_stall, dbg_odata, dbg_err);
+			dbg_stall, dbg_ack, dbg_odata, dbg_err);
 `else
 	assign	dbg_cyc     = i_dbg_cyc;
 	assign	dbg_stb     = i_dbg_stb;
@@ -312,7 +326,7 @@ module	zipsystem(i_clk, i_reset,
 	assign	no_dbg_err  = 1'b0;
 `endif
 
-	// 
+	//
 	//
 	//
 	wire	sys_cyc, sys_stb, sys_we;
@@ -342,35 +356,72 @@ module	zipsystem(i_clk, i_reset,
 	// write to set the local address.  This interface allows access to
 	// the Zip System on a debug basis only, and not to the rest of the
 	// wishbone bus.  Further, to access these registers, the control
-	// register must first be accessed to both stop the CPU and to 
+	// register must first be accessed to both stop the CPU and to
 	// set the following address in question.  Hence all accesses require
 	// two accesses: write the address to the control register (and halt
 	// the CPU if not halted), then read/write the data from the data
 	// register.
 	//
 	wire		cpu_break, dbg_cmd_write;
-	reg		cmd_reset, cmd_halt, cmd_step, cmd_clear_pf_cache;
+	reg		cmd_reset, cmd_halt, cmd_step, cmd_clear_pf_cache,
+			reset_hold, cpu_halt;
 	reg	[5:0]	cmd_addr;
 	wire	[3:0]	cpu_dbg_cc;
 	assign	dbg_cmd_write = (dbg_stb)&&(dbg_we)&&(!dbg_addr);
 	//
 	// Always start us off with an initial reset
 	//
+	generate if (RESET_DURATION > 0)
+	begin : INITIAL_RESET_HOLD
+
+		reg	[$clog2(RESET_DURATION)-1:0]	reset_counter;
+
+		initial	reset_counter = RESET_DURATION;
+		always @(posedge i_clk)
+		if (i_reset)
+			reset_counter <= RESET_DURATION;
+		else if (reset_counter > 0)
+			reset_counter <= reset_counter - 1;
+
+		initial	reset_hold = 1;
+		always @(posedge i_clk)
+		if (i_reset)
+			reset_hold <= 1;
+		else
+			reset_hold <= (reset_counter != 0);
+
+		initial	cmd_halt  = START_HALTED;
+		always @(posedge i_clk)
+		if (i_reset)
+			cmd_halt <= START_HALTED;
+		else if (dbg_cmd_write)
+			cmd_halt <= ((dbg_idata[`HALT_BIT])&&(!dbg_idata[`STEP_BIT]));
+
+	end else begin
+
+		always @(*)
+			reset_hold = 0;
+
+		always @(*)
+			cmd_halt = START_HALTED;
+
+	end endgenerate
+
 	initial	cmd_reset = 1'b1;
 	always @(posedge i_clk)
 		cmd_reset <= ((dbg_cmd_write)&&(dbg_idata[`RESET_BIT]))
-			||(wdt_reset);
+			||(wdt_reset) || reset_hold;
 	//
-	initial	cmd_halt  = START_HALTED;
+	initial	cpu_halt  = START_HALTED;
 	always @(posedge i_clk)
 	if (i_reset)
-		cmd_halt <= START_HALTED;
+		cpu_halt <= cmd_halt;
 	else if (cmd_reset)
-		cmd_halt <= START_HALTED;
+		cpu_halt <= cmd_halt;
 	else if (dbg_cmd_write)
-		cmd_halt <= ((dbg_idata[`HALT_BIT])&&(!dbg_idata[`STEP_BIT]));
+		cpu_halt <= ((dbg_idata[`HALT_BIT])&&(!dbg_idata[`STEP_BIT]));
 	else if ((cmd_step)||(cpu_break))
-		cmd_halt  <= 1'b1;
+		cpu_halt  <= 1'b1;
 
 	initial	cmd_clear_pf_cache = 1'b1;
 	always @(posedge i_clk)
@@ -382,14 +433,13 @@ module	zipsystem(i_clk, i_reset,
 	//
 	initial	cmd_addr = 6'h0;
 	always @(posedge i_clk)
-		if (dbg_cmd_write)
-			cmd_addr <= dbg_idata[5:0];
+	if (dbg_cmd_write)
+		cmd_addr <= dbg_idata[5:0];
 
 	wire	cpu_reset;
 	assign	cpu_reset = (cmd_reset);
 
-	wire	cpu_halt, cpu_dbg_stall;
-	assign	cpu_halt = (cmd_halt);
+	wire	cpu_dbg_stall;
 	wire	[31:0]	pic_data;
 	wire	[31:0]	cmd_data;
 	// Values:
@@ -423,13 +473,13 @@ module	zipsystem(i_clk, i_reset,
 	//
 	// The WATCHDOG Timer
 	//
-	wire		wdt_ack, wdt_stall, wdt_reset;
+	wire		wdt_stall, wdt_ack, wdt_reset;
 	wire	[31:0]	wdt_data;
 	ziptimer #(32,31,0)
 		watchdog(i_clk, cpu_reset, !cmd_halt,
 			sys_cyc, (sys_stb)&&(sel_watchdog), sys_we,
 				sys_data,
-			wdt_ack, wdt_stall, wdt_data, wdt_reset);
+			wdt_stall, wdt_ack, wdt_data, wdt_reset);
 
 	//
 	// Position two, a second watchdog timer--this time for the wishbone
@@ -465,88 +515,91 @@ module	zipsystem(i_clk, i_reset,
 	// for an overall counter.
 	//
 	// Master task counter
-	wire		mtc_ack, mtc_stall;
+	wire		mtc_stall, mtc_ack;
 	wire	[31:0]	mtc_data;
 	zipcounter	mtask_ctr(i_clk, 1'b0, (!cpu_halt), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b000),
 					sys_we, sys_data,
-				mtc_ack, mtc_stall, mtc_data, mtc_int);
+				mtc_stall, mtc_ack, mtc_data, mtc_int);
 
 	// Master Operand Stall counter
-	wire		moc_ack, moc_stall;
+	wire		moc_stall, moc_ack;
 	wire	[31:0]	moc_data;
 	zipcounter	mmstall_ctr(i_clk,1'b0, (cpu_op_stall), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b001),
 					sys_we, sys_data,
-				moc_ack, moc_stall, moc_data, moc_int);
+				moc_stall, moc_ack, moc_data, moc_int);
 
 	// Master PreFetch-Stall counter
-	wire		mpc_ack, mpc_stall;
+	wire		mpc_stall, mpc_ack;
 	wire	[31:0]	mpc_data;
 	zipcounter	mpstall_ctr(i_clk,1'b0, (cpu_pf_stall), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b010),
 					sys_we, sys_data,
-				mpc_ack, mpc_stall, mpc_data, mpc_int);
+				mpc_stall, mpc_ack, mpc_data, mpc_int);
 
 	// Master Instruction counter
-	wire		mic_ack, mic_stall;
+	wire		mic_stall, mic_ack;
 	wire	[31:0]	mic_data;
 	zipcounter	mins_ctr(i_clk,1'b0, (cpu_i_count), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b011),
 					sys_we, sys_data,
-				mic_ack, mic_stall, mic_data, mic_int);
+				mic_stall, mic_ack, mic_data, mic_int);
 
 	//
 	// The user counters are different from those of the master.  They will
 	// be reset any time a task is given control of the CPU.
 	//
 	// User task counter
-	wire		utc_ack, utc_stall;
+	wire		utc_stall, utc_ack;
 	wire	[31:0]	utc_data;
 	zipcounter	utask_ctr(i_clk,1'b0, (!cpu_halt)&&(cpu_gie), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b100),
 					sys_we, sys_data,
-				utc_ack, utc_stall, utc_data, utc_int);
+				utc_stall, utc_ack, utc_data, utc_int);
 
 	// User Op-Stall counter
-	wire		uoc_ack, uoc_stall;
+	wire		uoc_stall, uoc_ack;
 	wire	[31:0]	uoc_data;
 	zipcounter	umstall_ctr(i_clk,1'b0, (cpu_op_stall)&&(cpu_gie), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b101),
 					sys_we, sys_data,
-				uoc_ack, uoc_stall, uoc_data, uoc_int);
+				uoc_stall, uoc_ack, uoc_data, uoc_int);
 
 	// User PreFetch-Stall counter
-	wire		upc_ack, upc_stall;
+	wire		upc_stall, upc_ack;
 	wire	[31:0]	upc_data;
 	zipcounter	upstall_ctr(i_clk,1'b0, (cpu_pf_stall)&&(cpu_gie), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b110),
 					sys_we, sys_data,
-				upc_ack, upc_stall, upc_data, upc_int);
+				upc_stall, upc_ack, upc_data, upc_int);
 
 	// User instruction counter
-	wire		uic_ack, uic_stall;
+	wire		uic_stall, uic_ack;
 	wire	[31:0]	uic_data;
 	zipcounter	uins_ctr(i_clk,1'b0, (cpu_i_count)&&(cpu_gie), sys_cyc,
 				(sys_stb)&&(sel_counter)&&(sys_addr[2:0] == 3'b111),
 					sys_we, sys_data,
-				uic_ack, uic_stall, uic_data, uic_int);
+				uic_stall, uic_ack, uic_data, uic_int);
 
 	// A little bit of pre-cleanup (actr = accounting counters)
-	wire		actr_ack, actr_stall;
-	wire	[31:0]	actr_data;
-	assign	actr_ack = ((mtc_ack | moc_ack | mpc_ack | mic_ack)
-				|(utc_ack | uoc_ack | upc_ack | uic_ack));
-	assign	actr_stall = ((mtc_stall | moc_stall | mpc_stall | mic_stall)
-				|(utc_stall | uoc_stall | upc_stall|uic_stall));
-	assign	actr_data = ((mtc_ack) ? mtc_data
-				: ((moc_ack) ? moc_data
-				: ((mpc_ack) ? mpc_data
-				: ((mic_ack) ? mic_data
-				: ((utc_ack) ? utc_data
-				: ((uoc_ack) ? uoc_data
-				: ((upc_ack) ? upc_data
-				: uic_data)))))));
+	wire		actr_stall, actr_ack;
+	reg	[31:0]	actr_data;
+	assign	actr_ack = sel_counter;
+	assign	actr_stall = 1'b0;
+	always @(*)
+	begin
+		case(sys_addr[2:0])
+		3'h0: actr_data = mtc_data;
+		3'h1: actr_data = moc_data;
+		3'h2: actr_data = mpc_data;
+		3'h3: actr_data = mic_data;
+		3'h4: actr_data = utc_data;
+		3'h5: actr_data = uoc_data;
+		3'h6: actr_data = upc_data;
+		3'h7: actr_data = uic_data;
+		endcase
+	end
 `else //	INCLUDE_ACCOUNTING_COUNTERS
 	reg		actr_ack;
 	wire		actr_stall;
@@ -572,8 +625,8 @@ module	zipsystem(i_clk, i_reset,
 	//
 	wire		dmac_stb, dc_err;
 	wire	[31:0]	dmac_data;
-	wire		dmac_ack, dmac_stall;
-	wire		dc_cyc, dc_stb, dc_we, dc_ack, dc_stall;
+	wire		dmac_stall, dmac_ack;
+	wire		dc_cyc, dc_stb, dc_we, dc_stall, dc_ack;
 	wire	[31:0]	dc_data;
 	wire	[(PAW-1):0]	dc_addr;
 	wire		cpu_gbl_cyc;
@@ -585,10 +638,10 @@ module	zipsystem(i_clk, i_reset,
 	wbdmac	#(PAW) dma_controller(i_clk, cpu_reset,
 				sys_cyc, dmac_stb, sys_we,
 					sys_addr[1:0], sys_data,
-					dmac_ack, dmac_stall, dmac_data,
+					dmac_stall, dmac_ack, dmac_data,
 				// Need the outgoing DMAC wishbone bus
 				dc_cyc, dc_stb, dc_we, dc_addr, dc_data,
-					dc_ack, dc_stall, ext_idata, dc_err,
+					dc_stall, dc_ack, ext_idata, dc_err,
 				// External device interrupts
 				dmac_int_vec,
 				// DMAC interrupt, for upon completion
@@ -611,28 +664,23 @@ module	zipsystem(i_clk, i_reset,
 	assign	dmac_int = 1'b0;
 `endif
 
-	wire		ctri_sel, ctri_stall;
-	reg		ctri_ack;
+	wire		ctri_sel, ctri_stall, ctri_ack;
 	wire	[31:0]	ctri_data;
 	assign	ctri_sel = (sys_stb)&&(sel_apic);
-	initial	ctri_ack = 1'b0;
-	always @(posedge i_clk)
-		ctri_ack <= (ctri_sel)&&(!cpu_reset);
-	assign	ctri_stall = 1'b0;
 `ifdef	INCLUDE_ACCOUNTING_COUNTERS
 	//
 	// Counter Interrupt controller
 	//
 	generate if (EXTERNAL_INTERRUPTS <= 9)
 	begin : ALT_PIC
-		icontrol #(8)	ctri(i_clk, cpu_reset, (ctri_sel),
-					sys_data, ctri_data, alt_int_vector[7:0],
-					ctri_int);
+		icontrol #(8)	ctri(i_clk, cpu_reset, sys_cyc, (ctri_sel), sys_we,
+				sys_data, 4'hf, ctri_stall, ctri_ack, ctri_data,
+				alt_int_vector[7:0], ctri_int);
 	end else begin : ALT_PIC
 		icontrol #(8+(EXTERNAL_INTERRUPTS-9))
-				ctri(i_clk, cpu_reset, (ctri_sel),
-					sys_data, ctri_data,
-					alt_int_vector[(EXTERNAL_INTERRUPTS-2):0],
+				ctri(i_clk, cpu_reset, sys_cyc, (ctri_sel), sys_we,
+				sys_data, 4'hf, ctri_stall, ctri_ack, ctri_data,
+				alt_int_vector[(EXTERNAL_INTERRUPTS-2):0],
 					ctri_int);
 	end endgenerate
 
@@ -645,8 +693,8 @@ module	zipsystem(i_clk, i_reset,
 		assign	ctri_int   = 1'b0;
 	end else begin : ALT_PIC
 		icontrol #(EXTERNAL_INTERRUPTS-9)
-				ctri(i_clk, cpu_reset, (ctri_sel),
-					sys_data, ctri_data,
+				ctri(i_clk, cpu_reset, (ctri_sel), sys_we,
+				sys_data, ctri_stall, ctri_ack, ctri_data,
 				alt_int_vector[(EXTERNAL_INTERRUPTS-10):0],
 					ctri_int);
 	end endgenerate
@@ -656,76 +704,69 @@ module	zipsystem(i_clk, i_reset,
 	//
 	// Timer A
 	//
-	wire		tma_ack, tma_stall;
+	wire		tma_stall, tma_ack;
 	wire	[31:0]	tma_data;
 	ziptimer timer_a(i_clk, cpu_reset, !cmd_halt,
 		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b00),
 			sys_we, sys_data,
-		tma_ack, tma_stall, tma_data, tma_int);
+		tma_stall, tma_ack, tma_data, tma_int);
 
 	//
 	// Timer B
 	//
-	wire		tmb_ack, tmb_stall;
+	wire		tmb_stall, tmb_ack;
 	wire	[31:0]	tmb_data;
 	ziptimer timer_b(i_clk, cpu_reset, !cmd_halt,
 		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b01),
 			sys_we, sys_data,
-		tmb_ack, tmb_stall, tmb_data, tmb_int);
+		tmb_stall, tmb_ack, tmb_data, tmb_int);
 
 	//
 	// Timer C
 	//
-	wire		tmc_ack, tmc_stall;
+	wire		tmc_stall, tmc_ack;
 	wire	[31:0]	tmc_data;
 	ziptimer timer_c(i_clk, cpu_reset, !cmd_halt,
 		sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0]==2'b10),
 			sys_we, sys_data,
-		tmc_ack, tmc_stall, tmc_data, tmc_int);
+		tmc_stall, tmc_ack, tmc_data, tmc_int);
 
 	//
 	// JIFFIES
 	//
-	wire		jif_ack, jif_stall;
+	wire		jif_stall, jif_ack;
 	wire	[31:0]	jif_data;
 	zipjiffies jiffies(i_clk, cpu_reset, !cmd_halt,
 			sys_cyc, (sys_stb)&&(sel_timer)&&(sys_addr[1:0] == 2'b11), sys_we,
 				sys_data,
-			jif_ack, jif_stall, jif_data, jif_int);
+			jif_stall, jif_ack, jif_data, jif_int);
 
 	//
 	// The programmable interrupt controller peripheral
 	//
-	wire		pic_interrupt;
+	wire		pic_interrupt, pic_stall, pic_ack;
+
 	generate if (EXTERNAL_INTERRUPTS < 9)
 	begin : MAIN_PIC
 		icontrol #(6+EXTERNAL_INTERRUPTS)	pic(i_clk, cpu_reset,
-					(sys_cyc)&&(sys_stb)&&(sys_we)
-						&&(sel_pic),
-					sys_data, pic_data,
-					main_int_vector[(6+EXTERNAL_INTERRUPTS-1):0], pic_interrupt);
+				sys_cyc, (sys_cyc)&&(sys_stb)&&(sel_pic),sys_we,
+				sys_data, 4'hf, pic_stall, pic_ack, pic_data,
+				main_int_vector[(6+EXTERNAL_INTERRUPTS-1):0], pic_interrupt);
 	end else begin : MAIN_PIC
 		icontrol #(15)	pic(i_clk, cpu_reset,
-					(sys_cyc)&&(sys_stb)&&(sys_we)
-						&&(sel_pic),
-					sys_data, pic_data,
-					main_int_vector[14:0], pic_interrupt);
+				sys_cyc, (sys_cyc)&&(sys_stb)&&(sel_pic),sys_we,
+				sys_data, 4'hf, pic_stall, pic_ack, pic_data,
+				main_int_vector[14:0], pic_interrupt);
 	end endgenerate
-
-	wire	pic_stall;
-	assign	pic_stall = 1'b0;
-	reg	pic_ack;
-	always @(posedge i_clk)
-		pic_ack <= (sys_stb)&&(sel_pic);
 
 	//
 	// The CPU itself
 	//
-	wire		cpu_gbl_stb, cpu_lcl_cyc, cpu_lcl_stb, 
+	wire		cpu_gbl_stb, cpu_lcl_cyc, cpu_lcl_stb,
 			cpu_we, cpu_dbg_we;
 	wire	[31:0]	cpu_data, cpu_idata;
 	wire	[3:0]	cpu_sel, mmu_sel;
-	wire		cpu_ack, cpu_stall, cpu_err;
+	wire		cpu_stall, cpu_ack, cpu_err;
 	wire	[31:0]	cpu_dbg_data;
 	assign cpu_dbg_we = ((dbg_cyc)&&(dbg_stb)&&(!cmd_addr[5])
 					&&(dbg_we)&&(dbg_addr));
@@ -747,16 +788,16 @@ module	zipsystem(i_clk, i_reset,
 				cpu_lcl_cyc, cpu_lcl_stb,
 				cpu_we, cpu_addr, cpu_data, cpu_sel,
 				// Return values from the Wishbone bus
-				cpu_ack, cpu_stall, cpu_idata, cpu_err,
+				cpu_stall, cpu_ack, cpu_idata, cpu_err,
 			cpu_op_stall, cpu_pf_stall, cpu_i_count
 `ifdef	DEBUG_SCOPE
-			, o_cpu_debug // , o_dcache_debug
+			, o_cpu_debug
 `endif
 			);
 
-	wire	ext_ack, ext_stall;
+	wire	ext_stall, ext_ack;
 	wire	mmu_cyc, mmu_stb, mmu_we, mmu_stall, mmu_ack, mmu_err;
-	wire	mmus_ack, mmus_stall;
+	wire	mmus_stall, mmus_ack;
 	wire [PAW-1:0]	mmu_addr;
 	wire [31:0]	mmu_data, mmu_idata, mmus_data;
 
@@ -768,7 +809,7 @@ module	zipsystem(i_clk, i_reset,
 	// (local) bus or the mmu_cpu_ (global) bus might return a response to
 	// the CPU, and the responses haven't been merged back together again
 	// yet.
-	wire		mmu_cpu_ack, mmu_cpu_stall;
+	wire		mmu_cpu_stall, mmu_cpu_ack;
 	wire	[31:0]	mmu_cpu_idata;
 
 	// The wires associated with cache snooping
@@ -784,7 +825,7 @@ module	zipsystem(i_clk, i_reset,
 			// Slave interface
 			(sys_stb)&&(sel_mmus),
 				sys_we, sys_addr[7:0], sys_data,
-				mmus_ack, mmus_stall, mmus_data,
+				mmus_stall, mmus_ack, mmus_data,
 			// CPU global bus master lines
 			cpu_gbl_cyc, cpu_gbl_stb, cpu_we, cpu_addr,
 				cpu_data, cpu_sel,
@@ -886,8 +927,8 @@ module	zipsystem(i_clk, i_reset,
 
 	// Now for the external wishbone bus
 	//	Need to arbitrate between the flash cache and the CPU
-	// The way this works, though, the CPU will stall once the flash 
-	// cache gets access to the bus--the CPU will be stuck until the 
+	// The way this works, though, the CPU will stall once the flash
+	// cache gets access to the bus--the CPU will be stuck until the
 	// flash cache is finished with the bus.
 	wire		ext_cyc, ext_stb, ext_we, ext_err;
 	wire	[(PAW-1):0]	ext_addr;
@@ -895,11 +936,11 @@ module	zipsystem(i_clk, i_reset,
 	wire	[3:0]		ext_sel;
 	wbpriarbiter #(32,PAW) dmacvcpu(i_clk,
 			mmu_cyc, mmu_stb, mmu_we, mmu_addr, mmu_data, mmu_sel,
-				mmu_ack, mmu_stall, mmu_err,
+				mmu_stall, mmu_ack, mmu_err,
 			dc_cyc, dc_stb, dc_we, dc_addr, dc_data, 4'hf,
-					dc_ack, dc_stall, dc_err,
+					dc_stall, dc_ack, dc_err,
 			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
-				ext_ack, ext_stall, ext_err);
+				ext_stall, ext_ack, ext_err);
 	assign	mmu_idata = ext_idata;
 /*
 	assign	ext_cyc  = mmu_cyc;
@@ -916,9 +957,9 @@ module	zipsystem(i_clk, i_reset,
 `ifdef	DELAY_EXT_BUS
 	busdelay #(.AW(PAW),.DW(32),.DELAY_STALL(0)) extbus(i_clk, i_reset,
 			ext_cyc, ext_stb, ext_we, ext_addr, ext_odata, ext_sel,
-				ext_ack, ext_stall, ext_idata, ext_err,
+				ext_stall, ext_ack, ext_idata, ext_err,
 			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
-				i_wb_ack, i_wb_stall, i_wb_data, (i_wb_err)||(wdbus_int));
+				i_wb_stall, i_wb_ack, i_wb_data, (i_wb_err)||(wdbus_int));
 `else
 	assign	o_wb_cyc  = ext_cyc;
 	assign	o_wb_stb  = ext_stb;
@@ -926,51 +967,84 @@ module	zipsystem(i_clk, i_reset,
 	assign	o_wb_addr = ext_addr;
 	assign	o_wb_data = ext_odata;
 	assign	o_wb_sel  = ext_sel;
-	assign	ext_ack   = i_wb_ack;
 	assign	ext_stall = i_wb_stall;
+	assign	ext_ack   = i_wb_ack;
 	assign	ext_idata = i_wb_data;
 	assign	ext_err   = (i_wb_err)||(wdbus_int);
 `endif
 
-	wire		tmr_ack;
-	assign	tmr_ack = (tma_ack|tmb_ack|tmc_ack|jif_ack);
-	wire	[31:0]	tmr_data;
-	assign	tmr_data = (tma_ack)?tma_data
-				:(tmb_ack ? tmb_data
-				:(tmc_ack ? tmc_data
-				:jif_data));
-	always @(posedge i_clk)
-		casez({	mmus_ack,  tmr_ack, wdt_ack,  actr_ack,
-			dmac_ack, pic_ack, ctri_ack, wdbus_ack })
-		8'b1???????: sys_idata <=  mmus_data;
-		8'b01??????: sys_idata <=  tmr_data;
-		8'b001?????: sys_idata <=  wdt_data;
-		8'b0001????: sys_idata <=  actr_data;
-		8'b00001???: sys_idata <=  dmac_data;
-		8'b000001??: sys_idata <=  pic_data;
-		8'b0000001?: sys_idata <=  ctri_data;
-		8'b00000001: sys_idata <=  wdbus_data;
-		default:     sys_idata <=  mmus_data;
+	reg	[31:0]	tmr_data;
+	always @(*)
+	begin
+		case(sys_addr[1:0])
+		2'b00: tmr_data = tma_data;
+		2'b01: tmr_data = tmb_data;
+		2'b10: tmr_data = tmc_data;
+		2'b11: tmr_data = jif_data;
 		endcase
 
-	always @(posedge i_clk)
-	if ((i_reset)||(!sys_cyc))
-		sys_ack <= 1'b0;
-	else
-		sys_ack <= (|{	mmu_ack, tmr_ack, wdt_ack, actr_ack,
-				dmac_ack, pic_ack, ctri_ack, wdbus_ack,
-				mmus_ack });
-		
-	assign	sys_stall = (tma_stall | tmb_stall | tmc_stall | jif_stall
-				| wdt_stall | ctri_stall | actr_stall 
-				| pic_stall | dmac_stall | mmus_stall); // Always 1'b0!
+		// tmr_ack == sys_stb && sel_timer
+	end
 
+	reg	[2:0]	w_ack_idx, ack_idx;
+	always @(*)
+	begin
+		w_ack_idx = 0;
+		if (sel_mmus)         w_ack_idx = w_ack_idx | 3'h0;
+		if (sel_watchdog)     w_ack_idx = w_ack_idx | 3'h1;
+		if (sel_bus_watchdog) w_ack_idx = w_ack_idx | 3'h2;
+		if (sel_apic)         w_ack_idx = w_ack_idx | 3'h3;
+		if (sel_timer)        w_ack_idx = w_ack_idx | 3'h4;
+		if (sel_counter)      w_ack_idx = w_ack_idx | 3'h5;
+		if (sel_dmac)         w_ack_idx = w_ack_idx | 3'h6;
+		if (sel_pic)          w_ack_idx = w_ack_idx | 3'h7;
+	end
+
+	always @(posedge i_clk)
+	if (sys_stb)
+		ack_idx <= w_ack_idx;
+
+	reg	last_sys_stb;
+	initial	last_sys_stb = 0;
+	always @(posedge i_clk)
+	if (i_reset)
+		last_sys_stb <= 0;
+	else
+		last_sys_stb <= sys_stb;
+
+	always @(posedge i_clk)
+	begin
+		case(ack_idx)
+		3'h0: { sys_ack, sys_idata } <= { mmus_ack, mmus_data };
+		3'h1: { sys_ack, sys_idata } <= { last_sys_stb,  wdt_data  };
+		3'h2: { sys_ack, sys_idata } <= { last_sys_stb,  wdbus_data };
+		3'h3: { sys_ack, sys_idata } <= { last_sys_stb,  ctri_data };// A-PIC
+		3'h4: { sys_ack, sys_idata } <= { last_sys_stb,  tmr_data };
+		3'h5: { sys_ack, sys_idata } <= { last_sys_stb,  actr_data };//countr
+		3'h6: { sys_ack, sys_idata } <= { dmac_ack, dmac_data };
+		3'h7: { sys_ack, sys_idata } <= { last_sys_stb,  pic_data };
+		endcase
+
+		if (i_reset || !sys_cyc)
+			sys_ack <= 1'b0;
+	end
+
+	assign	sys_stall = 1'b0;
 	assign	o_ext_int = (cmd_halt) && (!cpu_stall);
 
 	// Make verilator happy
 	// verilator lint_off UNUSED
-	wire	[5:0]	unused;
-	assign unused = { no_dbg_err, dbg_sel, sel_mmus };
+	wire		unused;
+	assign unused = &{ 1'b0, pic_ack, pic_stall,
+		tma_ack, tma_stall, tmb_ack, tmb_stall, tmc_ack, tmc_stall,
+		jif_ack, jif_stall, no_dbg_err, dbg_sel,
+		sel_mmus, ctri_ack, ctri_stall, mmus_stall, dmac_stall,
+		wdt_ack, wdt_stall, actr_ack, actr_stall,
+		wdbus_ack, i_dbg_sel,
+		moc_ack, mtc_ack, mic_ack, mpc_ack,
+		uoc_ack, utc_ack, uic_ack, upc_ack,
+		moc_stall, mtc_stall, mic_stall, mpc_stall,
+		uoc_stall, utc_stall, uic_stall, upc_stall };
 `ifndef	INCLUDE_ACCOUNTING_COUNTERS
 	wire	[11:0]	unused_ctrs;
 	assign	unused_ctrs = {

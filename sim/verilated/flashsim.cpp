@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015,2017-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015,2017-2020, Gisselquist Technology, LLC
 //
 // This file is part of the set of Wishbone controlled SPI flash controllers
 // project
@@ -92,6 +92,9 @@ FLASHSIM::FLASHSIM(const int lglen, bool debug,
 	m_mode = FM_SPI;
 	m_mode_byte = 0;
 	m_idle_throttle = false;
+
+	m_rddelay = NULL;
+	m_ckdelay = NULL;
 
 	memset(m_mem, 0x0ff, m_membytes);
 }
@@ -430,8 +433,9 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			m_state = QSPIF_QUAD_READ_CMD;
 			m_mode = FM_QSPI;
 			break;
-		case 0x000:
-		case 0x0ff:
+		case 0x000:	// Dummy implementation of CMD 8'h00
+		case 0x031:	// Dummy implementation of CMD 8'h31
+		case 0x0ff:	// Dummy implementation of CMD 8'hff
 			m_state = QSPIF_IDLE;
 			m_mode = FM_SPI;
 			break;

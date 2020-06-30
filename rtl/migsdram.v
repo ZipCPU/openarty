@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -40,12 +40,12 @@
 module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 	// Wishbone components
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
-		o_wb_ack, o_wb_stall, o_wb_data, o_wb_err,
+		o_wb_stall, o_wb_ack, o_wb_data, o_wb_err,
 	// SDRAM connections
 		o_ddr_ck_p, o_ddr_ck_n,
 		o_ddr_reset_n, o_ddr_cke,
 		o_ddr_cs_n, o_ddr_ras_n, o_ddr_cas_n, o_ddr_we_n,
-		o_ddr_ba, o_ddr_addr, 
+		o_ddr_ba, o_ddr_addr,
 		o_ddr_odt, o_ddr_dm,
 		io_ddr_dqs_p, io_ddr_dqs_n,
 		io_ddr_data,
@@ -53,9 +53,9 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 		o_ram_dbg
 	);
 	parameter	DDRWIDTH = 16, WBDATAWIDTH=32;
-	parameter	AXIDWIDTH = 6;
+	parameter	AXIDWIDTH = 1;
 	// The SDRAM address bits (RAMABITS) are a touch more difficult to work
-	// out.  Here we leave them as a fixed parameter, but there are 
+	// out.  Here we leave them as a fixed parameter, but there are
 	// consequences to this.  Specifically, the wishbone data width, the
 	// wishbone address width, and this number have interactions not
 	// well captured here.
@@ -79,7 +79,7 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 	input	wire	[(AW-1):0]	i_wb_addr;
 	input	wire	[(DW-1):0]	i_wb_data;
 	input	wire	[(SELW-1):0]	i_wb_sel;
-	output	wire			o_wb_ack, o_wb_stall;
+	output	wire			o_wb_stall, o_wb_ack;
 	output	wire	[(DW-1):0]	o_wb_data;
 	output	wire			o_wb_err;
 	//
@@ -157,7 +157,8 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 	mig_axis	mig_sdram(
 		.ddr3_ck_p(o_ddr_ck_p),		.ddr3_ck_n(o_ddr_ck_n),
 		.ddr3_reset_n(o_ddr_reset_n),	.ddr3_cke(o_ddr_cke),
-		.ddr3_cs_n(o_ddr_cs_n),		.ddr3_ras_n(o_ddr_ras_n),
+		.ddr3_cs_n(o_ddr_cs_n),
+		.ddr3_ras_n(o_ddr_ras_n),
 		.ddr3_we_n(o_ddr_we_n),		.ddr3_cas_n(o_ddr_cas_n),
 		.ddr3_ba(o_ddr_ba),		.ddr3_addr(o_ddr_addr),
 		.ddr3_odt(o_ddr_odt),
@@ -199,7 +200,7 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 		.s_axi_arcache(s_axi_arcache),	.s_axi_arprot(s_axi_arprot),
 		.s_axi_arqos(s_axi_arqos),	.s_axi_arvalid(s_axi_arvalid),
 		.s_axi_arready(s_axi_arready),
-		// 
+		//
 		.s_axi_rready(s_axi_rready),	.s_axi_rid(s_axi_rid),
 		.s_axi_rdata(s_axi_rdata),	.s_axi_rresp(s_axi_rresp),
 		.s_axi_rlast(s_axi_rlast),	.s_axi_rvalid(s_axi_rvalid),
@@ -208,7 +209,7 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 		.device_temp(w_device_temp)
 		);
 
-	wbm2axisp	#( 
+	wbm2axisp	#(
 			.C_AXI_ID_WIDTH(AXIDWIDTH),
 			.C_AXI_DATA_WIDTH(AXIWIDTH),
 			.C_AXI_ADDR_WIDTH(RAMABITS),
@@ -218,17 +219,17 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 				.i_clk(o_sys_clk),
 				// .i_reset(i_rst), // internally unused
 				// Write address channel signals
-				.o_axi_awid(	s_axi_awid), 
-				.o_axi_awaddr(	s_axi_awaddr), 
-				.o_axi_awlen(	s_axi_awlen), 
-				.o_axi_awsize(	s_axi_awsize), 
-				.o_axi_awburst(	s_axi_awburst), 
-				.o_axi_awlock(	s_axi_awlock), 
-				.o_axi_awcache(	s_axi_awcache), 
+				.o_axi_awid(	s_axi_awid),
+				.o_axi_awaddr(	s_axi_awaddr),
+				.o_axi_awlen(	s_axi_awlen),
+				.o_axi_awsize(	s_axi_awsize),
+				.o_axi_awburst(	s_axi_awburst),
+				.o_axi_awlock(	s_axi_awlock),
+				.o_axi_awcache(	s_axi_awcache),
 				.o_axi_awprot(	s_axi_awprot),  // s_axi_awqos
 				.o_axi_awqos(	s_axi_awqos),  // s_axi_awqos
-				.o_axi_awvalid(	s_axi_awvalid), 
-				.i_axi_awready(	s_axi_awready), 
+				.o_axi_awvalid(	s_axi_awvalid),
+				.i_axi_awready(	s_axi_awready),
 			//
 				.i_axi_wready(	s_axi_wready),
 				.o_axi_wdata(	s_axi_wdata),
@@ -267,24 +268,20 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 				.i_wb_data(	i_wb_data),
 				.i_wb_sel(	i_wb_sel),
 			//
-				.o_wb_ack(	o_wb_ack),
 				.o_wb_stall(	o_wb_stall),
+				.o_wb_ack(	o_wb_ack),
 				.o_wb_data(	o_wb_data),
-				.o_wb_err(	o_wb_err),
-			//
-				.o_dbg(	o_ram_dbg)
+				.o_wb_err(	o_wb_err)
 		);
+	assign	o_ram_dbg = 32'h0;
 
 	// Convert from active low to active high, *and* hold the system in
 	// reset until the memory comes up.
-	// initial	o_sys_reset = 1'b1;
-	// always @(posedge o_sys_clk)
-	// 	but ... w_sys_reset is already synchronous with o_sys_clk
-	always @(*)
-		o_sys_reset <= (w_sys_reset);
-			// These other conditions are captured internally
-			//	||(!init_calib_complete)
-			//	||(!mmcm_locked);
+	initial	o_sys_reset = 1'b1;
+	always @(posedge o_sys_clk)
+		o_sys_reset <= (w_sys_reset)
+				||(!init_calib_complete)
+				||(!mmcm_locked);
 `else
 	BUFG	sysclk(i_clk, o_sys_clk);
 	initial	o_sys_reset <= 1'b1;
@@ -295,7 +292,7 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 
 	assign	o_ddr_reset_n	= 1'b0;
 	assign	o_ddr_cke[0]	= 1'b0;
-	assign	o_ddr_cs_n[0]	= 1'b1;
+	assign o_ddr_cs_n[0]	= 1'b1;
 	assign	o_ddr_cas_n	= 1'b1;
 	assign	o_ddr_ras_n	= 1'b1;
 	assign	o_ddr_we_n	= 1'b1;

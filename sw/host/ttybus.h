@@ -107,7 +107,7 @@ public:
 	TTYBUS(LLCOMMSI *comms) : m_dev(comms) { init(); }
 	virtual	~TTYBUS(void) {
 		m_dev->close();
-		if (m_buf) { delete[] m_buf; m_buf = NULL; };
+		if (m_buf) { delete[] m_buf; m_buf = NULL; }
 		delete m_rdbuf; m_rdbuf = NULL;
 		delete	m_dev;
 	}

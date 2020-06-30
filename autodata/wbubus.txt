@@ -1,0 +1,150 @@
+################################################################################
+##
+## Filename: 	wbubus.txt
+##
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	To describe what needs to be done to make the UART to Wishbone
+##		external bus master a part of the main .v and toplevel.v files.
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=wbu
+@ACCESS=WBUBUS_MASTER
+@MASTER.TYPE=HOST
+@MASTER.BUS=wbu
+@BUS.NAME=wbu
+@BUS.CLOCK=clk
+@BUS.WIDTH=32
+@$BAUDRATE=1000000
+@CLOCK.NAME=clk
+@$SETUP=@$(CLOCK.FREQUENCY) / @$BAUDRATE
+@SETUP.FORMAT=24'h%x
+@$BUS_ADDRESS_WIDTH=@$(MASTER.BUS.AWID)
+@BP=@$(MASTER.PREFIX)
+# @TOP.PORTLIST=
+# 		// UART/host to wishbone interface
+# 		i_host_uart_rx, o_host_uart_tx
+# @TOP.IODECL=
+# 	// UART/host to wishbone interface
+# 	input	wire		i_host_uart_rx;
+# 	output	wire		o_host_uart_tx;
+# @TOP.MAIN=
+# 		// External USB-UART bus control
+# 		i_host_uart_rx, o_host_uart_tx
+@MAIN.PORTLIST=
+ 		// UART/host to wishbone interface
+ 		i_host_uart_rx, o_host_uart_tx
+@MAIN.IODECL=
+	input	wire		i_host_uart_rx;
+	output	wire		o_host_uart_tx;
+@MAIN.DEFNS=
+	//
+	//
+	// UART interface
+	//
+	//
+	localparam [23:0] BUSUART = @$SETUP;	// @$BAUDRATE baud
+	//
+	wire	w_ck_uart, w_uart_tx;
+	wire		rx_host_stb;
+	wire	[7:0]	rx_host_data;
+	wire		tx_host_stb;
+	wire	[7:0]	tx_host_data;
+	wire		tx_host_busy;
+	//
+	// Definitions for the WB-UART converter.  We really only need one
+	// (more) non-bus wire--one to use to select if we are interacting
+	// with the ZipCPU or not.
+	wire		wbu_zip_sel;
+	wire	[0:0]	wbubus_dbg;
+`ifndef	INCLUDE_ZIPCPU
+	//
+	// The bus-console depends upon the zip_dbg wires.  If there is no
+	// ZipCPU defining them, we'll need to define them here anyway.
+	//
+	wire		zip_dbg_stall, zip_dbg_ack;
+	wire	[31:0]	zip_dbg_data;
+`endif
+@$ZIP_ADDRESS_BIT=@$BUS_ADDRESS_WIDTH-1
+@$ZIP_ADDRESS=(1<<(@$THIS.ZIP_ADDRESS_BIT+2))
+@ZIP_ADDRESS.FORMAT= 0x%08x
+@$ZIP_DBGDATA=4+@$.ZIP_ADDRESS
+@ZIP_DBGDATA.FORMAT= 0x%08x
+@MAIN.INSERT=
+	// The Host USB interface, to be used by the WB-UART bus
+	rxuartlite	#(BUSUART) rcv(s_clk, i_host_uart_rx,
+				rx_host_stb, rx_host_data);
+	txuartlite	#(BUSUART) txv(s_clk, tx_host_stb, tx_host_data,
+				o_host_uart_tx, tx_host_busy);
+
+`ifdef	INCLUDE_ZIPCPU
+	// assign	wbu_zip_sel   = wbu_addr[@$.ZIP_ADDRESS_BIT];
+`else
+	assign	wbu_zip_sel   = 1'b0;
+	assign	zip_dbg_ack   = 1'b0;
+	assign	zip_dbg_stall = 1'b0;
+	assign	zip_dbg_data  = 0;
+`endif
+`ifndef	BUSPIC_ACCESS
+	wire	w_bus_int;
+	assign	w_bus_int = 1'b0;
+`endif
+	wire	[31:0]	wbu_tmp_addr;
+	wbubus	genbus(i_clk, i_host_rx_stb, i_host_rx_data,
+			@$(BP)_cyc, @$(BP)_stb, @$(BP)_we, @$(PREFIX)_tmp_addr, @$(BP)_data,
+			@$(BP)_stall, @$(BP)_ack, @$(BP)_idata, @$(BP)_err,
+			w_bus_int,
+			o_host_tx_stb, o_host_tx_data, i_host_tx_busy,
+			wbubus_dbg[0]);
+	assign	wbu_sel = 4'hf;
+	assign	wbu_addr = wbu_tmp_addr[(@$BUS_ADDRESS_WIDTH-1):0];
+@REGDEFS.H.DEFNS=
+#define	R_ZIPCTRL	@$.ZIP_ADDRESS
+#define	R_ZIPDATA	@$.ZIP_DBGDATA
+#
+SIM.INIT=
+		m_core->i_host_uart_rx = 1;
+SIM.CLOCK=clk
+SIM.TICK=
+		m_core->i_host_uart_rx = (*m_dbgbus)(m_core->o_host_uart_tx);
+@RTL.MAKE.GROUP=
+@RTL.MAKE.SUBD=wbubus
+@RTL.MAKE.FILES= wbconsole.v wbubus.v wbucompactlines.v wbucompress.v
+	wbuconsole.v wbudecompress.v wbudeword.v wbuexec.v wbufifo.v
+	wbuidleint.v wbuinput.v wbuoutput.v wbureadcw.v wbusixchar.v wbutohex.v
+##
+##
+@PREFIX=wbu_arbiter
+@MASTER.BUS=wb
+@MASTER.TYPE=OTHER
+@SLAVE.BUS=wbu
+@SLAVE.TYPE=OTHER
+@NADDR=1<<@$(MASTER.BUS.AWID)

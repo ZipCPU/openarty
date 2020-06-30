@@ -181,7 +181,7 @@ public:
 			} else if (nw < 0) {
 				fprintf(stderr, "ERR: %4d\n", errno);
 				perror("O/S Err: ");
-				exit(EXIT_FAILURE);
+				// exit(EXIT_FAILURE);
 				break;
 			} else if (nw == 0) {
 				// TTY device has closed our connection

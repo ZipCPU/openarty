@@ -232,7 +232,7 @@ void	SCOPE::write_trace_header(FILE *fp, int offset) {
 		TRACEINFO *info = m_traces[i];
 		fprintf(fp, "  $var wire %2d %s %s",
 			info->m_nbits, info->m_key, info->m_name);
-		if ((info->m_nbits > 0)&&(NULL == strchr(info->m_name, '[')))
+		if ((info->m_nbits != 1)&&(NULL != strchr(info->m_name, '[')))
 			fprintf(fp, "[%d:0] $end\n", info->m_nbits-1);
 		else
 			fprintf(fp, " $end\n");

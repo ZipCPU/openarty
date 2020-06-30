@@ -100,21 +100,21 @@ typedef	struct	{
 #define	ALTINT_MTC	ALTINT(7)
 #endif
 
-#define	INT_ENABLE	0x80000000
+#define	INT_ENABLE	0x80008000
 #define	EINT(A)	(INT_ENABLE|((A)<<16))
 #define	DINT(A)	((A)<<16)
-#define	CLEARPIC	0x7fff7fff
-#define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
+#define	CLEARPIC	0xffff7fff
+#define	DALLPIC		0xffff0000	// Disable all PIC interrupt sources
 #define	INTNOW		0x08000
 
 static	volatile ZIPSYS *const _zip = (ZIPSYS *)(ZIPSYS_ADDR);
 
 static inline void	DISABLE_INTS(void) {
-	_zip->z_pic = 0;
+	_zip->z_pic = 0x80000000;
 }
 
 static inline void	ENABLE_INTS(void) {
-	_zip->z_pic = 0x80000000;
+	_zip->z_pic = INT_ENABLE;
 }
 
 typedef	struct	{

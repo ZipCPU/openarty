@@ -1,0 +1,120 @@
+################################################################################
+##
+## Filename: 	clrspio.txt
+##
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	To describe how to interact with the special purpose device
+##		controller (spio) for the Nexys Video Board (SW, BTN, LEDs)
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=clrled
+@DEVID=CLRLED
+@NADDR=1
+@SLAVE.TYPE=DOUBLE
+@SLAVE.BUS=wb
+@ACCESS=@$(DEVID)_ACCESS
+@MAIN.PORTLIST=
+		// @$(DEVID) interface
+		o_clr_ledr, o_clr_ledg, o_clr_ledb
+@MAIN.IODECL=
+	// SPIO interface
+	output	wire	[3:0]	o_clr_ledr, o_clr_ledg, o_clr_ledb;
+@MAIN.DEFNS=
+`ifndef	PWRCOUNT_ACCESS
+	reg	[8:0]	@$(PREFIX)_counter;
+`else
+	wire	[8:0]	@$(PREFIX)_counter;
+`endif
+	wire	[31:0]	@$(PREFIX)0_data, @$(PREFIX)1_data,
+			@$(PREFIX)2_data, @$(PREFIX)3_data;
+	reg		r_@$(PREFIX)_ack;
+	reg	[31:0]	r_@$(PREFIX)_data;
+@MAIN.INSERT=
+`ifdef	PWRCOUNT_ACCESS
+	assign	@$(PREFIX)_counter = r_pwrcount_data[8:0];
+`else
+	always @(posedge i_clk)
+		@$(PREFIX)_counter <= @$(PREFIX)_counter + 1;
+`endif
+	clrled @$(PREFIX)0(i_clk,
+		(@$(SLAVE.PREFIX)_stb)&&(@$(SLAVE.PREFIX)_addr[1:0]==2'b00)&&(@$(SLAVE.PREFIX)_we),
+		@$(SLAVE.PREFIX)_data, @$(PREFIX)_counter, @$(PREFIX)0_data,
+			{ o_clr_ledr[0], o_clr_ledg[0], o_clr_ledb[0] });
+	clrled @$(PREFIX)1(i_clk,
+		(@$(SLAVE.PREFIX)_stb)&&(@$(SLAVE.PREFIX)_addr[1:0]==2'b01)&&(@$(SLAVE.PREFIX)_we),
+		@$(SLAVE.PREFIX)_data, @$(PREFIX)_counter, @$(PREFIX)1_data,
+			{ o_clr_ledr[1], o_clr_ledg[1], o_clr_ledb[1] });
+	clrled @$(PREFIX)2(i_clk,
+		(@$(SLAVE.PREFIX)_stb)&&(@$(SLAVE.PREFIX)_addr[1:0]==2'b10)&&(@$(SLAVE.PREFIX)_we),
+		@$(SLAVE.PREFIX)_data, @$(PREFIX)_counter, @$(PREFIX)2_data,
+			{ o_clr_ledr[2], o_clr_ledg[2], o_clr_ledb[2] });
+	clrled @$(PREFIX)3(i_clk,
+		(@$(SLAVE.PREFIX)_stb)&&(@$(SLAVE.PREFIX)_addr[1:0]==2'b11)&&(@$(SLAVE.PREFIX)_we),
+		@$(SLAVE.PREFIX)_data, @$(PREFIX)_counter, @$(PREFIX)3_data,
+			{ o_clr_ledr[3], o_clr_ledg[3], o_clr_ledb[3] });
+
+	initial	r_@$(PREFIX)_ack = 1'b0;
+	always @(posedge i_clk)
+		r_@$(PREFIX)_ack <= @$(SLAVE.PREFIX)_stb;
+
+	always @(posedge i_clk)
+	case(@$(SLAVE.PREFIX)_addr[1:0])
+	2'b00: r_@$(PREFIX)_data <= @$(PREFIX)0_data;
+	2'b01: r_@$(PREFIX)_data <= @$(PREFIX)1_data;
+	2'b10: r_@$(PREFIX)_data <= @$(PREFIX)2_data;
+	2'b11: r_@$(PREFIX)_data <= @$(PREFIX)3_data;
+	endcase
+
+	assign	@$(SLAVE.PREFIX)_ack   = r_@$(PREFIX)_ack;
+	assign	@$(SLAVE.PREFIX)_stall = 1'b0;
+	assign	@$(SLAVE.PREFIX)_idata = r_@$(PREFIX)_data;
+
+@MAIN.ALT=
+	assign	o_clr_ledr = 0;
+	assign	o_clr_ledg = 0;
+	assign	o_clr_ledb = 0;
+@REGS.N=5
+@REGS.0= 0 R_@$(DEVID)	@$(DEVID)
+@REGS.1= 0 R_@$(DEVID)0	@$(DEVID)0 CLR0
+@REGS.2= 1 R_@$(DEVID)1	@$(DEVID)1 CLR1
+@REGS.3= 2 R_@$(DEVID)2	@$(DEVID)2 CLR2
+@REGS.4= 3 R_@$(DEVID)3	@$(DEVID)3 CLR3
+@BDEF.DEFN=
+#define	@$(DEVID)_RED	0x0ff0000
+#define	@$(DEVID)_GREEN	0x000ff00
+#define	@$(DEVID)_BLUE	0x00000ff
+@BDEF.IONAME=_@$(PREFIX)
+@BDEF.IOTYPE=unsigned
+@BDEF.OSDEF= _BOARD_HAS_@$(DEVID)
+@BDEF.OSVAL= static volatile @$(BDEF.IOTYPE) *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x%08x](REGBASE));
+@MAKE.GROUP= @$(DEVID)
+@MAKE.FILES=clrled.v

@@ -152,7 +152,8 @@ void	FLASHDRVR::place_online(void) {
 }
 
 
-void	FLASHDRVR::restore_dualio(void) {
+void	FLASHDRVR::restore_dualio(DEVBUS *fpga) {
+	// static const	uint32_t	DUAL_IO_READ     = CFG_USERMODE|0xbb;
 #ifdef	DSPI_FLASH
 #error "This controller doesn't (yet) support Dual-mode"
 #endif
@@ -296,7 +297,6 @@ bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 		return true;
 	}
 
-
 	// Write enable
 	m_fpga->writeio(R_FLASHCFG, F_END);
 	m_fpga->writeio(R_FLASHCFG, F_WREN);
@@ -307,12 +307,19 @@ bool	FLASHDRVR::page_program(const unsigned addr, const unsigned len,
 	//
 
 	// Issue the page program command
+	//
+	// Our interface will limit us, so there's no reason to use
+	// QUAD page programming here
+	// if (F_QPP) {} else
 	m_fpga->writeio(R_FLASHCFG, F_PP);
 	// The address of the page to be programmed
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE|((flashaddr>>16)&0x0ff));
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE|((flashaddr>> 8)&0x0ff));
 	m_fpga->writeio(R_FLASHCFG, CFG_USERMODE|((flashaddr    )&0x0ff));
+
+	//
 	// Write the page data itself
+	//
 	for(unsigned i=0; i<len; i++)
 		m_fpga->writeio(R_FLASHCFG, 
 			CFG_USERMODE | CFG_WEDIR | (data[i] & 0x0ff));

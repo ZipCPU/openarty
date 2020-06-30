@@ -23,7 +23,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017-2019, Gisselquist Technology, LLC
+// Copyright (C) 2017-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -52,9 +52,9 @@
 module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 			i_stall_n, i_pc, o_insn, o_pc, o_valid,
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
-			i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
+			i_wb_stall, i_wb_ack, i_wb_err, i_wb_data,
 		o_illegal);
-	parameter		ADDRESS_WIDTH=30, AUX_WIDTH = 1;
+	parameter		ADDRESS_WIDTH=30;
 	localparam		AW=ADDRESS_WIDTH, DW = 32;
 	input	wire			i_clk, i_reset, i_new_pc, i_clear_cache,
 						i_stall_n;
@@ -68,7 +68,7 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 	output	reg	[(AW-1):0]	o_wb_addr;
 	output	wire	[(DW-1):0]	o_wb_data;
 	// And return inputs
-	input	wire			i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire			i_wb_stall, i_wb_ack, i_wb_err;
 	input	wire	[(DW-1):0]	i_wb_data;
 	// And ... the result if we got an error
 	output	reg		o_illegal;
@@ -136,32 +136,32 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 
 	initial	invalid_bus_cycle = 1'b0;
 	always @(posedge i_clk)
-		if ((o_wb_cyc)&&(i_new_pc))
-			invalid_bus_cycle <= 1'b1;
-		else if (!o_wb_cyc)
-			invalid_bus_cycle <= 1'b0;
+	if ((o_wb_cyc)&&(i_new_pc))
+		invalid_bus_cycle <= 1'b1;
+	else if (!o_wb_cyc)
+		invalid_bus_cycle <= 1'b0;
 
 	initial	o_wb_addr = {(AW){1'b1}};
 	always @(posedge i_clk)
-		if (i_new_pc)
-			o_wb_addr <= i_pc[AW+1:2];
-		else if ((o_wb_stb)&&(!i_wb_stall))
-			o_wb_addr <= o_wb_addr + 1'b1;
+	if (i_new_pc)
+		o_wb_addr <= i_pc[AW+1:2];
+	else if ((o_wb_stb)&&(!i_wb_stall))
+		o_wb_addr <= o_wb_addr + 1'b1;
 
-	//////////////////
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Now for the immediate output word to the CPU
 	//
-	//////////////////
+	////////////////////////////////////////////////////////////////////////
 
 	initial	o_valid = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(i_new_pc)||(i_clear_cache))
-			o_valid <= 1'b0;
-		else if ((o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
-			o_valid <= 1'b1;
-		else if (i_stall_n)
-			o_valid <= cache_valid;
+	if ((i_reset)||(i_new_pc)||(i_clear_cache))
+		o_valid <= 1'b0;
+	else if ((o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
+		o_valid <= 1'b1;
+	else if (i_stall_n)
+		o_valid <= cache_valid;
 
 	always @(posedge i_clk)
 	if ((!o_valid)||(i_stall_n))
@@ -181,37 +181,37 @@ module	dblfetch(i_clk, i_reset, i_new_pc, i_clear_cache,
 
 	initial	o_illegal = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(i_new_pc)||(i_clear_cache))
-			o_illegal <= 1'b0;
-		else if ((!o_valid)||(i_stall_n))
-		begin
-			if (cache_valid)
-				o_illegal <= (o_illegal)||(cache_illegal);
-			else if ((o_wb_cyc)&&(i_wb_err))
-				o_illegal <= 1'b1;
-		end
+	if ((i_reset)||(i_new_pc)||(i_clear_cache))
+		o_illegal <= 1'b0;
+	else if ((!o_valid)||(i_stall_n))
+	begin
+		if (cache_valid)
+			o_illegal <= (o_illegal)||(cache_illegal);
+		else if ((o_wb_cyc)&&(i_wb_err))
+			o_illegal <= 1'b1;
+	end
 
 
-	//////////////////
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Now for the output/cached word
 	//
-	//////////////////
+	////////////////////////////////////////////////////////////////////////
 
 	initial	cache_valid = 1'b0;
 	always @(posedge i_clk)
-		if ((i_reset)||(i_new_pc)||(i_clear_cache))
+	if ((i_reset)||(i_new_pc)||(i_clear_cache))
+		cache_valid <= 1'b0;
+	else begin
+		if ((o_valid)&&(o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
+			cache_valid <= (!i_stall_n)||(cache_valid);
+		else if (i_stall_n)
 			cache_valid <= 1'b0;
-		else begin
-			if ((o_valid)&&(o_wb_cyc)&&((i_wb_ack)||(i_wb_err)))
-				cache_valid <= (!i_stall_n)||(cache_valid);
-			else if (i_stall_n)
-				cache_valid <= 1'b0;
-		end
+	end
 
 	always @(posedge i_clk)
-		if ((o_wb_cyc)&&(i_wb_ack))
-			cache_word <= i_wb_data;
+	if (i_wb_ack)
+		cache_word <= i_wb_data;
 
 	initial	cache_illegal = 1'b0;
 	always @(posedge i_clk)

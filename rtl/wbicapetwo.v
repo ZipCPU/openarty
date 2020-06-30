@@ -70,7 +70,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -97,19 +97,20 @@
 `define	MBOOT_WRITE	5'h0f
 `define	MBOOT_DESYNC	5'h11
 module	wbicapetwo(i_clk,
-		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
-			o_wb_ack, o_wb_stall, o_wb_data, o_dbg);
+		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
+			o_wb_stall, o_wb_ack, o_wb_data);
 	parameter	LGDIV = 3; /// Log of the clock divide
 	input	wire		i_clk;
 	// Wishbone inputs
 	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
 	input	wire	[4:0]	i_wb_addr;
 	input	wire	[31:0]	i_wb_data;
+	input	wire	[3:0]	i_wb_sel;
 	// Wishbone outputs
-	output	reg		o_wb_ack, o_wb_stall;
+	output	reg		o_wb_stall, o_wb_ack;
 	output	reg	[31:0]	o_wb_data;
 	// Debugging output
-	output	wire	[31:0]	o_dbg;
+	wire	[31:0]	o_dbg;
 	// ICAPE2 interface signals
 	//	These are kept internal to this block ...
 
@@ -162,6 +163,7 @@ module	wbicapetwo(i_clk,
 	reg	[4:0]	state;
 	initial	state = `MBOOT_IDLE;
 	initial	cfg_cs_n = 1'b1;
+	initial	o_wb_ack = 1'b0;
 	always @(posedge i_clk)
 	begin
 		// In general, o_wb_ack is always zero.  The exceptions to this

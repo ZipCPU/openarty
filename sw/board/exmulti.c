@@ -52,7 +52,8 @@ void	wait_on_interrupt(int mask) {
 	if (mask & SYSINT_AUX) {
 		_zip->z_apic = INT_ENABLE;
 	}
-	_zip->z_pic = DALLPIC|mask;
+	// Disable all interrupts, clear this one
+	_zip->z_pic = DALLPIC | mask;
 	_zip->z_pic = EINT(mask);
 	zip_rtu();
 }
@@ -114,7 +115,7 @@ int	mpyuhi(int a, int b) {
 	// return ahi;
 }
 
-
+#ifdef	GPSUART_ACCESS
 int	gps_lock = 0;
 void	gps_process_line(const char *line) {
 	if ((line[0] != '$')||(line[1] != 'G')
@@ -180,6 +181,7 @@ void	gps_process_line(const char *line) {
 		// printf("GPS Line: %s\r\n", line);
 	} else printf("Other GPS Line: %s\r\n", line);
 }
+#endif
 
 char	errstring[128];
 
@@ -190,10 +192,12 @@ void	main(int argc, char **argv) {
 		second = CLKFREQHZ;
 	int	i, sw;
 
+#ifdef	GPSTRK_ACCESS
 	// Start the GPS converging ...
 	_gps->g_alpha = 2;
 	_gps->g_beta  = 0x14bda12f;
 	_gps->g_gamma = 0x1f533ae8;
+#endif
 
 	// 
 	int	user_context[16];
@@ -271,21 +275,26 @@ void	main(int argc, char **argv) {
 	user_context[15] = (int)&user_task;
 	zip_restore_context(user_context);
 
+#ifdef	GPSTRK_ACCESS
 	do {
-		wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
+		wait_on_interrupt(SYSINT_TMA);
 	} while((_zip->z_pic & SYSINT_PPS)==0);
 
 	printf("GPS RECORD START\r\n");
+#endif
 
 	_zip->z_tma = TMR_INTERVAL | (second/1000);
 	wait_on_interrupt(SYSINT_TMA);
+#ifdef	GPSUART_ACCESS
 	_gpsu->u_rx = 0x01000;
+#endif
 	while(1) {
 		char	*s = errstring;
 
 		_zip->z_wdt = CLKFREQHZ*4;
 		*_spio = 0x0808;
 
+#ifdef	_BOARD_HAS_GPSTB
 		// 1. Read and report the GPS tracking err
 
 		// Get the upper 32-bits of the error;
@@ -303,17 +312,22 @@ void	main(int argc, char **argv) {
 
 		printf("\r\nGPS PPS Err: 0x%08x => 0x%08x => %+5d.%03d us\r\n",
 			err, err_in_ns, err_in_us, err_in_ns_rem);
+#endif
 
 
 
 		*_spio = 0x0800;
 
+#ifdef	GPSTRK_ACCESS
 		_zip->z_pic  = SYSINT_GPSRXF | SYSINT_PPS | SYSINT_TMA;
+
 		{
 			const int	LINEBUFSZ = 80;
 			char	line[LINEBUFSZ], *linep = line;
 			do {
 				int	v;
+
+#ifdef	GPSUART_ACCESS
 				wait_on_interrupt(SYSINT_PPS|SYSINT_GPSRXF|SYSINT_TMA);
 
 				while(((v = _gpsu->u_rx)&0x100)==0) {
@@ -330,8 +344,11 @@ void	main(int argc, char **argv) {
 						linep = line;
 					}
 				}
+#endif
+				wait_on_interrupt(SYSINT_PPS|SYSINT_TMA);
 			} while((_zip->z_pic & SYSINT_PPS)==0);
 		}
+#endif
 	}
 
 	zip_halt();

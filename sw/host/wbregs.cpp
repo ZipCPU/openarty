@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
 	unsigned address, value;
 
 	if (isvalue(named_address)) {
-		printf("Named address = %s\n", named_address);
+		// printf("Named address = %s\n", named_address);
 		address = strtoul(named_address, NULL, 0);
 		if (map_file)
 			nm = getmap_name(map_file, address);
@@ -223,6 +223,9 @@ int main(int argc, char **argv) {
 		address = addrdecode(named_address);
 		nm = addrname(address);
 	}
+
+	if (NULL == nm)
+		nm = "";
 
 	if (argc < 2) {
 		FPGA::BUSW	v;
@@ -241,11 +244,22 @@ int main(int argc, char **argv) {
 				isgraph(c)?c:'.', isgraph(d)?d:'.', v);
 		} catch(BUSERR b) {
 			printf("%08x (%8s) : BUS-ERROR\n", address, nm);
+		} catch(const char *er) {
+			printf("Caught bug: %s\n", er);
+			exit(EXIT_FAILURE);
 		}
 	} else {
-		value = strtoul(argv[1], NULL, 0);
-		m_fpga->writeio(address, value);
-		printf("%08x (%8s)-> %08x\n", address, nm, value);
+		try {
+			value = strtoul(argv[1], NULL, 0);
+			m_fpga->writeio(address, value);
+			printf("%08x (%8s)-> %08x\n", address, nm, value);
+		} catch(BUSERR b) {
+			printf("%08x (%8s) : BUS-ERR)R\n", address, nm);
+			exit(EXIT_FAILURE);
+		} catch(const char *er) {
+			printf("Caught bug on write: %s\n", er);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (m_fpga->poll())

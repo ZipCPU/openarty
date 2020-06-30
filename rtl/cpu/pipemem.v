@@ -17,7 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -49,7 +49,8 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 		o_wb_cyc_gbl, o_wb_cyc_lcl,
 			o_wb_stb_gbl, o_wb_stb_lcl,
 			o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
-		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
+		i_wb_stall, i_wb_ack, i_wb_err, i_wb_data
+		);
 	parameter	ADDRESS_WIDTH=30;
 	parameter [0:0]	IMPLEMENT_LOCK=1'b1,
 			WITH_LOCAL_BUS=1'b1,
@@ -82,7 +83,7 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 	output	reg	[31:0]	o_wb_data;
 	output	reg	[3:0]	o_wb_sel;
 	// Wishbone inputs
-	input	wire		i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire		i_wb_stall, i_wb_ack, i_wb_err;
 	input	wire	[31:0]	i_wb_data;
 
 
@@ -299,8 +300,8 @@ module	pipemem(i_clk, i_reset, i_pipe_stb, i_lock,
 
 	// Make verilator happy
 	// verilator lint_off UNUSED
-	wire	[32-AW+2+1-1:0]	unused;
-	assign	unused = { i_lock, i_addr[31:AW], i_addr[1:0] };
+	wire	unused;
+	assign	unused = &{ 1'b0, i_lock, i_addr[31:AW], i_addr[1:0] };
 	// verilator lint_on  UNUSED
 
 `ifdef	FORMAL

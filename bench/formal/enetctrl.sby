@@ -20,4 +20,4 @@ prep -top enetctrl
 
 [files]
 fwb_slave.v
-../../rtl/enetctrl.v
+../../rtl/enet/enetctrl.v

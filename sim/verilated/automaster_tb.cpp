@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -48,7 +48,7 @@
 #include "design.h"
 #include "cpudefs.h"
 
-#ifdef	OLED_ACCESS
+#ifdef	OLEDRGB_ACCESS
 #include "oledsim.h"
 #endif
 
@@ -80,7 +80,7 @@ void	usage(void) {
 }
 
 int	main(int argc, char **argv) {
-#ifdef	OLED_ACCESS
+#ifdef	OLEDRGB_ACCESS
 	Gtk::Main	main_instance(argc, argv);
 #endif
 	Verilated::commandArgs(argc, argv);
@@ -162,6 +162,7 @@ int	main(int argc, char **argv) {
 #endif
 
 	if (elfload) {
+		const	unsigned	MAX_RESET_CLOCKS = 40;
 #ifndef	INCLUDE_ZIPCPU
 		fprintf(stderr, "ERR: Design has no ZipCPU\n");
 		exit(EXIT_FAILURE);
@@ -177,22 +178,40 @@ int	main(int argc, char **argv) {
 		printf("Attempting to start from 0x%08x\n", entry);
 		tb->m_core->cpu_ipc = entry;
 
-		tb->m_core->cpu_cmd_halt = 0;
+		tb->m_core->cpu_cmd_halt = 1;
 		tb->m_core->cpu_reset    = 0;
 		tb->tick();
 
 		tb->m_core->cpu_ipc = entry;
+		tb->m_core->cpu_cmd_halt = 1;
+		tb->m_core->cpu_reset    = 0;
+
+		for(unsigned k=0; k<MAX_RESET_CLOCKS; k++) {
+			tb->m_core->cpu_cmd_halt = 1;
+			while(tb->m_core->i_clk)
+				tb->tick();
+			while(!tb->m_core->i_clk)
+				tb->tick();
+		}
+
+	//
+		// tb->m_core->alu_wR  = 1;
 		tb->m_core->cpu_new_pc   = 1;
 		tb->m_core->cpu_pf_pc    = entry;
-		tb->m_core->cpu_cmd_halt = 0;
-		tb->m_core->cpu_reset    = 0;
+		tb->m_core->CPUVAR(_alu_reg) = 15;
+		tb->m_core->CPUVAR(_dbgv)    = 1;
+		tb->m_core->CPUVAR(_dbg_val) = entry;
+		tb->m_core->CPUVAR(_dbg_clear_pipe) = 1;
+		tb->m_core->eval();
+	//
 		tb->tick();
 		tb->m_core->cpu_cmd_halt = 0;
 		tb->m_core->VVAR(_swic__DOT__cmd_reset) = 0;
+		tb->m_core->VVAR(_swic__DOT__cpu_halt) = 0;
 	}
 
-#ifdef	OLED_ACCESS
-	Gtk::Main::run(tb->m_oled);
+#ifdef	OLEDRGB_ACCESS
+	Gtk::Main::run(tb->m_oledrgb);
 #else
 	if (profile_fp) {
 		unsigned long	last_instruction_tick = 0, now = 0;

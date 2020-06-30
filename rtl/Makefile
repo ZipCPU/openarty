@@ -50,14 +50,14 @@ BASE  := main
 .DELETE_ON_ERROR:
 .PHONY: test
 test: $(VOBJ)/V$(BASE)__ALL.a
-test: $(VOBJ)/Venetctrl__ALL.a
+# test: $(VOBJ)/Venetctrl__ALL.a
 SUBMAKE := $(MAKE) --no-print-directory -C $(VOBJ) -f
 ifeq ($(VERILATOR_ROOT),)
 VERILATOR := verilator
 else
 VERILATOR := $(VERILATOR_ROOT)/bin/verilator
 endif
-VFLAGS = -Wall --MMD -O3 --trace -Mdir $(VDIRFB) $(AUTOVDIRS) -cc
+VFLAGS = -Wall --MMD -O3 -Wno-TIMESCALEMOD --trace -Mdir $(VDIRFB) $(AUTOVDIRS) -cc
 
 -include make.inc
 

@@ -1,0 +1,238 @@
+################################################################################
+##
+## Filename: 	wbuconsole.txt
+##
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	Provide access to both a debugging bus and a console port for
+##		the CPU.  The debugging bus will be given 7-bit transfer codes
+##	with the high bit set, the console the same codes but with bit 8 clear.
+##
+##	This particular version of the console uses the wbu (wishbone to UART)
+##	debugging bus.
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+##
+## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+##
+## This program is free software (firmware): you can redistribute it and/or
+## modify it under the terms of  the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or (at
+## your option) any later version.
+##
+## This program is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+##
+## License:	GPL, v3, as defined and found on www.gnu.org,
+##		http://www.gnu.org/licenses/gpl.html
+##
+##
+################################################################################
+##
+##
+@PREFIX=wbu
+@DEVID=DBGBUS
+@ACCESS=WBUBUS_MASTER
+@MASTER.BUS=wbu
+@MASTER.TYPE=HOST
+@BUS.NAME=wbu
+@BUS.CLOCK=clk
+@BUS.WIDTH=32
+@BUS.TYPE=wb
+@BUS.OPT_DBLBUFFER=1
+@$BAUDRATE=1000000
+@CLOCK.NAME=clk
+@CLOCK.RESET=i_reset
+@$SETUP=@$(CLOCK.FREQUENCY) / @$BAUDRATE
+@SETUP.FORMAT=24'h%x
+@$BUS_ADDRESS_WIDTH=@$(MASTER.BUS.AWID)
+@MAIN.PORTLIST=
+		// UART/host to wishbone interface
+		i_@$(PREFIX)_uart_rx, o_@$(PREFIX)_uart_tx
+@MAIN.IODECL=
+	input	wire		i_@$(PREFIX)_uart_rx;
+	output	wire		o_@$(PREFIX)_uart_tx;
+@MAIN.PARAM=
+	//
+	// WBUBUS parameters
+	//
+	// Baudrate : @$[%9d](BAUDRATE)
+	// Clock    : @$[%9d](CLOCK.FREQUENCY)
+	localparam [23:0] BUSUART = @$SETUP;	// @$[%9d](BAUDRATE) baud
+	localparam	@$(DEVID)BITS = $clog2(BUSUART);
+	//
+	// Maximum command is 6 bytes, where each byte takes 10 baud clocks
+	// and each baud clock requires @$(DEVID)BITS to represent.  Here,
+	// we'll add one more for good measure.
+	localparam	@$(DEVID)WATCHDOG_RAW = @$(DEVID)BITS + 9;
+	localparam	@$(DEVID)WATCHDOG = (@$(DEVID)WATCHDOG_RAW > 19)
+				? @$(DEVID)WATCHDOG_RAW : 19;
+@MAIN.DEFNS=
+	//
+	//
+	// UART interface
+	//
+	//
+	wire	[7:0]	@$(PREFIX)_rx_data, @$(PREFIX)_tx_data;
+	wire		@$(PREFIX)_rx_stb;
+	wire		@$(PREFIX)_tx_stb, @$(PREFIX)_tx_busy;
+
+	wire	w_ck_uart, w_uart_tx;
+	// Definitions for the WB-UART converter.  We really only need one
+	// (more) non-bus wire--one to use to select if we are interacting
+	// with the ZipCPU or not.
+	wire	[0:0]	wbubus_dbg;
+`ifndef	INCLUDE_ZIPCPU
+	//
+	// The bus-console depends upon the zip_dbg wires.  If there is no
+	// ZipCPU defining them, we'll need to define them here anyway.
+	//
+	wire		zip_dbg_stall, zip_dbg_ack;
+	wire	[31:0]	zip_dbg_data;
+`endif
+@$ZIP_ADDRESS_BIT=@$BUS_ADDRESS_WIDTH-1
+@$ZIP_ADDRESS=(1<<(@$.ZIP_ADDRESS_BIT+2))
+@ZIP_ADDRESS.FORMAT= 0x%08x
+@$ZIP_DBGDATA=4+@$.ZIP_ADDRESS
+@ZIP_DBGDATA.FORMAT= 0x%08x
+@MAIN.INSERT=
+	// The Host USB interface, to be used by the WB-UART bus
+	rxuartlite	#(.TIMER_BITS(@$(DEVID)BITS),
+				.CLOCKS_PER_BAUD(BUSUART[@$(DEVID)BITS-1:0]))
+		rcv(@$(CLOCK.WIRE), i_@$(PREFIX)_uart_rx,
+				@$(PREFIX)_rx_stb, @$(PREFIX)_rx_data);
+	txuartlite	#(.TIMING_BITS(@$(DEVID)BITS[4:0]),
+				.CLOCKS_PER_BAUD(BUSUART[@$(DEVID)BITS-1:0]))
+		txv(@$(CLOCK.WIRE),
+				@$(PREFIX)_tx_stb,
+				@$(PREFIX)_tx_data,
+				o_@$(PREFIX)_uart_tx,
+				@$(PREFIX)_tx_busy);
+
+`ifdef	INCLUDE_ZIPCPU
+`else
+	assign	zip_dbg_ack   = 1'b0;
+	assign	zip_dbg_stall = 1'b0;
+	assign	zip_dbg_data  = 0;
+`endif
+`ifndef	BUSPIC_ACCESS
+	wire	w_bus_int;
+	assign	w_bus_int = 1'b0;
+`endif
+	// Verilator lint_off UNUSED
+	wire	[31:0]	@$(MASTER.PREFIX)_tmp_addr;
+	// Verilator lint_on  UNUSED
+	wbuconsole #(.LGWATCHDOG(@$(DEVID)WATCHDOG))
+	genbus(@$(CLOCK.WIRE), @$(PREFIX)_rx_stb, @$(PREFIX)_rx_data,
+			@$(MASTER.PREFIX)_cyc, @$(MASTER.PREFIX)_stb, @$(MASTER.PREFIX)_we, @$(MASTER.PREFIX)_tmp_addr, @$(MASTER.PREFIX)_data,
+			@$(MASTER.PREFIX)_stall, @$(MASTER.PREFIX)_ack,
+			@$(MASTER.PREFIX)_err, @$(MASTER.PREFIX)_idata,
+			w_bus_int,
+			@$(PREFIX)_tx_stb, @$(PREFIX)_tx_data, @$(PREFIX)_tx_busy,
+			//
+			w_console_tx_stb, w_console_tx_data, w_console_busy,
+			w_console_rx_stb, w_console_rx_data,
+			//
+			wbubus_dbg[0]);
+	assign	@$(MASTER.PREFIX)_sel = 4'hf;
+	assign	@$(MASTER.PREFIX)_addr = @$(MASTER.PREFIX)_tmp_addr[(@$BUS_ADDRESS_WIDTH-1):0];
+@REGDEFS.H.DEFNS=
+#define	R_ZIPCTRL	@$.ZIP_ADDRESS
+#define	R_ZIPDATA	@$.ZIP_DBGDATA
+// #define	RESET_ADDRESS	@$[0x%08x](RESET_ADDRESS)
+#define	BAUDRATE	@$[%d](BAUDRATE)
+@RTL.MAKE.GROUP= WBUBUS
+@RTL.MAKE.SUBD=  wbubus
+@RTL.MAKE.FILES= wbuconsole.v wbufifo.v wbucompactlines.v wbucompress.v
+	wbudecompress.v wbudeword.v wbuexec.v wbuidleint.v wbuinput.v
+	wbuoutput.v wbureadcw.v wbusixchar.v wbutohex.v wbconsole.v
+@SIM.INCLUDE=
+#include "dbluartsim.h"
+@SIM.CLOCK=@$(CLOCK.NAME)
+@SIM.DEFNS=
+	DBLUARTSIM	*m_@$(PREFIX);
+@SIM.INIT=
+		m_@$(PREFIX) = new DBLUARTSIM();
+		m_@$(PREFIX)->setup(@$[%d](SETUP));
+@SIM.TICK=
+		m_core->i_@$(PREFIX)_uart_rx = (*m_@$(PREFIX))(m_core->o_@$(PREFIX)_uart_tx);
+##
+##
+@PREFIX=wbu_arbiter
+@MASTER.BUS=wb
+@MASTER.TYPE=ARBITER
+@SLAVE.BUS=wbu
+@SLAVE.TYPE=OTHER
+@ERROR.WIRE=@$(SLAVE.PREFIX)_err
+@$NADDR=(1<<@$(MASTER.BUS.AWID))
+@MAIN.INSERT=
+	assign	@$(MASTER.PREFIX)_cyc  = @$(SLAVE.PREFIX)_cyc;
+	assign	@$(MASTER.PREFIX)_stb  = @$(SLAVE.PREFIX)_stb;
+	assign	@$(MASTER.PREFIX)_we   = @$(SLAVE.PREFIX)_we;
+	assign	@$(MASTER.PREFIX)_addr = @$(SLAVE.PREFIX)_addr[@$(MASTER.BUS.AWID)-1:0];
+	assign	@$(MASTER.PREFIX)_data = @$(SLAVE.PREFIX)_data;
+	assign	@$(MASTER.PREFIX)_sel  = @$(SLAVE.PREFIX)_sel;
+	//
+	assign	@$(SLAVE.PREFIX)_stall = @$(MASTER.PREFIX)_stall;
+	assign	@$(SLAVE.PREFIX)_ack   = @$(MASTER.PREFIX)_ack;
+	assign	@$(SLAVE.PREFIX)_idata = @$(MASTER.PREFIX)_idata;
+	assign	@$(SLAVE.PREFIX)_err   = @$(MASTER.PREFIX)_err;
+##
+##
+##
+@PREFIX=uart
+@NADDR=	4
+@SLAVE.TYPE=	OTHER
+@SLAVE.BUS=wb
+@ACCESS= BUSCONSOLE_ACCESS
+@INT.UARTRX.WIRE=uartrx_int
+@INT.UARTTX.WIRE=uarttx_int
+@INT.UARTRXF.WIRE=uartrxf_int
+@INT.UARTTXF.WIRE=uarttxf_int
+@INT.UARTRX.PIC=altpic
+@INT.UARTTX.PIC=altpic
+@INT.UARTRXF.PIC=syspic
+@INT.UARTTXF.PIC=syspic
+@MAIN.DEFNS=
+	// Console definitions
+	wire		w_console_rx_stb, w_console_tx_stb, w_console_busy;
+	wire	[6:0]	w_console_rx_data, w_console_tx_data;
+	wire	[31:0]	uart_debug;
+@MAIN.INSERT=
+	wbconsole #(.LGFLEN(6)) console(@$(SLAVE.BUS.CLOCK.WIRE), 1'b0,
+			@$(SLAVE.PORTLIST),
+			w_console_tx_stb, w_console_tx_data, w_console_busy,
+			w_console_rx_stb, w_console_rx_data,
+			uartrx_int, uarttx_int, uartrxf_int, uarttxf_int);
+@REGS.NOTE = // CONSOLE registers
+@REGS.N = 3
+## This is unused @REGS.0 = 0 R_CONSOLE_SETUP	 USETUP
+@REGS.0 = 1 R_CONSOLE_FIFO	 UFIFO
+@REGS.1 = 2 R_CONSOLE_UARTRX	 RX
+@REGS.2 = 3 R_CONSOLE_UARTTX	 TX
+
+@BDEF.DEFN =
+typedef struct  CONSOLE_S {
+	unsigned	u_setup;
+	unsigned	u_fifo;
+	unsigned	u_rx, u_tx;
+} CONSOLE;
+
+#define	_@$(PREFIX)_txbusy	((_uart->u_fifo & 0x10000)==0)
+@BDEF.IONAME= io_console
+@BDEF.IOTYPE= CONSOLE
+@BDEF.OSDEF=	_BOARD_HAS_BUSCONSOLE
+@BDEF.OSVAL=static volatile CONSOLE *const _@$(PREFIX) = ((CONSOLE *)@$[0x%08x](REGBASE));
+@RTL.MAKE.GROUP= CONSOLE
+@RTL.MAKE.SUBD=wbuart
+@RTL.MAKE.FILES= txuartlite.v rxuartlite.v ufifo.v

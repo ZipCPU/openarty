@@ -94,7 +94,7 @@
 // Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
+// modify it under the terms of the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
 // your option) any later version.
 //
@@ -103,6 +103,11 @@
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+//
 // License:	GPL, v3, as defined and found on www.gnu.org,
 //		http://www.gnu.org/licenses/gpl.html
 //
@@ -110,6 +115,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+#include <cpudefs.h>
 #include "zipcpu.h"
 #include "board.h"		// Our current board support file
 #include "bootloader.h"
@@ -126,8 +132,9 @@
 // however: 1) It obscures for any readers of this code what is actually
 // happening, and 2) it makes the code dependent upon yet another piece of the
 // hardware design working.  For these reasons, we allow you to turn it off.
-#ifdef _HAS_ZIPSYS_DMA
+#ifdef _HAVE_ZIPSYS_DMA
 #define	USE_DMA
+#include "zipsys.h"
 #endif
 
 //
@@ -155,7 +162,7 @@ asm("\t.section\t.start,\"ax\",@progbits\n"
 	"\t.global\t_start\n"
 "_start:"	"\t; Here's the global ZipCPU entry point upon reset/reboot\n"
 	"\tLDI\t_top_of_stack,SP"	"\t; Set up our supervisor stack ptr\n"
-	"\tMOV\t_hw_shutdown(PC),uPC" "\t; Set user PC pointer to somewhere valid\n"
+	"\tMOV\t_kernel_is_dead(PC),uPC" "\t; Set user PC pointer to somewhere valid\n"
 #ifndef	SKIP_BOOTLOADER
 	"\tMOV\t_after_bootloader(PC),R0" " ; JSR to the bootloader routine\n"
 	"\tBRA\t_bootloader\n"
@@ -178,10 +185,11 @@ asm("\t.section\t.start,\"ax\",@progbits\n"
 "_graceful_kernel_exit:"	"\t; Halt on any return from main--gracefully\n"
 	"\tJSR\texit\n"	"\t; Call the _exit as part of exiting\n"
 "\t.global\t_hw_shutdown\n"
-"_hw_shutdown:"		"\t; Halt the CPU\n"
+"_hw_shutdown:\n"
 	"\tNEXIT\tR1\n"		"\t; If in simulation, call an exit function\n"
+"_kernel_is_dead:"		"\t; Halt the CPU\n"
 	"\tHALT\n"		"\t; We should *never* continue following a\n"
-	"\tBRA\t_hw_shutdown" "\t; halt, do something useful if so ??\n"
+	"\tBRA\t_kernel_is_dead" "\t; halt, do something useful if so ??\n"
 "_argv:\n"
 	"\t.WORD\t0,0\n"
 	"\t.section\t.text");
@@ -205,69 +213,114 @@ extern	void	_bootloader(void) __attribute__ ((section (".boot")));
 //		zero.  This is sometimes called the BSS segment.
 //
 #ifndef	SKIP_BOOTLOADER
+#define	NOTNULL(A)	(4 != (unsigned)&A[1])
 void	_bootloader(void) {
-	if (_rom == NULL) {
+	// NSTR("BOOTLOADER");
+	int *ramend = _ram_image_end, *bsend = _bss_image_end;
+
+	if (!NOTNULL(_rom)) {
+#ifdef	USE_DMA
+		NSTR("No-ROM");
+extern void txstr(const char *);
+// txstr("No-ROM\r\n");
+// _zipscope->s_ctrl = 0x00000800;
+// while(_zipscope->s_ctrl & 0x80000000)
+	// ;
+// while((_zipscope->s_ctrl & 0x10000000)==0)
+	// ;
+// _zipscope->s_ctrl = 0x88000800;
+		//
+		// Clear the DMA from anything it might've been doing prior
+		// to the CPU reset that brought us here.
+		//
+		_zip->z_dma.d_ctrl= DMACLEAR;
+		if (bsend != ramend) {
+			volatile int	zero = 0;
+
+// *_spio = 0xffff;
+			// NSTR("BSS");
+			_zip->z_pic = SYSINT_DMAC;
+			_zip->z_dma.d_len = bsend - ramend;
+			_zip->z_dma.d_rd  = (unsigned *)&zero;
+			_zip->z_dma.d_wr  = ramend;
+			_zip->z_dma.d_ctrl = DMACCOPY|DMA_CONSTSRC;
+
+// _zipscope->s_ctrl = 0x88000040;
+			while((_zip->z_pic & SYSINT_DMAC)==0)
+				;
+// txstr("DMA\r\n");
+		} CLEAR_CACHE;
+// _zipscope->s_ctrl = 0x88000040;
+*_spio = 0xfffe;
+asm("mov sp,sp");
+// asm("mov r0,r0");
+#else
 		int	*wrp = _ram_image_end;
-		while(wrp < _ram_image_end)
+		while(wrp < _bss_image_end)
 			*wrp++ = 0;
+#endif
+		// NSTR("No ROM -- EARLY RETURN");
+
 		return;
 	}
 
-	int *ramend = _ram_image_end, *bsend = _bss_image_end,
-	    *kramdev = (_kram) ? _kram : _ram;
-
 #ifdef	USE_DMA
-	// asm("\tNSTR "DMA\n"\n");
+	NSTR("DMA");
 	_zip->z_dma.d_ctrl= DMACLEAR;
-	_zip->z_dma.d_rd = _kram_start; // Flash memory
-	_zip->z_dma.d_wr  = (_kram) ? _kram : _ram;
-	if (_kram_start != _kram_end) {
-		if (_kram_end != _kram) {
-			// asm("NSTR \"KRAM\n\"\n");
+	if (NOTNULL(_kram)) {
+NSTR("KRAM = ");
+		_zip->z_dma.d_rd  = _kram_start; // Flash memory ptr
+		_zip->z_dma.d_wr  = _kram;
+		if (_kram_start != _kram_end) {
+			NSTR("KRAM");
+			_zip->z_pic = SYSINT_DMAC;
 			_zip->z_dma.d_len = _kram_end - _kram;
 			_zip->z_dma.d_wr  = _kram;
 			_zip->z_dma.d_ctrl= DMACCOPY;
 
-			_zip->z_pic = SYSINT_DMAC;
 			while((_zip->z_pic & SYSINT_DMAC)==0)
 				;
 		}
-	}
 
-	// _zip->z_dma.d_rd // Keeps the same value
-	if (NULL != _kram) {
 		// Writing to kram, need to switch to RAM
 		_zip->z_dma.d_wr  = _ram;
-		_zip->z_dma.d_len = _ram_image_end - _ram;
+		_zip->z_dma.d_len = ramend - _ram;
 	} else {
+NSTR("No-KRAM");
 		// Continue writing to the RAM device from where we left off
-		_zip->z_dma.d_len = _ram_image_end - _kram_end;
+		_zip->z_dma.d_len = ramend - _ram;
+		_zip->z_dma.d_rd = _ram_image_start; // ROM (flash) memory
+		_zip->z_dma.d_wr = _ram;
 	}
 
 	if (_zip->z_dma.d_len>0) {
-		// asm("NSTR \"RAM\n\"\n");
+		NSTR("RAM");
+		_zip->z_pic = SYSINT_DMAC;
 		_zip->z_dma.d_ctrl= DMACCOPY;
 
-		_zip->z_pic = SYSINT_DMAC;
 		while((_zip->z_pic & SYSINT_DMAC)==0)
 			;
-	}
+	} else
+		NSTR("NO-RAM");
 
-	if (_bss_image_end != _ram_image_end) {
+	if (bsend != ramend) {
 		volatile int	zero = 0;
 
-		// asm("NSTR \"BSS\n\"\n");
-		_zip->z_dma.d_len = _bss_image_end - _ram_image_end;
+		// NSTR("BSS");
+		_zip->z_pic = SYSINT_DMAC;
+		_zip->z_dma.d_len = bsend - ramend;
 		_zip->z_dma.d_rd  = (unsigned *)&zero;
 		// _zip->z_dma.wr // Keeps the same value
 		_zip->z_dma.d_ctrl = DMACCOPY|DMA_CONSTSRC;
 
-		_zip->z_pic = SYSINT_DMAC;
 		while((_zip->z_pic & SYSINT_DMAC)==0)
 			;
 	}
+
+	CLEAR_CACHE;
 #else
 	int	*rdp = _kram_start, *wrp = (_kram) ? _kram : _ram;
+	// NSTR("Not using DMA");
 
 	//
 	// Load any part of the image into block RAM, but *only* if there's a
@@ -277,6 +330,7 @@ void	_bootloader(void) {
 	// the flash address region.
 	//
 	if (_kram_end != _kram_start) {
+		// NSTR("KRAM");
 		while(wrp < _kram_end)
 			*wrp++ = *rdp++;
 	}
@@ -291,6 +345,7 @@ void	_bootloader(void) {
 	// linker.
 	// 
 	// while(wrp < sdend)	// Could also be done this way ...
+	// NSTR("RAM");
 	for(int i=0; i< ramend - _ram; i++)
 		*wrp++ = *rdp++;
 
@@ -300,10 +355,12 @@ void	_bootloader(void) {
 	// initialization is expected within it.  We start writing where
 	// the valid SDRAM context, i.e. the non-zero contents, end.
 	//
+	// NSTR("BSS");
 	for(int i=0; i<bsend - ramend; i++)
 		*wrp++ = 0;
 
 #endif
+	// NSTR("Bootloader complete");
 }
 #endif
 

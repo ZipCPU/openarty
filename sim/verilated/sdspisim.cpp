@@ -15,7 +15,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -49,24 +49,10 @@
 static	const unsigned
 	MICROSECONDS = 80, // Clocks in a microsecond
 	MILLISECONDS = MICROSECONDS * 1000,
-	tRESET = 4*MILLISECONDS; // Just a wild guess
-/*
-static	const unsigned	DEVID = 0x0115,
-	DEVESD = 0x014,
-	MICROSECONDS = 100,
-	MILLISECONDS = MICROSECONDS * 1000,
-	SECONDS = MILLISECONDS * 1000,
-	tW     =   50 * MICROSECONDS, // write config cycle time
-	tBE    =   32 * SECONDS,
-	tDP    =   10 * SECONDS,
-	tRES   =   30 * SECONDS,
-// Shall we artificially speed up this process?
-	tPP    = 12 * MICROSECONDS,
-	tSE    = 15 * MILLISECONDS;
-// or keep it at the original speed
-	// tPP    = 1200 * MICROSECONDS,
-	// tSE    = 1500 * MILLISECONDS;
-*/
+	tRESET = 4*MILLISECONDS, // Just a wild guess
+	LGSECTOR_SIZE = 9,
+	SECTOR_SIZE = (1<<LGSECTOR_SIZE);
+
 static	const	unsigned
 	CCS = 1; // 0: SDSC card, 1: SDHC or SDXC card
 
@@ -78,40 +64,10 @@ SDSPISIM::SDSPISIM(const bool debug) {
 	m_powerup_busy = -1;
 	m_reset_state = SDSPI_POWERUP_RESET;
 	//
-	m_csd[ 0] = 0; // Normal SDcard, not high capacity
-	m_csd[ 1] = 0x0f;
-	m_csd[ 2] = 0x0f;
-	m_csd[ 3] = 0x32; // Can be either 0x32 (25MHz) or 0x5a (50MHz)
-	m_csd[ 4] = 0x5b; // Could also be 0x07b, if we supported more comands(?)
-	m_csd[ 5] = 0x59; // 9-> 2^9,or 512 bytes (10->1024, 11->2048, no othrs)
-	m_csd[ 6] = 0x00; // partial blocks allowed?
-	m_csd[ 7] = 0x00; // C_SIZE, 2'b00, then top 6 bits
-	m_csd[ 8] = 0;	// C_SIZE, 22-bits, mid 8 bits
-	m_csd[ 9] = 0;	// C_SIZE, 22-bits, bottom 8 bits
-	m_csd[10] = 0x7f;
-	m_csd[11] = 0x80;
-	m_csd[12] = 0x0a;
-	m_csd[13] = 0x40; 
-	m_csd[14] = 0; // R/W: file format, copy, write protect, etc.
-	m_csd[15] = cmdcrc(15, m_csd);
+	CSD();	// assign values to m_csd
 
 	// CID Register
-	m_cid[ 0] = 0xba;
-	m_cid[ 1] = 0xd0;
-	m_cid[ 2] = 0xda;
-	m_cid[ 3] = 0xdd;
-	m_cid[ 4] = 0;
-	m_cid[ 5] = 0xde;
-	m_cid[ 6] = 0xad;
-	m_cid[ 7] = 0xbe;
-	m_cid[ 8] = 0xef;
-	m_cid[ 9] = 0x20;
-	m_cid[10] = 0x16;
-	m_cid[11] = 0x05;
-	m_cid[12] = 0x26;
-	m_cid[13] = 0;
-	m_cid[14] = 0;
-	m_cid[15] = cmdcrc(15, m_cid);
+	CID();	// Assigne values to m_cid, our CID register
 
 	// m_write_count = 0;
 	// m_ireg = m_oreg = 0;
@@ -133,11 +89,127 @@ void	SDSPISIM::load(const char *fname) {
 		devln = ftell(m_dev);
 		fseek(m_dev, 0l, SEEK_SET);
 
-		m_devblocks = devln>>9;
+		m_devblocks = devln>>LGSECTOR_SIZE;
 
-		if (m_debug) printf("SDCARD: On load, NBLOCKS = %ld\n", m_devblocks);
+		if (m_debug) printf("SDCARD: NBLOCKS = %ld\n", m_devblocks);
 	}
 }
+
+unsigned	SDSPISIM::read_bitfield(int offset, int bits,
+				int ln, const uint8_t *bitfield) {
+	// unsigned	total = 8*ln;
+	// unsigned	index = total-offset;
+	return 0;
+}
+
+unsigned	SDSPISIM::OCR(void) {
+	unsigned	ocr = 0x00ff80;
+
+	if (CCS)
+		ocr |= 0x400000;
+	if (m_powerup_busy)
+		ocr |= 0x800000;
+
+	return ocr;
+}
+
+void	SDSPISIM::CSD(void) {
+	static const uint8_t __attribute__((unused)) SYNTHETIC_CSD[] = {
+		// Normal SD Card, not high capacity
+		0x00,
+		0x0f, 0x0f,
+		// Can be either 0x32 (25MHz) or 0x5a (50MHz)
+		0x32,
+		// Could also be 0x7b, if we supported more commands
+		0x5b,
+		// 9 -> 2^9 or 512 byte blocks (10 -> 1024, 11-> 2048, no othrs)
+		0x59,
+		//  Partial blocks allowed?
+		0x00,
+		// C_SIZE, 2'b00, then top 6 bits
+		0x00,
+		// C_SIZE, 22-bits, mid 8-bits
+		0x00,
+		// C_SIZE, 22-bits, bottom 8-bits
+		0x00,
+		0x7f, 0x80,
+		0x0a, 0x40, 0 };
+	static const uint8_t	__attribute__((unused)) LEXAR_CSD[] = {
+		0x40, 0x0e, 0x00, 0x32,
+		0xdb, 0x79, 0x00, 0x01,
+		0xd7, 0x03, 0x7f, 0x80,
+		0x0a, 0x40, 0x00
+		};
+	static const uint8_t	__attribute__((unused)) SANDISK_CSD[] = {
+		0x30, 0x0e, 0x00, 0x32,
+		0x5b, 0x59, 0x00, 0x07,
+		0x72, 0x5f, 0x7f, 0x80,
+		0x0a, 0x40, 0x40
+		};
+#define	DEFAULT_CSD	LEXAR_CSD
+// #define	DEFAULT_CSD	SANDISK_CSD
+	assert(sizeof(DEFAULT_CSD) == SDSPI_CSDLEN-1);
+
+	for(int k=0; k<15; k++)
+		m_csd[k] = DEFAULT_CSD[k];
+	
+	//
+	// Adjust the C_SIZE field for the correct number of blocks
+	//
+
+	// The following code works on high-capacity cards only
+	assert((DEFAULT_CSD[0] & 0x0c0)== 0x40);
+
+	m_csd[7] = (m_devblocks >> 16) & 0x03f;
+	m_csd[8] = (m_devblocks >>  8) & 0x0ff;
+	m_csd[9] = (m_devblocks      ) & 0x0ff;
+
+	//
+	// Now make the CRC match
+
+	m_csd[15] = cmdcrc(15, (char *)m_csd);
+}
+
+uint8_t	SDSPISIM::CSD(int index) {
+	assert(index >= 0);
+	assert(index < SDSPI_CSDLEN);
+	return m_csd[index];
+}
+
+void	SDSPISIM::CID(void) {
+	// CID Reg
+	static const uint8_t __attribute__((unused)) SYNTHETIC_CID[] = {
+		0xba, 0xd0, 0xda, 0xdd,
+		0x00, 0xde, 0xad, 0xbe,
+		0xef, 0x20, 0x16, 0x05,
+		0x26, 0x00, 0x00 };
+	static const uint8_t __attribute__((unused)) LEXAR_CID[] = {
+		0x9c, 0x53, 0x4f, 0x4c,
+		0x58, 0x36, 0x34, 0x47,
+		0x10, 0x29, 0x80, 0x03,
+		0x7b, 0x01, 0x38
+	};
+	static const uint8_t __attribute__((unused)) SANDISK_CID[] = {
+		0x03, 0x53, 0x44, 0x53,
+		0x43, 0x32, 0x35, 0x36,
+		0x80, 0xef, 0x4a, 0x3b,
+		0x4a, 0x01, 0x39
+	};
+// #define	DEFAULT_CID	SANDISK_CID
+#define	DEFAULT_CID	LEXAR_CID
+	assert(sizeof(DEFAULT_CID) == SDSPI_CIDLEN-1);
+
+	for(int k=0; k<15; k++)
+		m_cid[k] = DEFAULT_CID[k];
+	m_cid[15] = cmdcrc(15, (char *)m_cid);
+};
+
+uint8_t	SDSPISIM::CID(int index) {
+	assert(index >= 0);
+	assert(index < SDSPI_CIDLEN);
+	return m_cid[index];
+}
+
 
 int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 	// Keep track of a timer to determine when page program and erase
@@ -200,21 +272,27 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 				m_block_buf[m_rxloc++] = m_dat_in;
 				if (m_debug) printf("SDSPI: WR[%3d] = %02x\n", m_rxloc-1,
 					m_dat_in&0x0ff);
-				if (m_rxloc >= 512+2) {
+				if (m_rxloc >= (unsigned)SECTOR_SIZE+2) {
 					unsigned crc, rxcrc;
-					crc = blockcrc(512, m_block_buf);
-					rxcrc = ((m_block_buf[512]&0x0ff)<<8)
-						|(m_block_buf[513]&0x0ff);
+
+					crc = blockcrc(SECTOR_SIZE, m_block_buf);
+					rxcrc = ((m_block_buf[SECTOR_SIZE]&0x0ff)<<8)
+						|(m_block_buf[SECTOR_SIZE+1]&0x0ff);
 
 					if (m_debug) printf("LEN = %d\n", m_rxloc);
 					if (m_debug) printf("CHECKING CRC: (rx) %04x =? %04x (calc)\n",
 						crc, rxcrc);
 					m_reading_data = false;
 					m_have_token = false;
-					if (rxcrc == crc)
+					if (rxcrc == crc) {
 						m_dat_out = 5;
-					else {
+						if (m_dev) {
+							fwrite(m_block_buf, 1, SECTOR_SIZE, m_dev);
+							fflush(m_dev);
+						}
+					} else {
 						m_dat_out = 0x0b;
+						printf("RXCRC Err!  %04x != %04x\n", rxcrc, crc);
 						assert(rxcrc == crc);
 					}
 				}
@@ -375,24 +453,34 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 						if (m_debug) printf("Reading from block %08x of %08lx\n", arg, m_devblocks);
 						if (m_block_address) {
 							assert(arg < m_devblocks);
-							fseek(m_dev, arg<<9, SEEK_SET);
+							fseek(m_dev, arg<<LGSECTOR_SIZE, SEEK_SET);
 						} else {
 							assert(arg < m_devblocks<<9);
 							fseek(m_dev, arg, SEEK_SET);
 						}
 					} m_block_buf[0] = 0x0fe;
-					m_blklen = 512; // (1<<m_csd[5]);
+					m_blklen = SECTOR_SIZE; //(1<<m_csd[5]);
 					if (m_dev)
 						m_blklen = fread(&m_block_buf[1], m_blklen, 1, m_dev);
 					else
 						memset(&m_block_buf[1], 0, m_blklen);
-					m_blklen = (m_blklen != 512) ? 512 : m_blklen;
+					m_blklen = (m_blklen != SECTOR_SIZE) ? SECTOR_SIZE : m_blklen;
 					add_block_crc(m_blklen, m_block_buf);
 
 					m_blkdly = 60;
 					m_blkidx = 0;
 					break;
 				case 24: // CMD24 -- WRITE_BLOCK
+					if (m_dev) {
+						if (m_debug) printf("Going to write to block %08x of %08lx\n", arg, m_devblocks);
+						if (m_block_address) {
+							assert(arg < m_devblocks);
+							fseek(m_dev, arg<<LGSECTOR_SIZE, SEEK_SET);
+						} else {
+							assert(arg < m_devblocks<<9);
+							fseek(m_dev, arg, SEEK_SET);
+						}
+					}
 					m_reading_data = true;
 					m_have_token = false;
 					m_dat_out = 0;
@@ -402,19 +490,24 @@ int	SDSPISIM::operator()(const int csn, const int sck, const int mosi) {
 					m_rspdly = 2;
 					m_altcmd_flag = true;
 					break;
-				case 58: // CMD58 -- READ_OCR, respond R7
+				case 58: {// CMD58 -- READ_OCR, respond R7
 					// argument is stuff bits/dont care
-					m_rspbuf[0] = 0x00;
+					unsigned	ocr = OCR();
+					m_rspbuf[0] = (ocr >> 24)&0x0ff;
 					// See p112, Tbl 5-1 for this format
-					m_rspbuf[1] = ((m_powerup_busy)?0x80:0)
-							|(CCS?0x40:0);
-					m_rspbuf[2] = 0xff;// 2.7-3.6V supported
-					m_rspbuf[3] = 0x80;
-					m_rspbuf[4] = 0; // No low-voltage supt
+					// m_rspbuf[1] = ((m_powerup_busy)?0x80:0)
+					//		|(CCS?0x40:0);
+					m_rspbuf[1] = (ocr >> 16)&0x0ff;
+					m_rspbuf[2] = (ocr >>  8)&0x0ff;
+					m_rspbuf[3] = (ocr      )&0x0ff;
+					// m_rspbuf[2] = 0xff;// 2.7-3.6V supported
+					// m_rspbuf[3] = 0x80;
+					// m_rspbuf[4] = 0; // No low-voltage supt
 					m_rspdly = 4;
 
 					if (m_reset_state == SDSPI_RESET_COMPLETE)
 						m_reset_state = SDSPI_IN_OPERATION;
+					}
 					break;
 				case  6: // CMD6  -- SWITCH_FUNC
 				case 12: // CMD12 -- STOP_TRANSMISSION (!impl)
@@ -484,19 +577,24 @@ unsigned SDSPISIM::cmdcrc(int len, char *buf) const {
 
 bool	SDSPISIM::check_cmdcrc(char *buf) const {
 	unsigned fill = cmdcrc(5, buf);
-	if (m_debug) printf("SDSPI: CRC-CHECK, should have a CRC of %02x\n", fill);
+	if (m_debug && (fill != (buf[5]&0x0ff)))
+		printf("SDSPI: CRC-CHECK ERR: should have a CRC of %02x, not %02x\n",
+			fill, buf[5] & 0x0ff);
 	return (fill == (buf[5]&0x0ff));
 }
 
 unsigned SDSPISIM::blockcrc(int len, char *buf) const {
 	unsigned int fill = 0, taps = 0x1021;
-	bool	dbg = (len == 512)&&(m_debug);
+	bool	dbg = (len == SECTOR_SIZE)&&(m_debug);
 
 	if (dbg) {
 		for(int i=0; i<len; i+=16) {
 			printf("SDSPISIM::BUF[%3d] ", i);
-			for(int k=0; (k<16)&&(k+i<len); k++)
+			for(int k=0; (k<16)&&(k+i<len); k++) {
 				printf("%02x ", buf[i+k]&0x0ff);
+				if ((k&7) == 7)
+					printf(" ");
+			}
 			printf("\n");
 		}
 	}

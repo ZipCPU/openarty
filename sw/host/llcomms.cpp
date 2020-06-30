@@ -71,6 +71,9 @@ void	LLCOMMSI::write(char *buf, int len) {
 	nw = ::write(m_fdw, buf, len);
 	if (nw <= 0) {
 		throw "Write-Failure";
+	} else if (nw != len) {
+		fprintf(stderr, "LLCOMMSI::ERR: %d byte write request, only %d written\n", len, nw);
+		assert(nw == len);
 	}
 	m_total_nwrit += nw;
 	assert(nw == len);

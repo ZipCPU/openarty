@@ -53,6 +53,8 @@ private:
 	void	place_online(void);
 	void	restore_dualio(void);
 	void	restore_quadio(void);
+	static void restore_dualio(DEVBUS *fpga);
+	static void restore_quadio(DEVBUS *fpga);
 	//
 	bool	verify_config(void);
 	void	set_config(void);

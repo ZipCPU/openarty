@@ -43,6 +43,8 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 
+#include "txfns.h"
+
 #ifdef	_BOARD_HAS_OLEDRGB
 
 void	idle_task(void) {
@@ -52,6 +54,10 @@ void	idle_task(void) {
 
 extern short	splash[], mug[];
 
+/* If running under Verilator, drop the clock frequency for the demo to work
+#undef	CLKFREQHZ
+#define	CLKFREQHZ	1000000
+*/
 #define	MICROSECOND		(CLKFREQHZ/1000000)
 #define	OLEDRGB_DISPLAY_OFF
 
@@ -303,6 +309,7 @@ void	main(int argc, char **argv) {
 	_zip->z_pic = CLEARPIC;
 
 	// Wait till we've had power for at least a quarter second
+txstr("Wait quarter second\n");
 	if (0) {
 		// While this appears to do the task quite nicely, it leaves
 		// the master_ce line high within the CPU, and so it generates
@@ -324,6 +331,7 @@ void	main(int argc, char **argv) {
 	}
 		
 
+txstr("Restart OLED\n");
 	// If the OLED is already powered, such as might be the case if
 	// we rebooted but the board was still hot, shut it down
 	if (_oledrgb->o_data & 0x07) {
@@ -338,6 +346,7 @@ void	main(int argc, char **argv) {
 		// Now let's try to restart it
 	}
 
+txstr("Clear OLED\n");
 	// 1. Power up the OLED by applying power to VCC
 	//	This means we need to apply power to both the VCCEN line as well
 	//	as the PMODEN line.  We'll also set the reset line low, so the
@@ -363,6 +372,7 @@ void	main(int argc, char **argv) {
 	// Wait another 4us.
 	timer_delay(4*MICROSECOND);
 
+txstr("Initialize OLED\n");
 	// 3. Initialize the display to the default settings
 	//	This just took place during the reset cycle we just completed.
 	//
@@ -375,6 +385,7 @@ void	main(int argc, char **argv) {
 	//	We already stuffed this command sequence into the oled_init,
 	//	so we're good here.
 
+txstr("Run the display\n");
 	while(1) {
 		*_spio = 0x0f00;
 
@@ -427,6 +438,7 @@ void	main(int argc, char **argv) {
 
 #else
 void	main(int argc, char **argv) {
+#warning "This design requires OLEDRGB to be in the design"
 	_clrled[0] = 0xff0000;
 	_clrled[1] = 0xff0000;
 	_clrled[2] = 0xff0000;

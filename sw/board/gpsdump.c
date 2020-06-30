@@ -39,6 +39,7 @@
 #include "zipcpu.h"
 #include "zipsys.h"
 
+#ifdef	GPSUART_ACCESS
 void main(int argc, char **argv) {
 	/*
 	// Method one: direct polling
@@ -78,3 +79,10 @@ void main(int argc, char **argv) {
 	}
 	*/
 }
+#else
+#include <stdio.h>
+
+int	main(int argc, char **argv) {
+	printf("This design requires the GPS UART to be installed\n");
+}
+#endif

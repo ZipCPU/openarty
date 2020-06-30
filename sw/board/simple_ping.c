@@ -432,7 +432,11 @@ int main(int argc, char **argv) {
 
 		// Clear any timer or PPS interrupts, disable all others
 		_zip->z_pic = DALLPIC;
+#ifdef	GPSTRK_ACCESS
 		_zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS|SYSINT_ENETRX);
+#else
+		_zip->z_pic = EINT(SYSINT_TMA|SYSINT_ENETRX);
+#endif
 		do {
 			if ((_zip->z_pic & INTNOW)==0) {
 				// Run the user process if no
@@ -503,6 +507,7 @@ int main(int argc, char **argv) {
 				_clrled[3] = LEDC_BRIGHTRED;
 				printf("Timer-A interrupt (FAULT)\n");
 				zip_halt();
+#ifdef	GPSTRK_ACCESS
 			} else if ((picv & DINT(SYSINT_PPS))==0) {
 				*_spio = 0x0f0f;
 				_clrled[0] = LEDC_BRIGHTRED;
@@ -511,6 +516,7 @@ int main(int argc, char **argv) {
 				_clrled[3] = LEDC_WHITE;
 				printf("PPS Interrupt (FAULT)\n");
 				zip_halt();
+#endif
 			} if (picv & SYSINT_ENETRX) {
 				// This will not clear until the packet has
 				// been removed and the interface reset.  For
@@ -533,7 +539,11 @@ int main(int argc, char **argv) {
 			} else
 				_zip->z_pic = EINT(SYSINT_ENETTX);
 			// Make certain interrupts remain enabled
+#ifdef	GPSTRK_ACCESS
 			_zip->z_pic = EINT(SYSINT_TMA|SYSINT_PPS);
+#else
+			_zip->z_pic = EINT(SYSINT_TMA);
+#endif
 
 			if (picv & SYSINT_TMA) {
 				if (lastpps==1)
@@ -543,11 +553,16 @@ int main(int argc, char **argv) {
 					lastpps = 0;
 				}
 			}
-		} while((picv & (SYSINT_TMA|SYSINT_PPS))==0);
+		}
+#ifdef	GPSTRK_ACCESS
+		while((picv & (SYSINT_TMA|SYSINT_PPS))==0);
 		if (picv & SYSINT_PPS) {
 			lastpps = 1;
 			_zip->z_tma = CLKFREQHZ | TMR_INTERVAL;
 		}
+#else
+		while((picv & SYSINT_TMA)==0);
+#endif
 	}
 #endif // _BOARD_HAS_ENET
 }

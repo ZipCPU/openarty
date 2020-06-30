@@ -116,7 +116,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -142,8 +142,8 @@
 //
 `default_nettype	none
 //
-module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
-			o_ack, o_stall, o_data,
+module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
+			o_stall, o_ack, o_data,
 		o_sck, o_cs_n, o_mosi, o_dbit,
 		o_pwr, o_int);
 	parameter	CBITS=4, // 2^4*13ns -> 208ns/clock > 150ns min
@@ -151,8 +151,9 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	input	wire		i_clk, i_cyc, i_stb, i_we;
 	input	wire	[1:0]	i_addr;
 	input	wire	[31:0]	i_data;
-	output	reg		o_ack;
+	input	wire	[3:0]	i_sel;
 	output	wire		o_stall;
+	output	reg		o_ack;
 	output	reg	[31:0]	o_data;
 	output	wire		o_sck, o_cs_n, o_mosi, o_dbit;
 	output	reg	[2:0]	o_pwr;
@@ -162,13 +163,23 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	reg	[31:0]	dev_word;
 	reg	[1:0]	dev_len;
 	wire		dev_busy;
-	lloledrgb	#(CBITS)
-		lwlvl(i_clk, dev_wr, dev_dbit, dev_word, dev_len, dev_busy,
-			o_sck, o_cs_n, o_mosi, o_dbit);
+
+	reg		r_busy;
+	reg	[3:0]	r_len;
+	reg	[31:0]	r_a, r_b;
+	reg		r_cstb, r_dstb, r_pstb, r_pre_busy;
+	reg	[18:0]	r_data;
+	reg	[3:0]	b_len;
+	reg	[23:0]	c_data;
+	reg	[87:0]	r_sreg; // Composed of 24-bits, 32-bits, and 32-bits
 
 	wire		wb_stb, wb_we;
 	wire	[31:0]	wb_data;
 	wire	[1:0]	wb_addr;
+
+	lloledrgb	#(CBITS)
+		lwlvl(i_clk, dev_wr, dev_dbit, dev_word, dev_len, dev_busy,
+			o_sck, o_cs_n, o_mosi, o_dbit);
 
 	// I've thought about bumping this from a clock at <= 100MHz up to a 
 	// clock near 200MHz.  Doing so requires an extra clock to come off
@@ -202,29 +213,22 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 		assign	wb_addr = i_addr;
 	end endgenerate
 
-
-
-	reg		r_busy;
-	reg	[3:0]	r_len;
-
-
 	//
 	// Handle registers A & B.  These are set either upon a write, or
 	// cleared (set to zero) upon any command to the control register.
 	//
-	reg	[31:0]	r_a, r_b;
 	always @(posedge i_clk)
-		if ((wb_stb)&&(wb_we))
-		begin
-			if (wb_addr[1:0]==2'b01)
-				r_a <= wb_data;
-			if (wb_addr[1:0]==2'b10)
-				r_b <= wb_data;
-		end else if (r_cstb)
-		begin
-			r_a <= 32'h00;
-			r_b <= 32'h00;
-		end
+	if ((wb_stb)&&(wb_we))
+	begin
+		if (wb_addr[1:0]==2'b01)
+			r_a <= wb_data;
+		if (wb_addr[1:0]==2'b10)
+			r_b <= wb_data;
+	end else if (r_cstb)
+	begin
+		r_a <= 32'h00;
+		r_b <= 32'h00;
+	end
 
 	//
 	// Handle reads from our device.  These really aren't all that 
@@ -232,22 +236,19 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	// some sort of useful value here.  For example, upon reading r_a or
 	// r_b, you can read the current value(s) of those register(s).
 	always @(posedge i_clk)
-	begin
-		case (wb_addr)
-		2'b00: o_data <= { 13'h00, o_pwr, 8'h00, r_len, 1'b0, o_dbit, !o_cs_n, r_busy };
-		2'b01: o_data <= r_a;
-		2'b10: o_data <= r_b;
-		2'b11: o_data <= { 16'h00, 13'h0, o_pwr };
-		endcase
-	end
+	case (wb_addr)
+	2'b00: o_data <= { 13'h00, o_pwr, 8'h00, r_len, 1'b0, o_dbit, !o_cs_n, r_busy };
+	2'b01: o_data <= r_a;
+	2'b10: o_data <= r_b;
+	2'b11: o_data <= { 16'h00, 13'h0, o_pwr };
+	endcase
+
+	assign	o_stall = 1'b0;
 
 	initial	o_ack = 1'b0;
 	always @(posedge i_clk)
-		o_ack <= wb_stb;
-	assign	o_stall = 1'b0;
+		o_ack <= i_cyc && wb_stb;
 
-	reg	r_cstb, r_dstb, r_pstb, r_pre_busy;
-	reg	[18:0]	r_data;
 	initial	r_cstb = 1'b0;
 	initial	r_dstb = 1'b0;
 	initial	r_pstb = 1'b0;
@@ -284,31 +285,30 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 
 	initial	o_pwr = 3'h0;
 	always @(posedge i_clk)
-		if (r_pstb)
-			o_pwr <= ((o_pwr)&(~r_data[18:16]))
-				|((r_data[2:0])&(r_data[18:16]));
+	if (r_pstb)
+		o_pwr <= ((o_pwr)&(~r_data[18:16]))
+			|((r_data[2:0])&(r_data[18:16]));
 
 	// Sadly, because our commands can have a whole slew of different 
 	// lengths, and because these lengths can be ... difficult to 
 	// decipher from the command (especially the first two lengths),
 	// this quick case statement is needed to decode the amount of bytes
 	// that will be sent.
-	reg	[3:0]	b_len;
 	always @(posedge i_clk)
-		casez(wb_data[31:28])
-		4'b0000: b_len <= (wb_data[16])? 4'h2:4'h1;
-		4'b0001: b_len <= 4'h2;
-		4'b0010: b_len <= 4'h3;
-		4'b0011: b_len <= 4'h4;
-		4'b0100: b_len <= 4'h5;
-		4'b0101: b_len <= 4'h6;
-		4'b0110: b_len <= 4'h7;
-		4'b0111: b_len <= 4'h8;
-		4'b1000: b_len <= 4'h9;
-		4'b1001: b_len <= 4'ha;
-		4'b1010: b_len <= 4'hb;
-		default: b_len <= 4'h0;
-		endcase
+	casez(wb_data[31:28])
+	4'b0000: b_len <= (wb_data[16])? 4'h2:4'h1;
+	4'b0001: b_len <= 4'h2;
+	4'b0010: b_len <= 4'h3;
+	4'b0011: b_len <= 4'h4;
+	4'b0100: b_len <= 4'h5;
+	4'b0101: b_len <= 4'h6;
+	4'b0110: b_len <= 4'h7;
+	4'b0111: b_len <= 4'h8;
+	4'b1000: b_len <= 4'h9;
+	4'b1001: b_len <= 4'ha;
+	4'b1010: b_len <= 4'hb;
+	default: b_len <= 4'h0;
+	endcase
 
 	//
 	// On the next clock, we're going to set our data register to
@@ -320,14 +320,13 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	// can write to the bottom bits of the register, and yet still end
 	// up in the top several bits of the following register.
 	//
-	reg	[23:0]	c_data;
 	always @(posedge i_clk)
-		if (wb_data[31:29] != 3'h0)
-			c_data <= wb_data[23:0];
-		else if (wb_data[16])
-			c_data <= { wb_data[15:0], 8'h00 };
-		else
-			c_data <= { wb_data[7:0], 16'h00 };
+	if (wb_data[31:29] != 3'h0)
+		c_data <= wb_data[23:0];
+	else if (wb_data[16])
+		c_data <= { wb_data[15:0], 8'h00 };
+	else
+		c_data <= { wb_data[7:0], 16'h00 };
 
 	//
 	// Finally, after massaging the incoming data off our bus, we finally
@@ -344,7 +343,6 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 	// clear r_busy and therefore become responsive to the bus again.
 	//
 	//
-	reg	[87:0]	r_sreg; // Composed of 24-bits, 32-bits, and 32-bits
 	initial	r_busy = 1'b0;
 	initial	dev_wr = 1'b1;
 	always @(posedge i_clk)
@@ -392,6 +390,6 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data,
 
 	// verilator lint_off UNUSED
 	wire	unused;
-	assign	unused = i_cyc;
+	assign	unused = &{ 1'b0, i_cyc, i_sel };
 	// verilator lint_on  UNUSED
 endmodule

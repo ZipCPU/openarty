@@ -78,7 +78,7 @@ SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp flashsim.cpp	\
 SIMOBJ := $(subst .cpp,.o,$(SIMSRCS))
 SIMOBJS:= $(addprefix $(OBJDIR)/,$(SIMOBJ))
 #
-PROGRAMS := main_tb enetctrl_tb
+PROGRAMS := main_tb # enetctrl_tb
 # Now the return to the "all" target, and fill in some details
 all:	$(PROGRAMS) hex
 

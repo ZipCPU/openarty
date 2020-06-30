@@ -54,8 +54,8 @@ DEVSW := `find sw/board -name "*.cpp"` `find sw/board -name "*.h"` \
 	`find sw/board -name Makefile`
 PROJ  :=
 BIN  := `find xilinx -name "*.bit"`
-AUTODATA := `find auto-data -name "*.txt"`
-CONSTRAINTS := auto-data/arty.xdc migmem.xdc
+AUTODATA := `find autodata -name "*.txt"`
+CONSTRAINTS := autodata/arty.xdc migmem.xdc
 YYMMDD:=`date +%Y%m%d`
 SUBMAKE:= $(MAKE) --no-print-directory -C
 
@@ -119,20 +119,20 @@ archive:
 #
 .PHONY: autodata
 autodata: check-autofpga
-	$(SUBMAKE) auto-data
-	$(call copyif-changed,auto-data/toplevel.v,rtl/toplevel.v)
-	$(call copyif-changed,auto-data/main.v,rtl/main.v)
-	$(call copyif-changed,auto-data/regdefs.h,sw/host/regdefs.h)
-	$(call copyif-changed,auto-data/regdefs.cpp,sw/host/regdefs.cpp)
-	$(call copyif-changed,auto-data/board.h,sw/zlib/board.h)
-	$(call copyif-changed,auto-data/board.ld,sw/board/board.ld)
-	$(call copyif-changed,auto-data/bkram.ld,sw/board/bkram.ld)
-	$(call copyif-changed,auto-data/sdram.ld,sw/board/sdram.ld)
-	$(call copyif-changed,auto-data/rtl.make.inc,rtl/make.inc)
-	$(call copyif-changed,auto-data/testb.h,sim/verilated/testb.h)
-	$(call copyif-changed,auto-data/main_tb.cpp,sim/verilated/main_tb.cpp)
-	$(call copyif-changed,auto-data/build.xdc,artix.xdc)
-	$(call copyif-changed,auto-data/iscachable.v,rtl/iscachable.v)
+	$(SUBMAKE) autodata
+	$(call copyif-changed,autodata/toplevel.v,rtl/toplevel.v)
+	$(call copyif-changed,autodata/main.v,rtl/main.v)
+	$(call copyif-changed,autodata/regdefs.h,sw/host/regdefs.h)
+	$(call copyif-changed,autodata/regdefs.cpp,sw/host/regdefs.cpp)
+	$(call copyif-changed,autodata/board.h,sw/zlib/board.h)
+	$(call copyif-changed,autodata/board.ld,sw/board/board.ld)
+	$(call copyif-changed,autodata/bkram.ld,sw/board/bkram.ld)
+	$(call copyif-changed,autodata/sdram.ld,sw/board/sdram.ld)
+	$(call copyif-changed,autodata/rtl.make.inc,rtl/make.inc)
+	$(call copyif-changed,autodata/testb.h,sim/verilated/testb.h)
+	$(call copyif-changed,autodata/main_tb.cpp,sim/verilated/main_tb.cpp)
+	$(call copyif-changed,autodata/build.xdc,artix.xdc)
+	$(call copyif-changed,autodata/iscachable.v,rtl/iscachable.v)
 
 #
 #
@@ -188,7 +188,7 @@ sw-board: sw-zlib check-zip-gcc
 
 #
 #
-# Copy a file from the auto-data directory that had been created by
+# Copy a file from the autodata directory that had been created by
 # autofpga, into the directory structure where it might be used.
 #
 define	copyif-changed
@@ -206,7 +206,7 @@ endef
 
 .PHONY: clean
 clean:
-	+$(SUBMAKE) auto-data     clean
+	+$(SUBMAKE) autodata      clean
 	+$(SUBMAKE) sim/verilated clean
 	+$(SUBMAKE) rtl           clean
 	+$(SUBMAKE) sw/zlib       clean

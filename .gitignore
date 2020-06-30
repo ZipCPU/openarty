@@ -17,5 +17,10 @@ svn-commit*
 *dbg.txt
 *dump.txt
 *debug.txt
+archive
 tags
+tmp
 cpudefs.h
+vivado.jou
+vivado.log
+vivado_pid*

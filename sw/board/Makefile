@@ -122,7 +122,7 @@ hello: $(OBJDIR)/hello.o board.ld
 gettysburg: $(OBJDIR)/gettysburg.o board.ld
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJDIR)/gettysburg.o -o $@
 
-oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o
+oledtest: $(OBJDIR)/oledtest.o $(OBJDIR)/splash.o $(OBJDIR)/mug.o $(OBJDIR)/txfns.o
 	$(CC) $(CFLAGS)  $(LFLAGS) $^ -o $@
 
 simple_ping: $(OBJDIR)/simple_ping.o $(OBJDIR)/zipcpu.o

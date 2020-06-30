@@ -13,7 +13,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2016,2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2016,2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -40,19 +40,20 @@
 `default_nettype	none
 //
 module	gpsclock_tb(i_clk, i_lcl_pps, o_pps, 
-		i_wb_cyc_stb, i_wb_we, i_wb_addr, i_wb_data,
-			o_wb_ack, o_wb_stall, o_wb_data,
+		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
+			o_wb_stall, o_wb_ack, o_wb_data,
 		i_err, i_count, i_step);
 	parameter	DW=32, RW=64;
 	parameter	CLOCK_FREQUENCY_HZ = 81_250_000;
 	input	wire			i_clk, i_lcl_pps;
 	output	reg			o_pps;	// To our local circuitry
 	// Wishbone Configuration interface
-	input	wire			i_wb_cyc_stb, i_wb_we;
+	input	wire			i_wb_cyc, i_wb_stb, i_wb_we;
 	input	wire	[2:0]		i_wb_addr;
 	input	wire	[(DW-1):0]	i_wb_data;
-	output	reg			o_wb_ack;
+	input	wire	[(DW/8-1):0]	i_wb_sel;
 	output	wire			o_wb_stall;
+	output	reg			o_wb_ack;
 	output	reg	[(DW-1):0]	o_wb_data;
 	// Status and timing outputs
 	input	wire [(RW-1):0]	i_err, // Fraction of a second err
@@ -74,7 +75,7 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	initial	r_jump = 0; 
 	initial	r_maxcount = CLOCK_FREQUENCY_HZ;
 	always @(posedge i_clk)
-		if ((i_wb_cyc_stb)&&(i_wb_we))
+		if ((i_wb_stb)&&(i_wb_we))
 		begin
 			case(i_wb_addr)
 			3'b000: r_maxcount <= i_wb_data;
@@ -104,8 +105,10 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 		// default: o_wb_data <= 0;
 	endcase
 
+	initial	o_wb_ack = 1'b0;
 	always @(posedge i_clk)
-		o_wb_ack <= i_wb_cyc_stb;
+		o_wb_ack <= i_wb_stb;
+
 	assign	o_wb_stall = 1'b0;
 	
 
@@ -139,5 +142,10 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 		r_lcl   <= lcl_counter;
 	end
 
+	// Make Verilator happy
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = &{ 1'b0, i_wb_cyc, i_wb_sel };
+	// verilator lint_on UNUSED
 endmodule
 

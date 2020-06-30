@@ -31,7 +31,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -130,6 +130,7 @@ void	OLEDSIM::operator()(const int iopwr, const int rstn, const int dpwr,
 		const int csn, const int sck, const int dcn, const int mosi) {
 	if (!iopwr) {
 		if (m_state != OLED_OFF) {
+fprintf(stderr, "OLEDSIM::TURN-OFF\n");
 			m_state = OLED_OFF;
 			clear_to(0.0);
 			queue_draw_area(0,0,get_width(), get_height());
@@ -137,6 +138,7 @@ void	OLEDSIM::operator()(const int iopwr, const int rstn, const int dpwr,
 		assert(!dpwr);
 	} else if (!rstn) {
 		if (m_state != OLED_RESET) {
+fprintf(stderr, "OLEDSIM::ENTER-RESET\n");
 			m_state = OLED_RESET;
 			m_locked = true;
 			clear_to(0.1);
@@ -148,6 +150,7 @@ void	OLEDSIM::operator()(const int iopwr, const int rstn, const int dpwr,
 		assert(sck);
 	} else if (dpwr) {
 		if (m_state != OLED_POWERED) {
+fprintf(stderr, "OLEDSIM::POWER-UP\n");
 			m_state = OLED_POWERED;
 			queue_draw_area(0,0,get_width(), get_height());
 			if (!csn) {
@@ -161,8 +164,9 @@ void	OLEDSIM::operator()(const int iopwr, const int rstn, const int dpwr,
 		handle_io(csn, sck, dcn, mosi);
 	} else {
 		if (m_state != OLED_VIO) {
+fprintf(stderr, "OLEDSIM::VIO\n");
 			m_state = OLED_VIO;
-			queue_draw_area(0,0,OLED_WIDTH, OLED_HEIGHT);
+			queue_draw_area(0,0,get_width(), get_height());
 		}
 		handle_io(csn, sck, dcn, mosi);
 	}
@@ -237,6 +241,7 @@ void	OLEDSIM::handle_io(const int csn, const int sck, const int dcn, const int m
 }
 
 void	OLEDSIM::do_command(const int dcn, const int len, char *data) {
+fprintf(stderr, "DO-COMMAND\n");
 	assert(len > 0);
 	assert(len <= 11);
 
@@ -478,9 +483,13 @@ void	OLEDSIM::set_gddram(const int col, const int row,
 		// Need to adjust the invalidated area if scrolling is taking
 		// place.
 		double	kw, kh;
+		int	t, l;
 		kw = get_width()/(double)OLED_WIDTH;
 		kh = get_height()/(double)OLED_HEIGHT;
-		queue_draw_area(col*kw, row*kh, (int)(kw+0.5), (int)(kh+0.5));
+
+		t = row * kh-1;
+		l = col * kw-1;
+		queue_draw_area(l, t, (int)(kw)+1, (int)(kh)+1);
 	}
 }
 
@@ -500,12 +509,13 @@ void	OLEDSIM::clear_to(double v) {
 }
 
 bool	OLEDSIM::on_draw(CONTEXT &gc) {
+fprintf(stderr, "ON-DRAW\n");
 	gc->save();
 	if (m_state == OLED_POWERED) {
 		// Scrolling will be implemented here
-		gc->set_source(m_pix, 0, 0);
 		gc->scale(get_width()/(double)OLED_WIDTH,
 				get_height()/(double)OLED_HEIGHT);
+		gc->set_source(m_pix, 0, 0);
 		gc->paint();
 	} else {
 		if ((m_state == OLED_VIO)||(m_state == OLED_RESET))
@@ -521,11 +531,13 @@ bool	OLEDSIM::on_draw(CONTEXT &gc) {
 }
 
 OLEDWIN::OLEDWIN(void) {
+fprintf(stderr, "Setting up OLEDWIN\n");
 	m_sim = new OLEDSIM();
 	m_sim->set_size_request(OLEDSIM::OLED_WIDTH, OLEDSIM::OLED_HEIGHT);
 	set_border_width(0);
 	add(*m_sim);
 	show_all();
 	Gtk::Window::set_title(Glib::ustring("OLED Simulator"));
+	fprintf(stderr, "Window all set up\n");
 }
 

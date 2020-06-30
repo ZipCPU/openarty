@@ -4,6 +4,7 @@ cpuscope
 crctest
 dbg.txt
 dbg2.txt
+*.64t
 dcachescope
 debug.txt
 divutb
