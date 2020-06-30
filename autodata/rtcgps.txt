@@ -54,9 +54,6 @@
 	localparam	[31:0]	RTC_CLKSTEP = @$[32'h%08x](CLKSTEP);
 	wire	@$(PREFIX)_ppd, @$(PREFIX)_pps;
 	reg	r_@$(PREFIX)_ack;
-`ifdef	GPSTRK_ACCESS
-	wire	@$(PREFIX)_pps;
-`endif
 @MAIN.INSERT=
 `ifdef	GPSTRK_ACCESS
 	rtcgps	#(RTC_CLKSTEP) the@$(PREFIX)(i_clk, i_reset,

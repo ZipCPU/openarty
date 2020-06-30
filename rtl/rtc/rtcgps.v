@@ -65,7 +65,9 @@ module	rtcgps(i_clk, i_reset,
 	input	wire		i_clk, i_reset;
 	//
 	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
-	input	wire	[1:0]	i_wb_addr;
+	// RTCLIGHT requires 3-bits of address.  To be compatible, we do too,
+	// only we ignore the MSB
+	input	wire	[2:0]	i_wb_addr;
 	input	wire	[31:0]	i_wb_data;
 	input	wire	[3:0]	i_wb_sel;
 	//
@@ -100,10 +102,10 @@ module	rtcgps(i_clk, i_reset,
 		tm_wr <= 1'b0;
 		al_wr <= 1'b0;
 	end else begin
-		ck_wr <= ((i_wb_stb)&&(i_wb_addr==2'b00)&&(i_wb_we));
-		tm_wr <= ((i_wb_stb)&&(i_wb_addr==2'b01)&&(i_wb_we));
+		ck_wr <= ((i_wb_stb)&&(i_wb_addr==3'b000)&&(i_wb_we));
+		tm_wr <= ((i_wb_stb)&&(i_wb_addr==3'b001)&&(i_wb_we));
 		//sw_wr<=((i_wb_stb)&&(i_wb_addr==2'b10)&&(i_wb_we));
-		al_wr <= ((i_wb_stb)&&(i_wb_addr==2'b11)&&(i_wb_we));
+		al_wr <= ((i_wb_stb)&&(i_wb_addr==3'b011)&&(i_wb_we));
 	end
 
 	always @(posedge i_clk)
@@ -142,7 +144,7 @@ module	rtcgps(i_clk, i_reset,
 		always @(posedge i_clk)
 		if (i_reset)
 			sw_ctrl <= 0;
-		else if (i_wb_stb && i_wb_sel[0] && i_wb_addr == 2'b10)
+		else if (i_wb_stb && i_wb_sel[0] && i_wb_addr == 3'b010)
 			sw_ctrl <= { i_wb_data[1:0], !i_wb_data[0] };
 		else
 			sw_ctrl <= 0;
@@ -250,10 +252,11 @@ module	rtcgps(i_clk, i_reset,
 	initial	o_wb_data = 0;
 	always @(posedge i_clk)
 		case(i_wb_addr)
-		2'b00: o_wb_data <= { !i_gps_valid, 7'h0, 2'b00,clock_data[21:0] };
-		2'b01: o_wb_data <= timer_data;
-		2'b10: o_wb_data <= { sw_running, stopwatch_data };
-		2'b11: o_wb_data <= alarm_data;
+		3'b000: o_wb_data <= { !i_gps_valid, 7'h0, 2'b00,clock_data[21:0] };
+		3'b001: o_wb_data <= timer_data;
+		3'b010: o_wb_data <= { sw_running, stopwatch_data };
+		3'b011: o_wb_data <= alarm_data;
+		default: o_wb_data <= 0;
 		endcase
 
 	assign	o_rtc_pps = ck_pps;

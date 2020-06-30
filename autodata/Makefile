@@ -56,10 +56,10 @@ DBGBUS  := wbuconsole.txt
 MEMORY  := bkram.txt spansion.txt sdram.txt
 CPU     := zipmaster.txt
 NETWORK := mdio.txt enet.txt
-# GPS     := gps.txt
+GPS     := gps.txt
 # SDCARD  := sdspi.txt
-# GFX     := wboledrgb.txt
-SCOPES  := # enetscope.txt mdioscope.txt # flashscope.txt cpuscope.txt
+GFX     := wboledrgb.txt
+SCOPES  := # gpsscope.txt #enetscope.txt mdioscope.txt flashscope.txt cpuscope.txt
 LDSCRIPT:= mem_flash_bkram.txt mem_bkram_only.txt mem_sdram_bkram.txt
 DATA := allclocks.txt $(BASE) $(AUX) $(IO) $(RTC)			\
 	$(DBGBUS) $(MEMORY) $(CPU) $(NETWORK) $(GPS) $(SDCARD) $(GFX)	\

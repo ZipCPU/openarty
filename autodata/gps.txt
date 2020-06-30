@@ -63,6 +63,7 @@
 	wire	gps_pps, gps_led, gps_locked, gps_tracking;
 	wire	[63:0]	gps_now, gps_err, gps_step;
 	wire	[1:0]	gps_dbg_tick;
+	wire	[31:0]	gps_dbg;
 @MAIN.INSERT=
 	// Verilator lint_off UNUSED
 	wire	[1:0]	ck_dbg;
@@ -73,6 +74,10 @@
 			@$(SLAVE.PORTLIST),
 			gps_tracking, gps_now, gps_step, gps_err, gps_locked,
 			ck_dbg);
+
+	// Verilator lint_off UNUSED
+	assign	gps_dbg = { 29'b0, gps_now[63], gps_pps, i_gpsu_rx };
+	// Verilator lint_on  UNUSED
 @MAIN.ALT=
 	wire	[31:0]	pre_step;
 	assign	pre_step = { 16'h00, (({GPSCLOCK_DEFAULT_STEP[27:0],20'h00})
