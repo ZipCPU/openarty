@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	gpsclock.v
-//		
-// Project:	A GPS Schooled Clock Core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	The purpose of this module is to school a counter, run off of
 //		the FPGA's local oscillator, to match a GPS 1PPS signal.  Should
@@ -23,7 +23,7 @@
 //		set to 2^(RW/2) / (nominal clock rate), where RW is the register
 //		width used for our computations.  (64 is sufficient for up to
 //		4 GHz clock speeds, 56 is minimum for 100 MHz.)  Although
-//		RW is listed as a variable parameter, I have no plans to 
+//		RW is listed as a variable parameter, I have no plans to
 //		test values other than 64.  So your mileage might vary there.
 //
 //		Other parameters, alpha, beta, and gamma are specific to the
@@ -44,7 +44,7 @@
 //
 //	Wishbone bus
 //
-// Outputs:	
+// Outputs:
 //	o_led	No circuit would be complete without a properly blinking LED.
 //		This one blinks an LED at the top of the GPS 1PPS and the
 //		internal 1PPS.  When the two match, the LED will be on for
@@ -55,7 +55,7 @@
 //		is open (0) or closed (1).  Does not indicate performance.
 //
 //	o_count		A counter, from zero to 2^RW-1, indicating the position
-//		of the current clock within a second.  (This'll be off by 
+//		of the current clock within a second.  (This'll be off by
 //		two clocks due to internal latencies.)
 //
 //	o_step		The amount the counter, o_count, is stepped each clock.
@@ -75,15 +75,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -92,48 +93,50 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-//
-module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
-		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
-			o_wb_stall, o_wb_ack, o_wb_data,
-		o_tracking, o_count, o_step, o_err, o_locked, o_dbg);
-	parameter [31:0] DEFAULT_STEP = 32'h834d_c736;//2^64/81.25 MHz
-	parameter	RW=64, // Needs to be 2ceil(Log_2(i_clk frequency))
-			DW=32, // The width of our data bus
-			ONE_SECOND = 0,
-			NPW=RW-DW, // Width of non-parameter data
-			HRW=RW/2; // Half of RW
-	input	wire	i_clk, i_rst;
-	input	wire	i_pps;	// From the GPS device
-	output	reg	o_pps;	// To our local circuitry
-	output	reg	o_led;	// A blinky light showing how well we're doing
-	// Wishbone Configuration interface
-	input	wire			i_wb_cyc, i_wb_stb, i_wb_we;
-	input	wire	[1:0]		i_wb_addr;
-	input	wire	[(DW-1):0]	i_wb_data;
-	input	wire	[(DW/8-1):0]	i_wb_sel;
-	output	wire			o_wb_stall;
-	output	reg			o_wb_ack;
-	output	reg	[(DW-1):0]	o_wb_data;
-	// Status and timing outputs
-	output	reg			o_tracking; // 1=closed loop, 0=open
-	output	reg	[(RW-1):0]	o_count, // Fraction of a second
+// }}}
+module	gpsclock #(
+		// {{{
+		parameter [31:0] DEFAULT_STEP = 32'h834d_c736,//2^64/81.25 MHz
+		parameter	RW=64, // Needs to be 2ceil(Log_2(i_clk frequency))
+				DW=32, // The width of our data bus
+				ONE_SECOND = 0,
+				NPW=RW-DW, // Width of non-parameter data
+				HRW=RW/2 // Half of RW
+		// }}}
+	) (
+		// {{{
+		input	wire	i_clk, i_rst,
+		input	wire	i_pps,	// From the GPS device
+		output	reg	o_pps,	// To our local circuitry
+		output	reg	o_led,	// A blinky light showing how well we're doing
+		// Wishbone Configuration interface
+		input	wire			i_wb_cyc, i_wb_stb, i_wb_we,
+		input	wire	[1:0]		i_wb_addr,
+		input	wire	[(DW-1):0]	i_wb_data,
+		input	wire	[(DW/8-1):0]	i_wb_sel,
+		output	wire			o_wb_stall,
+		output	reg			o_wb_ack,
+		output	reg	[(DW-1):0]	o_wb_data,
+		// Status and timing outputs
+		output	reg			o_tracking, // 1=closed loop, 0=open
+		output	reg	[(RW-1):0]	o_count, // Fraction of a second
 					o_step, // 2^RW / clock speed (in Hz)
-					o_err; // Fraction of a second err
-	output	reg			o_locked; // 1 if Locked, 0 o.w.
-	output	wire	[1:0]		o_dbg;
+					o_err, // Fraction of a second err
+		output	reg			o_locked, // 1 if Locked, 0 o.w.
+		output	wire	[1:0]		o_dbg
+		// }}}
+	);
 
-
+	// Register/net declarations
+	// {{{
 	// Clock resynchronization variables
 	reg	pps_d, ck_pps, lst_pps;
 	wire	tick;		// And a variable indicating the top of GPS 1PPS
@@ -141,7 +144,7 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	//
 	// Configuration variables.  These control the loop bandwidth, the speed
 	// of convergence, the speed of adaptation to changes, and more.  If
-	// you adjust these outside of what the specification recommends, 
+	// you adjust these outside of what the specification recommends,
 	// be careful that the control loop still synchronizes!
 	reg			new_config;
 	reg	[5:0]		r_alpha;
@@ -200,14 +203,11 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	reg	no_pulse;
 	reg	[32:0]	time_since_pps;
 	reg	[2:0]	count_valid_ticks;
-
-
-
-	//
-	//
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Wishbone access ... adjust our tracking parameters
-	//
+	// {{{
 	//
 	//
 	// DEFAULT_STEP = 64'h0000_0034_dc73_67da, // 2^64 / 81.25 MHz
@@ -274,22 +274,29 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		o_wb_ack <= i_wb_stb;
 
 	assign	o_wb_stall = 1'b0;
-	
-
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
-	//
-	// Deal with the realities of an unsynchronized 1PPS signal: 
+	// Synchronizing the asynchronous PPS
+	// {{{
+	// Deal with the realities of an unsynchronized 1PPS signal:
 	// register it with two flip flops to avoid metastability issues.
 	// Create a 'tick' variable to note the top of a second.
 	//
 	//
+
+	// 2FF synchronizer: lst_pps, ck_pps, pps_d
+	// {{{
 	always @(posedge i_clk)
 	begin // This will delay our resulting time by a known 2 clock ticks
 		pps_d <= i_pps;
 		ck_pps <= pps_d;
 		lst_pps <= ck_pps;
 	end
+	// }}}
 
+	// tick_enable_carry, tick_enable_counter, w_tick_enable
+	// {{{
 	// Provide a touch of debounce protection ... equal to about
 	// one quarter of a second.  This is a coarse predictor, however,
 	// since it uses only the top 32-bits of the step.
@@ -316,17 +323,25 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 					+ tick_enable_counter + 1'b1;
 	end
 	assign	w_tick_enable = tick_enable_carry;
+	// }}}
 
+	// tick, los_ticks, o_dbg[1:0]
+	// {{{
 	assign	tick= (ck_pps)&&(~lst_pps)&&(w_tick_enable);
 	always @(posedge i_clk)
-		if (wb_write)
-			lost_ticks <= 8'h00;
-		else if ((ck_pps)&&(~lst_pps)&&(!w_tick_enable))
-			lost_ticks <= lost_ticks+1'b1;
+	if (wb_write)
+		lost_ticks <= 8'h00;
+	else if ((ck_pps)&&(~lst_pps)&&(!w_tick_enable))
+		lost_ticks <= lost_ticks+1'b1;
 	assign	o_dbg[0] = tick;
 	assign	o_dbg[1] = w_tick_enable;
-
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
+	// The phase counter
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Here's our counter proper: Add o_step to o_count each clock tick
 	// to have a current time value.  Corrections are applied at the top
@@ -337,11 +352,18 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// subsecond time as determined by this clock.
 	//
 	//
+
+
+	// o_count, o_pps, cnt_carry, p_count
+	// {{{
 	initial	o_count = 0;
 	initial	o_pps = 1'b0;
 	always @(posedge i_clk)
 `ifndef USE_THE_OLD_CODE
-		begin
+		// { o_pps, o_count } = phase + (correction + step)
+	// {{{
+	begin
+		// {{{
 		// Very simple: we add the count correction, which is given by
 		// a pre-determined sum of the step and any error, to our
 		// "count" at every clock tick.  If this ever overflows, the
@@ -358,8 +380,12 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 		// Delay the bottom bits of o_count by one clock, so that they
 		// now match up with the top bits.
 		o_count[31:0] <= p_count;
-		end
+		// }}}
+	end
+	// }}}
 `else
+	// Old (unused) logic
+		// {{{
 		if ((o_tracking)&&(tick))
 		begin
 			// Save the carry to be applied at the next clock, so
@@ -374,7 +400,7 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 			// On the second clock, we add the high order bits
 			// together, and possibly get a carry.  We use this
 			// carry as our o_pps output.
-			if (~count_correction[(RW-1)])
+			if (!count_correction[(RW-1)])
 			begin
 				// Here, we need to correct by jumping forward.
 				//
@@ -414,12 +440,15 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// now match up with the top bits.
 	always @(posedge i_clk)
 		o_count[31:0] <= p_count;
+	// }}}
 `endif
-
-
-
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
-	// The step
+	// Update the step (frequency control)
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	// The counter above is only as good as the step size given to it.
 	// Here, we work with that step size, and apply a correction based
@@ -435,39 +464,52 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// We just need to figure out what the new step will be here, given
 	// that correction.
 	//
+
+	// step_correction_plus_carry
+	// {{{
 	always @(posedge i_clk)
-		if (step_carry_tick)
-			step_correction_plus_carry
-				<= { step_correction[(HRW-1)],step_correction }
+	if (step_carry_tick)
+		step_correction_plus_carry
+			<= { step_correction[(HRW-1)],step_correction }
 					+ { 32'h00, delayed_carry };
+	// }}}
 
-
+	// new_step, w_step_correct_unused
+	// {{{
 	bigadd	getnewstep(i_clk, 1'b0, o_step,
-			{ { (HRW-1){step_correction_plus_carry[HRW]} }, 
+			{ { (HRW-1){step_correction_plus_carry[HRW]} },
 				step_correction_plus_carry},
 			new_step, w_step_correct_unused);
+	// }}}
 
-	initial	delayed_carry = 0;
-
+	// o_step
+	// {{{
 	initial	o_step = { 16'h00, (({ DEFAULT_STEP[27:0], 20'h00 })
 				>> DEFAULT_STEP[31:28])};
 	always @(posedge i_clk)
-		if ((i_rst)||(dly_config))
-			o_step <= pre_step;
-		else if ((o_tracking) && (tick))
-			 o_step <= new_step;
+	if ((i_rst)||(dly_config))
+		o_step <= pre_step;
+	else if ((o_tracking) && (tick))
+		 o_step <= new_step;
+	// }}}
 
+	// delayed_carry, delayed_step
+	// {{{
+	initial	delayed_carry = 0;
 	initial	delayed_step = 0;
 	always @(posedge i_clk)
-		if ((i_rst)||(dly_config))
-			{ delayed_carry, delayed_step } <= 0;
-		else if (delay_step_clk)
-			{ delayed_carry, delayed_step } <= delayed_step
+	if ((i_rst)||(dly_config))
+		{ delayed_carry, delayed_step } <= 0;
+	else if (delay_step_clk)
+		{ delayed_carry, delayed_step } <= delayed_step
 					+ delayed_step_correction;
-		
-
-
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
+	// Tracking loop
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Now to start our tracking loop.  The steps are:
 	//	1. Measure our error
@@ -488,16 +530,23 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	//
 	// ONE_SECOND in this equation is set to 2^64, or zero during
 	// implementation.  This makes the 64-bit subtract ... doable.
+
+	// o_err
+	// {{{
 	initial	o_err = 0;
 	always @(posedge i_clk)
-		if (tick)
-			o_err <= ONE_SECOND - o_count;
+	if (tick)
+		o_err <= ONE_SECOND - o_count;
+	// }}}
 
+	// err_tick
+	// {{{
 	// Because o_err is delayed one clock from the tick, we create a strobe
 	// capturing when the error is valid.
 	initial	err_tick = 1'b0;
 	always @(posedge i_clk)
 		err_tick <= tick;
+	// }}}
 
 	//
 	// We are now going to filter this error, via:
@@ -514,17 +563,23 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 
 	// On some architectures, adding and subtracting 64'bit number cannot
 	// be done in a single clock tick.  On these architectures, we may
-	// take a couple clocks.  Here, the "bigsub" module captures what it 
+	// take a couple clocks.  Here, the "bigsub" module captures what it
 	// takes to subtract 64-bit numbers.
 	//
 	// Either way, here we subtract our error from our filtered_err.  This
 	// is the first step of the recursive average--figuring out what value
 	// we are going to apply to the recursive average.
+
+	// filter_sub_count, sub_tick
+	// {{{
 	bigsub	suberri(i_clk, err_tick, o_err,
 			filtered_err, filter_sub_count, sub_tick);
+	// }}}
 
+	// shift_tick, shift_hi, shift_lo
+	// {{{
 	//
-	// This shouldn't be required: We only want to shift our 
+	// This shouldn't be required: We only want to shift our
 	// filter_sub_count by r_alpha bits, why the extra struggles?
 	// Why is because Verilator decides that these values are unsigned,
 	// and so despite being told that they are signed values, verilator
@@ -549,7 +604,10 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 			shift_lo <= 0;
 		end
 	end
+	// }}}
 
+	// filtered_err, fltr_tick
+	// {{{
 	// You may notice, it's now been several clocks since the top of the
 	// second.  Still, filtered_err hasn't changed.  It only changes once
 	// a second based upon the results of these computations.  Here we take
@@ -557,19 +615,28 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	bigadd adderr(i_clk, shift_tick, r_filtered_err,
 			{ shift_hi[(HRW-1):0], shift_lo[(HRW-1):0] },
 			filtered_err, fltr_tick);
+	// }}}
 
+	// r_filtered_err
+	// {{{
 	always @(posedge i_clk)
-		if (fltr_tick)
-			r_filtered_err <= filtered_err;
-		else if ((dly_config)||(!o_tracking))
-			r_filtered_err <= 0;
+	if (fltr_tick)
+		r_filtered_err <= filtered_err;
+	else if ((dly_config)||(!o_tracking))
+		r_filtered_err <= 0;
+	// }}}
 
+	// r_mpy_err
+	// {{{
 	always @(posedge i_clk)
-		if (err_tick)
+	if (err_tick)
 		r_mpy_err <= (config_filter_errors) ? r_filtered_err : o_err;
+	// }}}
 
+	// mpy_input, mpy_aux
+	// {{{
 	// Okay, so we've gone from our original tick to the err_tick, the
-	// sub_tick, the shift_tick, and now the fltr_tick. 
+	// sub_tick, the shift_tick, and now the fltr_tick.
 	//
 	// We want to multiply our filtered error by one of two constants.
 	// Here, we set up those constants.  We use the fltr_tick as a strobe,
@@ -578,16 +645,18 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// in with the strobe on (r_beta) corresponds to the product coming out,
 	// and that the second product we need will be on the next clock.
 	always @(posedge i_clk)
-		if (err_tick)
-			mpy_input <= r_beta;
-		else
-			mpy_input <= r_gamma;
+	if (err_tick)
+		mpy_input <= r_beta;
+	else
+		mpy_input <= r_gamma;
+
 	always @(posedge i_clk)
 		mpy_aux <= err_tick;
+	// }}}
 
 	//
 	// The multiply
-	//
+	// {{{
 	// Remember, we take our filtered error and multiply it by a constant
 	// to determine our step correction and another constant to determine
 	// our count correction?  We'll ... here's that multiply.
@@ -612,10 +681,10 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// just do a simple delay to get this strobe logic.
 	always @(posedge i_clk)
 		mpy_sync_two <= mpy_sync;
-
+	// }}}
 
 	// The post-multiply
-	//
+	// {{{
 	// Remember, the mpy_sync line coming out of the multiply will be true
 	// when the product of the error and i_beta comes out.
 	//
@@ -623,25 +692,26 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	initial	step_correction         = 0;
 	initial	delayed_step_correction = 0;
 	always @(posedge i_clk)
-		if (mpy_sync)	// i_beta product
-			pre_count_correction <= w_mpy_out;
+	if (mpy_sync)	// i_beta product
+		pre_count_correction <= w_mpy_out;
+
 	always @(posedge i_clk)
-		if (mpy_sync_two) begin // i_gamma product
-			step_correction <= w_mpy_out[(RW-1):HRW];
-			delayed_step_correction <= w_mpy_out[(HRW-1):0];
-		end
+	if (mpy_sync_two) begin // i_gamma product
+		step_correction <= w_mpy_out[(RW-1):HRW];
+		delayed_step_correction <= w_mpy_out[(HRW-1):0];
+	end
 
 	// The correction for the number of counts in our counter is given
 	// by pre_count_correction.  When we add this to the counter, we'll
 	// need to add the step to it as well.  To help timing out with 64-bit
 	// math, let's do that step+correction math here, so that we can later
-	// do 
+	// do
 	//	counts = counts + count_correction
 	// instead of
 	//	counts = counts + step + pre_count_correction
 	// saves us one addition--especially since we have the clock to do this.
 	wire	count_correction_strobe;
-	bigadd	ccounts(i_clk, mpy_sync_two, o_step, pre_count_correction, 
+	bigadd	ccounts(i_clk, mpy_sync_two, o_step, pre_count_correction,
 			count_correction, count_correction_strobe);
 
 	// Our original plan was to apply this correction at the top of the
@@ -649,41 +719,57 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// correction being applied before the top of the second error gets
 	// measured.  Hence, we'll apply it at some time mid-second, not
 	// long after the error is measured (w/in 16 clocks or so), and never
-	// notice the difference until the top of the next second where it 
+	// notice the difference until the top of the next second where it
 	// now appears to have properly taken place.
-	always @(posedge i_clk)
-		if (count_correction_strobe)
-			r_count_correction <= count_correction;
-		else
-			r_count_correction <= o_step;
 
+	// r_count_correction
+	// {{{
+	always @(posedge i_clk)
+	if (count_correction_strobe)
+		r_count_correction <= count_correction;
+	else
+		r_count_correction <= o_step;
+	// }}}
+
+	// delay_step_clk
+	// {{{
 	initial	delay_step_clk = 1'b0;
 	always @(posedge i_clk)
 		delay_step_clk <= mpy_sync_two;
+	// }}}
+
+	// step_carry_tick
+	// {{{
 	initial	step_carry_tick = 1'b0;
 	always @(posedge i_clk)
 		step_carry_tick <= delay_step_clk;
-
+	// }}}
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// LED Logic
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	// LED Logic -- Note that this is where we tell if we've had a GPS
-	// 1PPS pulse or not.  To have had such a pulse, it needs to have
-	// been within the last two seconds.
-	//
+	// Note that this is where we tell if we've had a GPS 1PPS pulse or
+	// not.  To have had such a pulse, it needs to have been within the
+	// last two seconds.
 	//
 	initial	no_pulse = 1'b1;
 	initial	time_since_pps = 33'hffffffff;
 	always @(posedge i_clk)
-		if (tick)
-		begin
-			time_since_pps <= 0;
-			no_pulse <= 0;
-		end else if (time_since_pps[32:29] == 4'hf)
-		begin
-			time_since_pps <= 33'hffffffff;
-			no_pulse <= 1'b1;
-		end else
-			time_since_pps <= time_since_pps + pre_step[(RW-1):HRW];
+	if (tick)
+	begin
+		time_since_pps <= 0;
+		no_pulse <= 0;
+	end else if (time_since_pps[32:29] == 4'hf)
+	begin
+		time_since_pps <= 33'hffffffff;
+		no_pulse <= 1'b1;
+	end else
+		time_since_pps <= time_since_pps + pre_step[(RW-1):HRW];
 
 	//
 	// 1. Pulse with a 50% duty cycle every second if no GPS is available.
@@ -696,37 +782,51 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	// of the pulses (50% vs 6%).
 	//
 	always @(posedge i_clk)
-		if (no_pulse)
-			o_led <= o_count[(RW-1)];
-		else
-			o_led <= ((time_since_pps[31:28] == 4'h0)
-				||(o_count[(RW-1):(RW-4)]== 4'h0));
-
-	//
+	if (no_pulse)
+		o_led <= o_count[(RW-1)];
+	else
+		o_led <= ((time_since_pps[31:28] == 4'h0)
+			||(o_count[(RW-1):(RW-4)]== 4'h0));
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Now, are we tracking or not?
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	// We'll attempt to close the loop after seeing 7 valid GPS 1PPS
 	// rising edges.
 	//
 	//
+
+	// count_valid_ticks
+	// {{{
 	initial	count_valid_ticks = 3'h0;
 	always @(posedge i_clk)
-		if ((tick)&&(count_valid_ticks < 3'h7))
-			count_valid_ticks <= count_valid_ticks+1;
-		else if (no_pulse)
-			count_valid_ticks <= 3'h0;
+	if ((tick)&&(count_valid_ticks < 3'h7))
+		count_valid_ticks <= count_valid_ticks+1;
+	else if (no_pulse)
+		count_valid_ticks <= 3'h0;
+	// }}}
+
+	// o_tracking
+	// {{{
 	initial	o_tracking = 1'b0;
 	always @(posedge i_clk)
-		if (dly_config) // Break the tracking loop on a config change
-			o_tracking <= 1'b0;
-		else if ((tick)&&(&count_valid_ticks))
-			o_tracking <= 1'b1;
-		else if ((tick)||(count_valid_ticks == 0))
-			o_tracking <= 1'b0;
-
-	//
+	if (dly_config) // Break the tracking loop on a config change
+		o_tracking <= 1'b0;
+	else if ((tick)&&(&count_valid_ticks))
+		o_tracking <= 1'b1;
+	else if ((tick)||(count_valid_ticks == 0))
+		o_tracking <= 1'b0;
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Are we locked or not?
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	// We'll use the top eight bits of our error to tell.  If the top eight
 	// bits are all ones or all zeros, then we'll call ourselves locked.
 	// This is equivalent to calling ourselves locked if, at the top of
@@ -734,17 +834,19 @@ module	gpsclock(i_clk, i_rst, i_pps, o_pps, o_led,
 	//
 	initial	o_locked = 1'b0;
 	always @(posedge i_clk)
-		if ((o_tracking)&&(tick)&&(
-			((   o_err[(RW-1)])&&(o_err[(RW-1):(RW-8)]==8'hff))
-			||((~o_err[(RW-1)])&&(o_err[(RW-1):(RW-8)]==8'h00))))
-			o_locked <= 1'b1;
-		else if (tick)
-			o_locked <= 1'b0;
-
+	if ((o_tracking)&&(tick)&&(
+		((   o_err[(RW-1)])&&(o_err[(RW-1):(RW-8)]==8'hff))
+		||((~o_err[(RW-1)])&&(o_err[(RW-1):(RW-8)]==8'h00))))
+		o_locked <= 1'b1;
+	else if (tick)
+		o_locked <= 1'b0;
+	// }}}
 	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = &{ 1'b0, shift_hi[63:32], shift_lo[63:32], w_mpy_input[63:32], w_mpy_err[63:32], i_wb_cyc, i_wb_sel };
 	// verilator lint_on  UNUSED
+	// }}}
 endmodule
 

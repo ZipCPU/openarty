@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	wboledrgb.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	To provide a *very* simplified controller for a PMod OLEDrgb.
@@ -115,50 +115,53 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
-			o_stall, o_ack, o_data,
-		o_sck, o_cs_n, o_mosi, o_dbit,
-		o_pwr, o_int);
-	parameter	CBITS=4, // 2^4*13ns -> 208ns/clock > 150ns min
-			EXTRA_BUS_CLOCK = 0;
-	input	wire		i_clk, i_cyc, i_stb, i_we;
-	input	wire	[1:0]	i_addr;
-	input	wire	[31:0]	i_data;
-	input	wire	[3:0]	i_sel;
-	output	wire		o_stall;
-	output	reg		o_ack;
-	output	reg	[31:0]	o_data;
-	output	wire		o_sck, o_cs_n, o_mosi, o_dbit;
-	output	reg	[2:0]	o_pwr;
-	output	wire		o_int;
+// }}}
+module	wboledrgb #(
+		parameter	CBITS=4, // 2^4*13ns -> 208ns/clock > 150ns min
+				EXTRA_BUS_CLOCK = 0
+	) (
+		// {{{
+		input	wire		i_clk, i_cyc, i_stb, i_we,
+		input	wire	[1:0]	i_addr,
+		input	wire	[31:0]	i_data,
+		input	wire	[3:0]	i_sel,
+		output	wire		o_stall,
+		output	reg		o_ack,
+		output	reg	[31:0]	o_data,
+		output	wire		o_sck, o_cs_n, o_mosi, o_dbit,
+		output	reg	[2:0]	o_pwr,
+		output	wire		o_int
+		// }}}
+	);
 
+	// Local declarations
+	// {{{
 	reg		dev_wr, dev_dbit;
 	reg	[31:0]	dev_word;
 	reg	[1:0]	dev_len;
@@ -174,12 +177,19 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
 	reg	[87:0]	r_sreg; // Composed of 24-bits, 32-bits, and 32-bits
 
 	wire		wb_stb, wb_we;
-	wire	[31:0]	wb_data;
 	wire	[1:0]	wb_addr;
+	wire	[31:0]	wb_data;
+	wire	[3:0]	wb_sel;
+	// }}}
 
-	lloledrgb	#(CBITS)
-		lwlvl(i_clk, dev_wr, dev_dbit, dev_word, dev_len, dev_busy,
-			o_sck, o_cs_n, o_mosi, o_dbit);
+	// Low-level controller
+
+	lloledrgb	#(
+		CBITS
+	) u_lwlvl(
+		i_clk, dev_wr, dev_dbit, dev_word, dev_len, dev_busy,
+		o_sck, o_cs_n, o_mosi, o_dbit
+	);
 
 	// I've thought about bumping this from a clock at <= 100MHz up to a 
 	// clock near 200MHz.  Doing so requires an extra clock to come off
@@ -189,28 +199,32 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
 	// to work at 200MHz or 100MHz as need be.
 	generate
 	if (EXTRA_BUS_CLOCK != 0)
-	begin
+	begin : GEN_EXTRA_CLOCK
 		reg		r_wb_stb, r_wb_we;
-		reg	[31:0]	r_wb_data;
 		reg	[1:0]	r_wb_addr;
+		reg	[31:0]	r_wb_data;
+		reg	[31:0]	r_wb_sel;
+
 		always @(posedge i_clk)
+		begin
 			r_wb_stb <= i_stb;
-		always @(posedge i_clk)
 			r_wb_we <= i_we;
-		always @(posedge i_clk)
-			r_wb_data <= i_data;
-		always @(posedge i_clk)
 			r_wb_addr <= i_addr;
+			r_wb_data <= i_data;
+			r_wb_sel <= i_sel;
+		end
 
 		assign	wb_stb  = r_wb_stb;
 		assign	wb_we   = r_wb_we;
-		assign	wb_data = r_wb_data;
 		assign	wb_addr = r_wb_addr;
-	end else begin
+		assign	wb_data = r_wb_data;
+		assign	wb_sel  = r_wb_sel;
+	end else begin : NO_EXTRA_CLOCK
 		assign	wb_stb  = i_stb;
 		assign	wb_we   = i_we;
-		assign	wb_data = i_data;
 		assign	wb_addr = i_addr;
+		assign	wb_data = i_data;
+		assign	wb_sel  = i_sel;
 	end endgenerate
 
 	//
@@ -218,7 +232,7 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
 	// cleared (set to zero) upon any command to the control register.
 	//
 	always @(posedge i_clk)
-	if ((wb_stb)&&(wb_we))
+	if ((wb_stb)&&(wb_we) && (&wb_sel))
 	begin
 		if (wb_addr[1:0]==2'b01)
 			r_a <= wb_data;
@@ -261,12 +275,12 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
 
 	// The data strobe, true if we need to command a data interaction.
 	always @(posedge i_clk)
-		r_dstb <= (wb_stb)&&(wb_we)&&(wb_addr[1:0]==2'b11)&&(wb_data[18:16]==3'h0);
+		r_dstb <= (wb_stb)&&(wb_we)&&(wb_addr[1:0]==2'b11)&&(wb_data[18:16]==3'h0) && (&wb_sel);
 
 	// The power strobe.  True if we are about to adjust the power and/or
 	// reset bits.
 	always @(posedge i_clk) // Power strobe, change power settings
-		r_pstb <= (wb_stb)&&(wb_we)&&(wb_addr[1:0]==2'b11)&&(wb_data[18:16]!=3'h0);
+		r_pstb <= (wb_stb)&&(wb_we)&&(wb_addr[1:0]==2'b11)&&(wb_data[18:16]!=3'h0) && (&wb_sel);
 
 	// Pre-busy: true if either r_cstb or r_dstb is true, and true on the
 	// same clock they are true.  This is to support our interrupt, by
@@ -388,8 +402,11 @@ module	wboledrgb(i_clk, i_cyc, i_stb, i_we, i_addr, i_data, i_sel,
 	//
 	assign	o_int = (~r_busy)&&(!r_pre_busy);
 
+	// Keep Verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = &{ 1'b0, i_cyc, i_sel };
 	// verilator lint_on  UNUSED
+	// }}}
 endmodule

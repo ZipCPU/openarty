@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	automaster_tb.cpp
-//
-// Project:	ZBasic, a generic toplevel impl using the full ZipCPU
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This file calls and accesses the main.v function via the
 //		MAIN_TB class found in main_tb.cpp.  When put together with
@@ -13,15 +13,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -30,14 +31,14 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <signal.h>
 #include <time.h>
 #include <ctype.h>
@@ -46,7 +47,6 @@
 
 #include "verilated.h"
 #include "design.h"
-#include "cpudefs.h"
 
 #ifdef	OLEDRGB_ACCESS
 #include "oledsim.h"
@@ -60,6 +60,7 @@
 #include "main_tb.cpp"
 
 void	usage(void) {
+	// {{{
 	fprintf(stderr, "USAGE: main_tb <options> [zipcpu-elf-file]\n");
 	fprintf(stderr,
 // -h
@@ -72,14 +73,21 @@ void	usage(void) {
 "\t\tmore realistic.  Reads from the SD-card will be directed to\n"
 "\t\t\"sectors\" within this image.\n\n"
 #endif
+"\t-l <time>\tLimits simulation time to the given time\n"
 "\t-d\tSets the debugging flag\n"
+#ifdef	OLEDRGB_ACCESS
+"\t-g\tEnables the OLED simulation window\n"
+#endif
 "\t-t <filename>\n"
 "\t\tTurns on tracing, sends the trace to <filename>--assumed to\n"
 "\t\tbe a vcd file\n"
 );
 }
+// }}}
 
 int	main(int argc, char **argv) {
+	// Variable declaration and initialization
+	// {{{
 #ifdef	OLEDRGB_ACCESS
 	Gtk::Main	main_instance(argc, argv);
 #endif
@@ -91,11 +99,16 @@ int	main(int argc, char **argv) {
 #endif
 			*profile_file = NULL,
 			*trace_file = NULL; // "trace.vcd";
-	bool	debug_flag = false, willexit = false;
+	bool	debug_flag = false, willexit = false, verbose_flag = false;
+	bool	use_gui __attribute__((unused)) = false;
 	FILE	*profile_fp;
+	uint64_t	limit_time_ns = 0l, limit_time_ps = 0l;
 
 	MAINTB	*tb = new MAINTB;
+	// }}}
 
+	// Process arguments
+	// {{{
 	for(int argn=1; argn < argc; argn++) {
 		if (argv[argn][0] == '-') for(int j=1;
 					(j<512)&&(argv[argn][j]);j++) {
@@ -107,9 +120,19 @@ int	main(int argc, char **argv) {
 				if (trace_file == NULL)
 					trace_file = "trace.vcd";
 				break;
+#ifdef	OLEDRGB_ACCESS
+			case 'g': use_gui = true;
+				break;
+#endif
+			case 'l':
+				limit_time_ns = strtoul(argv[++argn], NULL, 0);
+				limit_time_ps = limit_time_ns * 1000;
+				j = 1000;
+				break;
 			case 'f': profile_file = "pfile.bin"; break;
 			case 't': trace_file = argv[++argn]; j=1000; break;
 			case 'h': usage(); exit(0); break;
+			case 'v': verbose_flag = true; break;
 			default:
 				fprintf(stderr, "ERR: Unexpected flag, -%c\n\n",
 					argv[argn][j]);
@@ -128,10 +151,13 @@ int	main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 	}
+	// }}}
 
+	// Setup
+	// {{{
 	if (elfload)
 		willexit = true;
-	if (debug_flag) {
+	if (debug_flag && verbose_flag) {
 		printf("Opening design with\n");
 		printf("\tDebug Access port = %d\n", FPGAPORT); // fpga_port);
 		printf("\tSerial Console    = %d\n", FPGAPORT+1);
@@ -154,15 +180,17 @@ int	main(int argc, char **argv) {
 		}
 	} else
 		profile_fp = NULL;
+	// }}}
 
-
+	// Here's where we load our MEM files
 	tb->reset();
 #ifdef	SDSPI_ACCESS
 	tb->setsdcard(sdimage_file);
 #endif
 
+	// Load the ZipCPU
+	// {{{
 	if (elfload) {
-		const	unsigned	MAX_RESET_CLOCKS = 40;
 #ifndef	INCLUDE_ZIPCPU
 		fprintf(stderr, "ERR: Design has no ZipCPU\n");
 		exit(EXIT_FAILURE);
@@ -175,72 +203,88 @@ int	main(int argc, char **argv) {
 		elfread(elfload, entry, secpp);
 		free(secpp);
 
-		printf("Attempting to start from 0x%08x\n", entry);
-		tb->m_core->cpu_ipc = entry;
+		if (verbose_flag)
+			printf("Attempting to start ZipCPU from 0x%08x\n", entry);
 
-		tb->m_core->cpu_cmd_halt = 1;
-		tb->m_core->cpu_reset    = 0;
-		tb->tick();
+		// Halt the CPU
+		// {{{
+		tb->cpu_dbg_write(R_ZIPCTRL, CPU_HALT);
+		// }}}
 
-		tb->m_core->cpu_ipc = entry;
-		tb->m_core->cpu_cmd_halt = 1;
-		tb->m_core->cpu_reset    = 0;
+		// Clear all registers
+		// {{{
+		for(int k=0; k<32; k++)
+			tb->cpu_dbg_write(R_ZIPREGS+(k*4), 0x00);
+		// }}}
 
-		for(unsigned k=0; k<MAX_RESET_CLOCKS; k++) {
-			tb->m_core->cpu_cmd_halt = 1;
-			while(tb->m_core->i_clk)
-				tb->tick();
-			while(!tb->m_core->i_clk)
-				tb->tick();
-		}
+		// Write the IPC register
+		// {{{
+		for(int k=0; k<32; k++)
+			tb->cpu_dbg_write(R_ZIPPC, entry);
+		// }}}
 
-	//
-		// tb->m_core->alu_wR  = 1;
-		tb->m_core->cpu_new_pc   = 1;
-		tb->m_core->cpu_pf_pc    = entry;
-		tb->m_core->CPUVAR(_alu_reg) = 15;
-		tb->m_core->CPUVAR(_dbgv)    = 1;
-		tb->m_core->CPUVAR(_dbg_val) = entry;
-		tb->m_core->CPUVAR(_dbg_clear_pipe) = 1;
-		tb->m_core->eval();
-	//
-		tb->tick();
-		tb->m_core->cpu_cmd_halt = 0;
-		tb->m_core->VVAR(_swic__DOT__cmd_reset) = 0;
-		tb->m_core->VVAR(_swic__DOT__cpu_halt) = 0;
+		// Clear the cache
+		// {{{
+		tb->cpu_dbg_write(R_ZIPCTRL, CPU_HALT | CPU_CLRCACHE);
+		// }}}
+
+		// Start the CPU
+		// {{{
+		tb->cpu_dbg_write(R_ZIPCTRL, CPU_GO);
+		// }}}
 	}
+	// }}}
 
+	// Main while(1) loop
+	// {{{
 #ifdef	OLEDRGB_ACCESS
-	Gtk::Main::run(tb->m_oledrgb);
-#else
-	if (profile_fp) {
-		unsigned long	last_instruction_tick = 0, now = 0;
-		while((!willexit)||(!tb->done())) {
+	if (use_gui) {
+		// tb->connect_idler();
+		Gtk::Main::run(tb->m_oledrgb);
+	} else
+#endif
+	if (profile_fp) { // Profile the ZipCPU
+		// {{{
+		unsigned last_instruction_tick = 0;
+		while((!willexit||!tb->done()) && !Verilated::gotFinish()) {
 			unsigned long	iticks;
 			unsigned	buf[2];
 
-			now++;
-			tb->tick();
+			tb->tick_clk();
 
-			if (((tb->m_core->cpu_alu_pc_valid)
-					||(tb->m_core->cpu_mem_pc_valid))
-				&&(!tb->m_core->cpu_alu_phase)
-				&&(!tb->m_core->cpu_new_pc)) {
+			if (tb->m_core->cpu_prof_stb) {
+				unsigned	now;
+
+				now = tb->m_core->cpu_prof_ticks;
 				iticks = now - last_instruction_tick;
-				buf[0] = tb->m_core->cpu_alu_pc;
+				buf[0] = tb->m_core->cpu_prof_addr;
 				buf[1] = (unsigned)iticks;
 				fwrite(buf, sizeof(unsigned), 2, profile_fp);
 
 				last_instruction_tick = now;
 			}
 		}
-	} else if (willexit) {
-		while(!tb->done())
+		// }}}
+	} else if (willexit) {	// Run until an exit call
+		// {{{
+		if (limit_time_ps == 0) {
+			while(!tb->done() && !Verilated::gotFinish())
+				tb->tick();
+		} else {
+			while(!tb->done() && limit_time_ps >= tb->m_time_ps
+					&& !Verilated::gotFinish())
+				tb->tick();
+		}
+		// }}}
+	} else if (limit_time_ps > 0l) {
+		while(limit_time_ps >= tb->m_time_ps && !Verilated::gotFinish())
 			tb->tick();
-	} else
-		while(true)
+	} else	// Run forever
+		// {{{
+		while(!Verilated::gotFinish())
 			tb->tick();
-#endif
+		// }}}
+	// }}}
 
 	tb->close();
 	delete tb;

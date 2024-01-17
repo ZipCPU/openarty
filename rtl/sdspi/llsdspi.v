@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	llsdspi.v
-//
-// Project:	SD-Card controller, using a shared SPI interface
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This file implements the "lower-level" interface to the
 //		SD-Card controller.  Specifically, it turns byte-level
@@ -62,87 +62,92 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2016-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2016-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+`timescale	1ns/1ps
 `default_nettype	none
-//
-module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
-		o_cs_n, o_sclk, o_mosi, i_miso,
-		o_stb, o_byte, o_idle, i_bus_grant);
-	parameter	SPDBITS = 7,
-			// Minimum startup clocks
-			STARTUP_CLOCKS = 150,
-			// System clocks to wait before the startup clock
-			// sequence
-			POWERUP_IDLE = 1000;
-	//
-	// This core was originally developed for a shared SPI bus
-	// implementation on a XuLA2-LX25 board--one that shared flash with
-	// the SD-card.  Few cards support such an implementation any more,
-	// since per protocol CS high (inactive) and clock and data pins
-	// toggling could well put the SD card into it's SD mode instead of
-	// SPI mode.
-	parameter [0:0]	OPT_SPI_ARBITRATION = 1'b0;
-	//
-	//
-	localparam [0:0]	CSN_ON_STARTUP = 1'b1;
-	//
-	// The MOSI INACTIVE VALUE *MUST* be 1'b1 to be compliant
-	localparam [0:0]	MOSI_INACTIVE_VALUE = 1'b1;
-	//
-	// Normally, an SPI transaction shuts the clock down when finished.
-	// If OPT_CONTINUOUS_CLOCK is set, the clock will be continuous.
-	// This also means that any driving program must be ready when the
-	// SDSPI is idle.
-	parameter [0:0]	OPT_CONTINUOUS_CLOCK = 1'b0;
+// }}}
+module	llsdspi #(
+		// {{{
+		parameter	SPDBITS = 7,
+				// Minimum startup clocks
+				STARTUP_CLOCKS = 150,
+				// System clocks to wait before the startup
+				// clock sequence
+				POWERUP_IDLE = 1000,
+		//
+		// This core was originally developed for a shared SPI bus
+		// implementation on a XuLA2-LX25 board--one that shared flash
+		// with the SD-card.  Few cards support such an implementation
+		// any more, since per protocol CS high (inactive) and clock
+		// and data pins toggling could well put the SD card into it's
+		// SD mode instead of SPI mode.
+		parameter [0:0]	OPT_SPI_ARBITRATION = 1'b0,
+		//
+		//
+		localparam [0:0]	CSN_ON_STARTUP = 1'b1,
+		//
+		// The MOSI INACTIVE VALUE *MUST* be 1'b1 to be compliant
+		localparam [0:0]	MOSI_INACTIVE_VALUE = 1'b1,
+		//
+		// Normally, an SPI transaction shuts the clock down when
+		// finished.  If OPT_CONTINUOUS_CLOCK is set, the clock will be
+		// continuous.  This also means that any driving program must
+		// be ready when the SDSPI is idle.
+		parameter [0:0]	OPT_CONTINUOUS_CLOCK = 1'b0
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
+		// Parameters/setup
+		input	wire	[(SPDBITS-1):0]	i_speed,
+		// The incoming interface
+		input	wire		i_cs,
+		input	wire		i_stb,
+		input	wire	[7:0]	i_byte,
+		// The actual SPI interface
+		output	reg		o_cs_n, o_sclk, o_mosi,
+		input	wire		i_miso,
+		// The outgoing interface
+		output	reg		o_stb,
+		output	reg	[7:0]	o_byte,
+		output	reg		o_idle,
+		// And whether or not we actually own the interface (yet)
+		input	wire		i_bus_grant
+		// }}}
+	);
 
-	//
-	input	wire		i_clk, i_reset;
-	// Parameters/setup
-	input	wire	[(SPDBITS-1):0]	i_speed;
-	// The incoming interface
-	input	wire		i_cs;
-	input	wire		i_stb;
-	input	wire	[7:0]	i_byte;
-	// The actual SPI interface
-	output	reg		o_cs_n, o_sclk, o_mosi;
-	input	wire		i_miso;
-	// The outgoing interface
-	output	reg		o_stb;
-	output	reg	[7:0]	o_byte;
-	output	reg		o_idle;
-	// And whether or not we actually own the interface (yet)
-	input	wire		i_bus_grant;
-
+	// Signal / localparam declarations
+	// {{{
 	localparam [3:0]	LLSDSPI_IDLE    = 4'h0,
 				LLSDSPI_HOTIDLE	= 4'h1,
 				LLSDSPI_WAIT	= 4'h2,
 				LLSDSPI_START	= 4'h3,
 				LLSDSPI_END	= 4'hb;
-//
+	//
 	reg			r_z_counter;
 	reg	[(SPDBITS-1):0]	r_clk_counter;
 	reg			r_idle;
@@ -151,36 +156,38 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 	wire			byte_accepted;
 	reg			restart_counter;
 
-	wire			bus_grant;
-
-	assign	bus_grant = (OPT_SPI_ARBITRATION ? i_bus_grant : 1'b1);
-
+	wire			bus_grant, startup_hold, powerup_hold;
 `ifdef	FORMAL
 	reg	f_past_valid;
 `endif
+	// }}}
 
-	reg	startup_hold, powerup_hold;
+	assign	bus_grant = (OPT_SPI_ARBITRATION ? i_bus_grant : 1'b1);
 
+	// Wait for power up
+	// {{{
 	generate if (POWERUP_IDLE > 0)
 	begin : WAIT_FOR_POWERUP
-
+		// {{{
 		localparam	POWERUP_BITS = $clog2(POWERUP_IDLE);
 		reg	[POWERUP_BITS-1:0]	powerup_counter;
+		reg				r_powerup_hold;
 
 		initial powerup_counter = POWERUP_IDLE[POWERUP_BITS-1:0];
-		initial	powerup_hold = 1;
+		initial	r_powerup_hold = 1;
 		always @(posedge i_clk)
 		if (i_reset)
 		begin
 			powerup_counter <= POWERUP_IDLE;
-			powerup_hold    <= 1;
+			r_powerup_hold    <= 1;
 		end else if (powerup_hold)
 		begin
 			if (|powerup_counter)
 				powerup_counter <= powerup_counter - 1;
-			powerup_hold <= (powerup_counter > 0);
+			r_powerup_hold <= (powerup_counter > 0);
 		end
 
+		assign	powerup_hold = r_powerup_hold;
 `ifdef	FORMAL
 		always @(*)
 		if (!f_past_valid)
@@ -189,31 +196,37 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		if (powerup_counter > 0)
 			assert(powerup_hold);
 `endif
-	end else begin
+		// }}}
+	end else begin : NO_POWERUP_HOLD
 
-		always @(*)
-			powerup_hold = 0;
+		assign	powerup_hold = 0;
 	end endgenerate
+	// }}}
 
+	// Send a minimum number of start up clocks after power up
+	// {{{
 	generate if (STARTUP_CLOCKS > 0)
 	begin : WAIT_FOR_STARTUP
+		// {{{
 		localparam	STARTUP_BITS = $clog2(STARTUP_CLOCKS);
 		reg	[STARTUP_BITS-1:0]	startup_counter;
+		reg				r_startup_hold;
 
 		initial startup_counter = STARTUP_CLOCKS[STARTUP_BITS-1:0];
-		initial	startup_hold = 1;
+		initial	r_startup_hold = 1;
 		always @(posedge i_clk)
 		if (i_reset || powerup_hold)
 		begin
 			startup_counter <= STARTUP_CLOCKS;
-			startup_hold    <= 1;
+			r_startup_hold    <= 1;
 		end else if (startup_hold && r_z_counter && !o_sclk)
 		begin
 			if (|startup_counter)
 				startup_counter <= startup_counter - 1;
-			startup_hold <= (startup_counter > 0);
+			r_startup_hold <= (startup_counter > 0);
 		end
 
+		assign	startup_hold = r_startup_hold;
 `ifdef	FORMAL
 		always @(*)
 		if (!f_past_valid)
@@ -222,27 +235,35 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		if (startup_counter > 0)
 			assert(startup_hold);
 `endif
-	end else begin
+		// }}}
+	end else begin : NO_STARTUP_HOLD
 
-		always @(*)
-			startup_hold = 0;
+		assign	startup_hold = 0;
 
 	end endgenerate
+	// }}}
 
 	assign	byte_accepted = (i_stb)&&(o_idle);
 
 `ifdef	FORMAL
+	// {{{
 	always @(*)
 	if (powerup_hold)
 		assert(startup_hold);
+	// }}}
 `endif
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Clock divider and speed control
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	//
 	initial	r_clk_counter = 0;
 	initial	r_z_counter = 1'b1;
 
+	// restart_counter
+	// {{{
 	always @(*)
 	if (OPT_CONTINUOUS_CLOCK || powerup_hold)
 		restart_counter = !powerup_hold;
@@ -263,7 +284,10 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		else
 			restart_counter = !r_idle;
 	end
+	// }}}
 
+	// r_clk_counter, r_z_counter
+	// {{{
 	always @(posedge i_clk)
 	begin
 		if (!r_z_counter)
@@ -276,11 +300,19 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 			r_z_counter <= (i_speed == 0);
 		end
 	end
+	// }}}
 
+	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Control o_stb, o_cs_n, and o_mosi
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
+	//
+
+	// o_cs_n, r_state
+	// {{{
 	initial	o_cs_n = CSN_ON_STARTUP;
 	initial	r_state = LLSDSPI_IDLE;
 	always @(posedge i_clk)
@@ -324,15 +356,24 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		if (startup_hold)
 			o_cs_n <= 1;
 	end
+	// }}}
 
+	// r_ireg
+	// {{{
 	always @(posedge i_clk)
 	if (r_z_counter && !o_sclk)
 		r_ireg <= { r_ireg[6:0], i_miso };
+	// }}}
 
+	// o_byte
+	// {{{
 	always @(posedge i_clk)
 	if (r_z_counter && o_sclk && r_state == LLSDSPI_END)
 		o_byte <= r_ireg;
+	// }}}
 
+	// r_idle
+	// {{{
 	initial	r_idle  = 0;
 	always @(posedge i_clk)
 	if (startup_hold || i_reset)
@@ -349,7 +390,10 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		else
 			r_idle <= 1'b0;
 	end
+	// }}}
 
+	// o_sclk
+	// {{{
 	initial	o_sclk = 1;
 	always @(posedge i_clk)
 	if (i_reset)
@@ -362,7 +406,10 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 			&& (startup_hold || (i_cs && !o_cs_n) || !o_sclk))
 			o_sclk <= (r_state == LLSDSPI_WAIT) || !o_sclk;
 	end
+	// }}}
 
+	// r_byte, o_mosi
+	// {{{
 	initial	r_byte = -1;
 	initial	o_mosi = MOSI_INACTIVE_VALUE;
 	always @(posedge i_clk)
@@ -391,14 +438,20 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 				o_mosi <= MOSI_INACTIVE_VALUE;
 		end
 	end
+	// }}}
 
+	// o_stb
+	// {{{
 	initial	o_stb  = 1'b0;
 	always @(posedge i_clk)
 	if (i_reset || startup_hold || !i_cs || !r_z_counter || !o_sclk)
 		o_stb <= 1'b0;
 	else
 		o_stb <= (r_state >= LLSDSPI_END);
+	// }}}
 
+	// o_idle
+	// {{{
 	always @(*)
 	begin
 		if (OPT_CONTINUOUS_CLOCK)
@@ -406,7 +459,17 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		else
 			o_idle = (r_idle)&&(r_z_counter);
 	end
-
+	// }}}
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	LLSDSPI
 `define	ASSUME	assume
@@ -607,6 +670,13 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 	else if (|(f_start_seq & {(8){2'b10}}))
 		assert(!o_sclk);
 
+	generate if (!OPT_CONTINUOUS_CLOCK)
+	begin
+		always @(*)
+		if (f_start_seq[17:0] == 18'h001)
+			cover(r_state == LLSDSPI_START);
+	end endgenerate
+
 	always @(*)
 	case(f_start_seq[17:0])
 	18'h001: begin
@@ -614,6 +684,7 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		assert(r_byte == fv_byte[7:0] );
 		assert(r_state == LLSDSPI_START);
 		// assert(o_mosi == fv_byte[7]);
+		assert(!OPT_CONTINUOUS_CLOCK);
 		assert(!o_cs_n);
 		assert(!r_idle);
 		end
@@ -977,11 +1048,11 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 		assume(i_miso == f_rxdata[7]);
 		end
 	18'h004: begin
-		assume(i_miso == f_rxdata[7]);
+		// assume(i_miso == f_rxdata[7]);
 		assert(r_ireg[0] == f_rxdata[7]);
 		end
 	18'h008: begin
-		assume(i_miso == f_rxdata[6]);
+		// assume(i_miso == f_rxdata[6]);
 		assert(r_ireg[0] == f_rxdata[7]);
 		end
 	18'h010: begin
@@ -1174,7 +1245,6 @@ module	llsdspi(i_clk, i_reset, i_speed, i_cs, i_stb, i_byte,
 			assume(!i_stb);
 	end
 
-
-
 `endif // FORMAL
+// }}}
 endmodule

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtcstopwatch.v
-//
+// {{{
 // Project:	A Wishbone Controlled Real--time Clock Core, w/ GPS synch
 //
 // Purpose:	Implement a stop watch in BCD.
@@ -10,15 +10,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -27,33 +28,39 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	rtcstopwatch(i_clk, i_reset, i_ckstep,
-		i_clear, i_start, i_stop, o_value, o_running);
-	//
-	input	wire		i_clk, i_reset;
-	//
-	input	wire	[31:0]	i_ckstep;
-	input	wire		i_clear, i_start, i_stop;
-	output	wire	[30:0]	o_value;
-	output	wire		o_running;
+// }}}
+module	rtcstopwatch(
+		// {{{
+		input	wire		i_clk, i_reset,
+		//
+		input	wire	[31:0]	i_ckstep,
+		input	wire		i_clear, i_start, i_stop,
+		output	wire	[30:0]	o_value,
+		output	wire		o_running
+		// }}}
+	);
 
+	// Signal declarations
+	// {{{
 	reg	[30:0]	counter;
 	reg	[45:0]	sw_subticks;
 	reg	[36:0]	sw_step;
 	reg	[13:0]	last_step;
 	reg	[6:0]	sw_carry;
 	reg		sw_ppms, carry, sw_running;
+	reg	[30:0]	next_sw;
+	// }}}
 
+	// i_ckstep
+	// {{{
 	// i_ckstep is the bottom 32 bits of a 48 counter step that rolls over
 	// once per second.  If we multiply by 100, we'll then have a 48 bit
 	// counter step that will roll over once every 10 milliseconds.
@@ -63,10 +70,13 @@ module	rtcstopwatch(i_clk, i_reset, i_ckstep,
 		sw_step <= { 1'b0, i_ckstep, 4'h0 }
        			+ { 2'b0, i_ckstep, 3'h0 }
 			+ { 5'h0, i_ckstep };
+	// }}}
 
 	always @(posedge i_clk)
 		last_step <= sw_step[36:23];
 
+	// sw_ppms, sw_subticks, carry
+	// {{{
 	initial	sw_ppms = 0;
 	initial	sw_subticks = 0;
 	initial	carry = 0;
@@ -83,6 +93,7 @@ module	rtcstopwatch(i_clk, i_reset, i_ckstep,
 				+ {{(23){1'b0}}, carry };
 	end else
 		sw_ppms <= 1'b0;
+	// }}}
 
 	//
 	// Stopwatch functionality
@@ -95,7 +106,8 @@ module	rtcstopwatch(i_clk, i_reset, i_ckstep,
 	// will only clear it if it was already stopped.
 	//
 
-	reg	[30:0]	next_sw;
+	// next_sw
+	// {{{
 	initial	next_sw = 0;
 	always @(posedge i_clk)
 	if (i_reset || i_clear)
@@ -167,30 +179,47 @@ module	rtcstopwatch(i_clk, i_reset, i_ckstep,
 		if (sw_carry[6])
 			next_sw[30:28] <= counter[30:28] + 1'b1;
 	end
+	// }}}
 
-
+	// counter
+	// {{{
 	initial	counter = 31'h00000;
 	always @(posedge i_clk)
 	if (i_reset || i_clear)
 		counter <= 0;
 	else if ((sw_ppms)&&(sw_running))
 		counter <= next_sw;
+	// }}}
 
+	// sw_running
+	// {{{
 	initial	sw_running = 0;
 	always @(posedge i_clk)
 	if (i_reset || i_stop)
 		sw_running <= 1'b0;
 	else if (i_start)
 		sw_running <= 1'b1;
+	// }}}
 
 	assign	o_value = counter;
 	assign	o_running = sw_running;
 
 	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
-	wire	[2:0]	unused;
-	assign	unused = sw_step[2:0];
+	wire	unused;
+	assign	unused = &{ 1'b0, sw_step[2:0] };
 	// verilator lint_on  UNUSED
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	STOPWATCH
 `define	ASSUME	assume
@@ -246,4 +275,5 @@ module	rtcstopwatch(i_clk, i_reset, i_ckstep,
 		`ASSERT(!sw_ppms);
 
 `endif
+// }}}
 endmodule

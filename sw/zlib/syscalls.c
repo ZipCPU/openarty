@@ -1,36 +1,41 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	syscalls.c
-//
-// Project:	Zip CPU -- a small, lightweight, RISC CPU soft core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	
-//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
+// You should have received a copy of the GNU General Public License along
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+// target there if the PDF file isn't present.)  If not, see
+// <http://www.gnu.org/licenses/> for a copy.
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <sys/errno.h>
 #include <stdint.h>
 #include <sys/unistd.h>
@@ -51,39 +56,85 @@
 #define	UARTTX	_uart->u_tx
 #endif
 
-//
-// TXBUSY: Something is still going out the port
-#define	TXBUSY	(_uart->u_tx & 0x0100)
+// #define	TXBUSY	((_uart->u_fifo & 0x010000)==0)
+#define	TXBUSY	((UARTTX & 0x0100)!=0)
+// #define	TXBUSY	0
 
-// TXWAIT: The FIFO is full, and so nothing can be sent out the TX port
-#define	TXWAIT	((_uart->u_fifo & 0x010000)==0)
-
-// UARTTX: The register to write to in order send a value
-#define	UARTTX	_uart->u_tx
-
-// UARTRX: The register to read from in order to read a value
-#define	UARTRX	_uart->u_rx
-
-void
-_outbyte(char v) {
-#ifdef	UARTTX
+void _outbyte(char v) {
+	// {{{
 	if (v == '\n') {
 		// Depend upon the WBUART, not the PIC
-		while(TXWAIT)
+		while(TXBUSY)
 			;
 		UARTTX = (unsigned)'\r';
 	}
 
 	// Depend upon the WBUART, not the PIC
-	while(TXWAIT)
+	while(TXBUSY)
 		;
 	uint8_t c = v;
-	UARTTX = c;
+	UARTTX = (unsigned)c;
+}
+// }}}
+
+void
+_outbytes(int nbytes, const char *buf) {
+#ifdef	FIFO_ENABLED
+	// {{{
+	const	uint8_t	*ptr = buf;
+	int	fifosz;
+
+	// Get the size of the FIFO
+	fifosz = _uart->u_fifo >> 28;
+	fifosz = 1<<fifosz;
+
+	for(int i=0; i<nbytes;) {
+		int	available, ufifo;
+		unsigned v;
+
+		// Check how many positions of the FIFO are available
+		while(((ufifo = _uart->u_fifo) & 0x010000)==0)
+			;
+		available = ufifo >> 18;
+		available &= (fifosz-1);
+
+		// Don't check availability again: for each available
+		// position, simply output the desired character while
+		// doing LF -> CR/LF translation
+		for(int k=0; (k<available) && (i < nbytes); k++, i++) {
+			v = *ptr++;
+
+			if (v == '\n') {
+				if (available >= 2) {
+					UARTTX = '\r';
+					UARTTX = '\n';
+				} else {
+					// Special case: What if there's not
+					// enough room in the FIFO for both
+					// carriage return *and* line feed?
+					UARTTX = '\r';
+
+					// In that case we need to poll until
+					// we have room for both.
+					while((_uart->u_fifo & 0x010000)==0)
+						;
+					UARTTX = '\n';
+				}
+			} else
+				UARTTX = v;
+		}
+	}
+	// }}}
+#else
+	const	uint8_t	*ptr = buf;
+
+	for(int i=0; i<nbytes; i++)
+		_outbyte(*ptr++);
 #endif
 }
 
-int
-_inbyte(void) {
+int _inbyte(void) {
+	// {{{
 #ifdef	UARTRX
 	const	int	echo = 1, cr_into_nl = 1;
 	static	int	last_was_cr = 0;
@@ -116,13 +167,15 @@ _inbyte(void) {
 	return -1;
 #endif
 }
+// }}}
 
-int
-_close_r(struct _reent *reent, int file) {
+int _close_r(struct _reent *reent, int file) {
+	// {{{
 	reent->_errno = EBADF;
 
 	return -1;	/* Always fails */
 }
+// }}}
 
 char	*__env[1] = { 0 };
 char	**environ = __env;
@@ -130,20 +183,21 @@ char	**environ = __env;
 int
 _execve_r(struct _reent *reent, const char *name, char * const *argv, char * const *env)
 {
+	// {{{
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_fork_r(struct _reent *reent)
-{
+int _fork_r(struct _reent *reent) {
+	// {{{
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_fstat_r(struct _reent *reent, int file, struct stat *st)
-{
+int _fstat_r(struct _reent *reent, int file, struct stat *st) {
+	// {{{
 	if ((STDOUT_FILENO == file)||(STDERR_FILENO == file)
 		||(STDIN_FILENO == file)) {
 		st->st_mode = S_IFCHR;
@@ -157,12 +211,13 @@ _fstat_r(struct _reent *reent, int file, struct stat *st)
 		return -1;
 	}
 }
+// }}}
 
-int
-_getpid_r(struct _reent *reent)
-{
+int _getpid_r(struct _reent *reent) {
+	// {{{
 	return 1;
 }
+// }}}
 
 int
 _gettimeofday_r(struct _reent *reent, struct timeval *ptimeval, void *ptimezone)
@@ -236,34 +291,34 @@ _gettimeofday_r(struct _reent *reent, struct timeval *ptimeval, void *ptimezone)
 	return -1;
 #endif
 }
+// }}}
 
-int
-_isatty_r(struct _reent *reent, int file)
-{
+int _isatty_r(struct _reent *reent, int file) {
+	// {{{
 	if ((STDIN_FILENO == file)
 			||(STDOUT_FILENO == file)
 			||(STDERR_FILENO==file))
 		return 1;
 	return 0;
 }
+// }}}
 
-int
-_kill_r(struct _reent *reent, int pid, int sig)
-{
+int _kill_r(struct _reent *reent, int pid, int sig) {
+	// {{{
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_link_r(struct _reent *reent, const char *existing, const char *new)
-{
+int _link_r(struct _reent *reent, const char *existing, const char *new) {
+	// {{{
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-_off_t
-_lseek_r(struct _reent *reent, int file, _off_t ptr, int dir)
-{
+_off_t _lseek_r(struct _reent *reent, int file, _off_t ptr, int dir) {
+	// {{{
 #ifdef	_ZIP_HAS_SDCARD_NOTYET
 	if (SDCARD_FILENO == file) {
 		switch(dir) {
@@ -278,10 +333,10 @@ _lseek_r(struct _reent *reent, int file, _off_t ptr, int dir)
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_open_r(struct _reent *reent, const char *file, int flags, int mode)
-{
+int _open_r(struct _reent *reent, const char *file, int flags, int mode) {
+	// {{{
 #ifdef	_ZIP_HAS_SDCARD_NOTYET
 	if (strcmp(file, "/dev/sdcard")==0) {
 		return SDCARD_FILENO;
@@ -293,10 +348,10 @@ _open_r(struct _reent *reent, const char *file, int flags, int mode)
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_read_r(struct _reent *reent, int file, void *ptr, size_t len)
-{
+int _read_r(struct _reent *reent, int file, void *ptr, size_t len) {
+	// {{{
 #ifdef	UARTRX
 	if (STDIN_FILENO == file)
 	{
@@ -326,39 +381,47 @@ _read_r(struct _reent *reent, int file, void *ptr, size_t len)
 	errno = ENOSYS;
 	return -1;
 }
+// }}}
 
 int
-_readlink_r(struct _reent *reent, const char *path, char *buf, size_t bufsize)
-{
+_readlink_r(struct _reent *reent, const char *path, char *buf, size_t bufsize) {
+	// {{{
 	reent->_errno = ENOSYS;
 	return -1;
 }
+// }}}
 
-int
-_stat_r(struct _reent *reent, const char *path, struct stat *buf) {
+int _stat_r(struct _reent *reent, const char *path, struct stat *buf) {
+	// {{{
 	reent->_errno = EIO;
 	return -1;
 }
+// }}}
 
 int
-_unlink_r(struct _reent *reent, const char *path)
-{
+_unlink_r(struct _reent *reent, const char *path) {
+// {{{
 	reent->_errno = EIO;
 	return -1;
 }
+// }}}
 
-int
-_times(struct tms *buf) {
+int _times(struct tms *buf) {
+	// {{{
 	errno = EACCES;
 	return -1;
 }
+// }}}
 
-int
-_write_r(struct _reent * reent, int fd, const void *buf, size_t nbytes) {
+int _write_r(struct _reent * reent, int fd, const void *buf, size_t nbytes) {
+	// {{{
 	if ((STDOUT_FILENO == fd)||(STDERR_FILENO == fd)) {
+		/*
 		const	char *cbuf = buf;
 		for(int i=0; i<nbytes; i++)
 			_outbyte(cbuf[i]);
+		*/
+		_outbytes(nbytes, buf);
 		return nbytes;
 	}
 #ifdef	_ZIP_HAS_SDCARD_NOTYET
@@ -370,22 +433,25 @@ _write_r(struct _reent * reent, int fd, const void *buf, size_t nbytes) {
 	reent->_errno = EBADF;
 	return -1;
 }
+// }}}
 
-int
-_wait(int *status) {
+int _wait(int *status) {
+	// {{{
 	errno = ECHILD;
 	return -1;
 }
+// }}}
 
 int	*heap = _top_of_heap;
 
-void *
-_sbrk_r(struct _reent *reent, int sz) {
+void * _sbrk_r(struct _reent *reent, int sz) {
+	// {{{
 	int	*prev = heap;
 
 	heap += sz;
 	return	prev;
 }
+// }}}
 
 __attribute__((__noreturn__))
 void	_exit(int rcode) {

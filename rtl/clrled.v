@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	clrled.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	The ARTY contains 4 Color LEDs.  Each color LED is composed of
@@ -51,47 +51,49 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
-module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
-	input	wire		i_clk, i_stb;
-	input	wire	[31:0]	i_data;
-	input	wire	[8:0]	i_counter;
-	output	wire	[31:0]	o_data;
-	output	reg	[2:0]	o_led;
+// }}}
+module	clrled(
+		input	wire		i_clk, i_stb,
+		input	wire	[31:0]	i_data,
+		input	wire	[8:0]	i_counter,
+		output	wire	[31:0]	o_data,
+		output	reg	[2:0]	o_led
+	);
 
-	//
-	//
+	genvar		gk;
+	reg	[8:0]	r_clr_led_r, r_clr_led_g, r_clr_led_b;
+	wire	[8:0]	rev_counter;
+
 	// If i_counter isn't available, just build one as in:
 	//
 	// reg [8:0] counter;
 	// always @(posedge i_clk) counter <= counter + 1'b1;
 	//
-
-	reg	[8:0]	r_clr_led_r, r_clr_led_g, r_clr_led_b;
 
 	initial	r_clr_led_r = 9'h003; // Color LED on the far right
 	initial	r_clr_led_g = 9'h000;
@@ -110,16 +112,10 @@ module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
 			r_clr_led_r[7:0], r_clr_led_g[7:0], r_clr_led_b[7:0]
 		};
 
-	wire	[8:0]	rev_counter;
-	assign	rev_counter[8] = i_counter[0];
-	assign	rev_counter[7] = i_counter[1];
-	assign	rev_counter[6] = i_counter[2];
-	assign	rev_counter[5] = i_counter[3];
-	assign	rev_counter[4] = i_counter[4];
-	assign	rev_counter[3] = i_counter[5];
-	assign	rev_counter[2] = i_counter[6];
-	assign	rev_counter[1] = i_counter[7];
-	assign	rev_counter[0] = i_counter[8];
+	generate for(gk=0; gk<9; gk=gk+1)
+	begin : GEN_BITREVERSE
+		assign	rev_counter[gk] = i_counter[8-gk];
+	end endgenerate
 
 	always @(posedge i_clk)
 		o_led <= {	(rev_counter[8:0] < r_clr_led_r),
@@ -127,9 +123,10 @@ module	clrled(i_clk, i_stb, i_data, i_counter, o_data, o_led);
 				(rev_counter[8:0] < r_clr_led_b) };
 
 	// Make Verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	[4:0]	unused;
 	assign	unused = { i_data[31:27] };
 	// verilator lint_on  UNUSED
-
+	// }}}
 endmodule

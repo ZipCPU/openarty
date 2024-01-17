@@ -1,0 +1,81 @@
+################################################################################
+##
+## Filename: 	mem_full.txt
+## {{{
+## Project:	OpenArty, an entirely open SoC based upon the Arty platform
+##
+## Purpose:	Describes a memory model containing 1) flash RAM for booting,
+##		2) block RAM for high-speed (Kernel) operations, and 3) DDR3
+##	SDRAM for everything else.  This will be used to create a board.ld
+##	linker script that can be used to link ZipCPU programs.
+##
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+## }}}
+## Copyright (C) 2017-2024, Gisselquist Technology, LLC
+## {{{
+## This file is part of the OpenArty project.
+##
+## The OpenArty project is free software and gateware, licensed under the terms
+## of the 3rd version of the GNU General Public License as published by the
+## Free Software Foundation.
+##
+## This project is distributed in the hope that it will be useful, but WITHOUT
+## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
+## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+## for more details.
+##
+## You should have received a copy of the GNU General Public License along
+## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
+## target there if the PDF file isn't present.)  If not, see
+## <http://www.gnu.org/licenses/> for a copy.
+## }}}
+## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
+##		http://www.gnu.org/licenses/gpl.html
+##
+################################################################################
+##
+## }}}
+@PREFIX=mem_full
+@MASTER.TYPE=SCRIPT
+@MASTER.BUS=wb
+@LD.FILE=board.ld
+@LD.DEFNS=
+/* LD.DEFNS from @$(PREFIX) */
+_kram  = 0; /* No high-speed kernel RAM */
+_ram   = ORIGIN(bkram);
+_rom   = ORIGIN(flash);
+_top_of_stack = ORIGIN(sdram) + LENGTH(sdram);
+
+@LD.SCRIPT=
+/* LD.SCRIPT from @$(PREFIX) */
+SECTIONS
+{
+       .rocode @$[0x%08x](zip.RESET_ADDRESS) : ALIGN(4) {
+               _boot_address = .;
+               *(.start) *(.boot)
+	} > flash
+       _kram_start = . ;
+       _kram_end = . ;
+       _ram_image_start = . ;
+       .kernel : ALIGN_WITH_INPUT {
+               *(.kernel)
+               }> bkram AT> flash
+       .ram : ALIGN_WITH_INPUT {
+               *(.text.startup)
+               *(.text*)
+               *(.rodata*) *(.strings)
+               *(.data) *(COMMON)
+               }> sdram AT> flash
+       _ram_image_end = . ;
+       .bss : ALIGN_WITH_INPUT {
+               *(.bss)
+               _bss_image_end = . ;
+               } > sdram
+       _top_of_heap = .;
+}
+#

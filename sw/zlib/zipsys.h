@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	zipsys.h
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Declare the capabilities and memory structure of the ZipSystem
@@ -11,15 +11,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -28,14 +29,14 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #ifndef	ZIPSYS_H
 #define	ZIPSYS_H
 
@@ -44,21 +45,33 @@ typedef	struct	{
 } ZIPTASKCTRS;
 
 typedef	struct	{
-	int	d_ctrl, d_len;
-	int	*d_rd, *d_wr;
+	unsigned	d_ctrl;
+	char		*d_rd, *d_wr;
+	unsigned	d_len;
 } ZIPDMA;
 
-#define	DMA_TRIGGER	0x00008000
-#define	DMACABORT	0xffed0000
-#define	DMACLEAR	0xafed0000
-#define	DMACCOPY	0x0fed0000
+#define	DMA_TRIGGER	0x20000000
+#define	DMACABORT	0x41425254
+#define	DMACLEAR	0x40000000
 #define	DMACERR		0x40000000
-#define	DMA_CONSTSRC	0x20000000
-#define	DMA_CONSTDST	0x10000000
-#define	DMAONEATATIME	0x0fed0001
+#define	DMAREQUEST	0x40000000
+//
+#define	DMA_CONSTSRC	0x00040000
+#define	DMA_SRCBYTE	0x00030000
+#define	DMA_SRCSHORT	0x00020000
+#define	DMA_SRCWORD	0x00010000
+#define	DMA_SRCWIDE	0x00000000
+//
+#define	DMA_CONSTDST	0x00400000
+#define	DMA_DSTBYTE	0x00300000
+#define	DMA_DSTSHORT	0x00200000
+#define	DMA_DSTWORD	0x00100000
+#define	DMA_DSTWIDE	0x00000000
+#define	DMACCOPY	(DMAREQUEST|DMACLEAR|DMA_SRCWIDE|DMA_DSTWIDE)
+#define	DMAONEATATIME	(DMAREQUEST|DMACLEAR|DMA_SRCBYTE|DMA_DSTBYTE|1)
 #define	DMA_BUSY	0x80000000
 #define	DMA_ERR		0x40000000
-#define	DMA_ONINT(INT)	(DMA_TRIGGER|(((INT)&15)<<10))
+#define	DMA_ONINT(INT)	(DMA_TRIGGER|(((INT)&31)<<24))
 #define	DMA_ONJIFFIES	DMA_ONINT(1)
 #define	DMA_ONTMC	DMA_ONINT(2)
 #define	DMA_ONTMB	DMA_ONINT(3)
@@ -103,8 +116,8 @@ typedef	struct	{
 #define	INT_ENABLE	0x80008000
 #define	EINT(A)	(INT_ENABLE|((A)<<16))
 #define	DINT(A)	((A)<<16)
-#define	CLEARPIC	0xffff7fff
-#define	DALLPIC		0xffff0000	// Disable all PIC interrupt sources
+#define	CLEARPIC	0x7fff7fff
+#define	DALLPIC		0x7fff0000	// Disable all PIC interrupt sources
 #define	INTNOW		0x08000
 
 static	volatile ZIPSYS *const _zip = (ZIPSYS *)(ZIPSYS_ADDR);

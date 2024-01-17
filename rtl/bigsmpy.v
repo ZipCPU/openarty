@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	bigsmpy.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	To multiply two 32-bit numbers into a 64-bit number.  We try
@@ -18,15 +18,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -35,26 +36,28 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
-	parameter	NCLOCKS = 1;
-	input	wire		i_clk, i_sync, i_sgn;
-	input	wire	[31:0]	i_a, i_b;
-	output	reg	[63:0]	o_r;
-	output	reg		o_sync;
+// }}}
+module	bigsmpy #(
+		parameter	NCLOCKS = 1
+	) (
+		input	wire		i_clk, i_sync, i_sgn,
+		input	wire	[31:0]	i_a, i_b,
+		output	reg	[63:0]	o_r,
+		output	reg		o_sync
+	);
 
 	generate
 	if (NCLOCKS == 1)
-	begin
+	begin : GEN_BASIC
+		// {{{
 		wire	signed	[31:0]	w_sa, w_sb;
 		wire		[31:0]	w_ua, w_ub;
 
@@ -71,9 +74,10 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 			else
 				o_r <= w_ua * w_ub;
 		end
-
+		// }}}
 	end else if (NCLOCKS == 2)
-	begin
+	begin : GEN_TWOSTEP
+		// {{{
 		reg	r_sync;
 		reg	signed	[31:0]	r_sa, r_sb;
 		wire		[31:0]	w_ua, w_ub;
@@ -98,10 +102,10 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 				o_r <= w_ua * w_ub;
 		end
 
-	
+		// }}}
 	end else if (NCLOCKS == 5)
-	begin
-		//
+	begin : GEN_LONGER
+		// {{{
 		// A pipeline, shift register, to track our
 		// synchronization pulse as it transits our pipeline
 		//
@@ -185,7 +189,6 @@ module	bigsmpy(i_clk, i_sync, i_sgn, i_a, i_b, o_r, o_sync);
 						15'h0, partial_mpy_2cl };
 			o_sync <= r_s[3];
 		end
+		// }}}
 	end endgenerate
-
-
 endmodule

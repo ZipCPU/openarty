@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	hello.c
-//
+// Filename:	hello.c
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	The original Helllo World program.  If everything works, this
@@ -16,10 +16,9 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 
 int main(int argc, char **argv) {
-	printf("Hello, World!\r\n");
-	return 0;
+	printf("Hello, World!\n");
 }

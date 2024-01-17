@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	rtcgps.txt
-##
+## {{{
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	
@@ -10,15 +10,16 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
+## }}}
+## Copyright (C) 2017-2024, Gisselquist Technology, LLC
+## {{{
+## This file is part of the OpenArty project.
 ##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+## The OpenArty project is free software and gateware, licensed under the terms
+## of the 3rd version of the GNU General Public License as published by the
+## Free Software Foundation.
 ##
-## This program is free software (firmware): you can redistribute it and/or
-## modify it under the terms of  the GNU General Public License as published
-## by the Free Software Foundation, either version 3 of the License, or (at
-## your option) any later version.
-##
-## This program is distributed in the hope that it will be useful, but WITHOUT
+## This project is distributed in the hope that it will be useful, but WITHOUT
 ## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
@@ -27,14 +28,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
-##
 ##
 ################################################################################
 ##
-##
+## }}}
 @PREFIX=rtc
 @DEVID=RTC
 ##
@@ -52,18 +53,34 @@
 	// Definitions in support of the GPS driven RTC
 	// This clock step is designed to match @$(CLOCK.FREQUENCY) Hz
 	localparam	[31:0]	RTC_CLKSTEP = @$[32'h%08x](CLKSTEP);
-	wire	@$(PREFIX)_ppd, @$(PREFIX)_pps;
-	reg	r_@$(PREFIX)_ack;
+	wire	@$(PREFIX)_ppd;
+	// Verilator lint_off UNUSED
+	wire	@$(PREFIX)_pps;
+	// Verilator lint_on  UNUSED
 @MAIN.INSERT=
 `ifdef	GPSTRK_ACCESS
-	rtcgps	#(RTC_CLKSTEP) the@$(PREFIX)(i_clk, i_reset,
-		@$(SLAVE.PORTLIST),
+	rtcgps	#(RTC_CLKSTEP)
+	the@$(PREFIX)(
+		// {{{
+		i_clk, i_reset,
+		@$(SLAVE.PREFIX)_cyc, @$(SLAVE.PREFIX)_stb, @$(SLAVE.PREFIX)_we,
+			@$(SLAVE.PREFIX)_addr[2-1:0],
+			@$(SLAVE.PREFIX)_data, // 32 bits wide
+			@$(SLAVE.PREFIX)_sel,  // 32/8 bits wide
+		@$(SLAVE.PREFIX)_stall, @$(SLAVE.PREFIX)_ack, @$(SLAVE.PREFIX)_idata,
 		@$(PREFIX)_int, @$(PREFIX)_ppd,
-		gps_tracking, ck_pps, gps_step[47:16], @$(PREFIX)_pps);
+		gps_tracking, ck_pps, gps_step[47:16], @$(PREFIX)_pps
+		// }}}
+	);
 `else
-	rtclight #(@$[32'h%x](CLKSTEP)) the@$(PREFIX)(i_clk, i_reset,
+	rtclight #(@$[32'h%x](CLKSTEP)
+	) the@$(PREFIX)(
+		// {{{
+		i_clk, i_reset,
 		@$(SLAVE.PORTLIST),
-		@$(PREFIX)_int, @$(PREFIX)_pps, @$(PREFIX)_ppd);
+		@$(PREFIX)_int, @$(PREFIX)_pps, @$(PREFIX)_ppd
+		// }}}
+	);
 `endif
 @MAIN.ALT=
 	assign	@$(PREFIX)_pps = 1'b0;

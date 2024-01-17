@@ -1,27 +1,27 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	cputest.c
-//
-// Project:	Zip CPU -- a small, lightweight, RISC CPU soft core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	To test the CPU, it's instructions, cache, and pipeline, to make
 //		certain that it works.  This includes testing that each of the
 //	instructions works, as well as any strange instruction combinations.
 //
-//
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -30,14 +30,14 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
 //
+////////////////////////////////////////////////////////////////////////////////
 //
-///////////////////////////////////////////////////////////////////////////////
-//
-//
+// }}}
 #include <stdint.h>
 #include "board.h"
 #include "zipcpu.h"
@@ -47,27 +47,25 @@
 #define NULL	(void *)0
 #endif
 
+#define	_ZIP_HAS_WBUART
+#define	PIC	_zip->z_pic
+
 #define	UARTTX		_uart->u_tx
 #define	UART_CTRL	_uart->u_setup
-#undef PIC
-#define	PIC		_zip->z_pic
-#define	TIMER		_zip->z_tma
+#define	TXBUSY		(UARTTX & 0x0100)
+
+#define	HAVE_COUNTER
 #define	COUNTER		_zip->z_m.ac_ck
 
-#ifdef	ZIPSCOPE_SCOPE
-#define	HAVE_SCOPE
-#endif
-#ifdef	HAVE_SCOPE
-#define	SCOPEc			_zipscope->s_ctrl
-#define	SCOPE_DELAY		4
-#define	TRIGGER_SCOPE_NOW	((unsigned)(WBSCOPE_TRIGGER|SCOPE_DELAY))
-#define	PREPARE_SCOPE		SCOPE_DELAY
-#else
-#endif
+// #define	HAVE_SCOPE
+// #define	SCOPEc			_sys->io_scope[0].s_ctrl
+// #define	SCOPE_DELAY		4
+// #define	TRIGGER_SCOPE_NOW	(WBSCOPE_TRIGGER|SCOPE_DELAY)
+// #define	PREPARE_SCOPE		SCOPE_DELAY
 
 unsigned	zip_ucc(void);
 unsigned	zip_cc(void);
-void		zip_save_context(int *);
+void		zip_save_context(void *);
 void		zip_halt(void);
 
 
@@ -117,6 +115,7 @@ asm("\t.section\t.start\n"
 
 
 extern	int	run_test(void *pc, void *stack);
+// {{{
 asm("\t.text\n\t.global\trun_test\n"
 	"\t.type\trun_test,@function\n"
 "run_test:\n"
@@ -143,8 +142,10 @@ asm("\t.text\n\t.global\trun_test\n"
 	"\tAND\t0xffffffdf,CC\n"
 	// Works with 5 NOOPS, works with 3 NOOPS, works with 1 NOOP
 	"\tJMP\tR0\n");
+// }}}
 
 extern	int	idle_test(void);
+// {{{
 asm("\t.text\n\t.global\tidle_test\n"
 	"\t.type\tidle_test,@function\n"
 "idle_test:\n"
@@ -174,8 +175,10 @@ asm("\t.text\n\t.global\tidle_test\n"
 "idle_loop:\n"
 	"\tWAIT\n"
 	"\tBRA idle_loop\n");
+// }}}
 
 void	break_one(void);
+// {{{
 asm("\t.text\n\t.global\tbreak_one\n"
 	"\t.type\tbreak_one,@function\n"
 "break_one:\n"
@@ -183,8 +186,10 @@ asm("\t.text\n\t.global\tbreak_one\n"
 	"\tBREAK\n"
 	"\tLDI\t1,R1\n"	// Test fails
 	"\tJMP\tR0");
+// }}}
 
 void	break_two(void);
+// {{{
 	// Can we stop a break before we hit it?
 asm("\t.text\n\t.global\tbreak_two\n"
 	"\t.type\tbreak_two,@function\n"
@@ -192,8 +197,10 @@ asm("\t.text\n\t.global\tbreak_two\n"
 	"\tLDI\t0,R1\n"
 	"\tJMP\tR0\n"
 	"\tBREAK\n");
+// }}}
 
 void	break_three(void);
+// {{{
 	// Can we jump to a break, and still have the uPC match
 asm("\t.text\n\t.global\tbreak_three\n"
 	"\t.type\tbreak_three,@function\n"
@@ -201,14 +208,16 @@ asm("\t.text\n\t.global\tbreak_three\n"
 	// we had succeeded.
 "break_three:\n"
 	"\tBREAK\n");
+// }}}
 
 void	early_branch_test(void);
+// {{{
 asm("\t.text\n\t.global\tearly_branch_test\n"
 	"\t.type\tearly_branch_test,@function\n"
 "early_branch_test:\n"
 	"\tLDI\t1,R1\n"
 	"\tBRA\t_eb_a\n"
-	"\tBREAK\n"	
+	"\tBREAK\n"
 "_eb_a:\n"
 	"\tLDI\t2,R1\n"
 	"\tBRA\t_eb_b\n"
@@ -247,8 +256,10 @@ asm("\t.text\n\t.global\tearly_branch_test\n"
 "_eb_f:\n"
 	"\tLDI\t0,R1\n"
 	"\tJMP\tR0");
+// }}}
 
 void	trap_test_and(void);
+// {{{
 asm("\t.text\n\t.global\ttrap_test_and\n"
 	"\t.type\ttrap_test_and,@function\n"
 "trap_test_and:\n"
@@ -256,8 +267,10 @@ asm("\t.text\n\t.global\ttrap_test_and\n"
 	"\tAND\t0xffffffdf,CC\n"
 	"\tLDI\t1,R1\n"	// Test fails
 	"\tJMP\tR0");
+// }}}
 
 void	trap_test_clr(void);
+// {{{
 asm("\t.text\n\t.global\ttrap_test_clr\n"
 	"\t.type\ttrap_test_clr,@function\n"
 "trap_test_clr:\n"
@@ -265,8 +278,10 @@ asm("\t.text\n\t.global\ttrap_test_clr\n"
 	"\tCLR\tCC\n"
 	"\tLDI\t1,R1\n"	// Test fails
 	"\tJMP\tR0");
+// }}}
 
 void	overflow_test(void);
+// {{{
 asm("\t.text\n\t.global\toverflow_test\n"
 	"\t.type\toverflow_test,@function\n"
 "overflow_test:\n"
@@ -298,9 +313,10 @@ asm("\t.text\n\t.global\toverflow_test\n"
 	"\tOR\tR3,R1\n"
 // And return the results
 	"\tJMP\tR0");
-
+// }}}
 
 void	carry_test(void);
+// {{{
 asm("\t.text\n\t.global\tcarry_test\n"
 	"\t.type\tcarry_test,@function\n"
 "carry_test:\n"
@@ -328,8 +344,10 @@ asm("\t.text\n\t.global\tcarry_test\n"
 	"\tXOR\t31,R3\n"
 	"\tOR\tR3,R1\n"
 	"\tJMP\tR0");
+// }}}
 
 void	loop_test(void);
+// {{{
 asm("\t.text\n\t.global\tloop_test\n"
 	"\t.type\tloop_test,@function\n"
 "loop_test:\n"
@@ -376,10 +394,12 @@ asm("\t.text\n\t.global\tloop_test\n"
 	"\tADD\t4,SP\n"
 //
 	"\tJMP\tR0\n");
+// }}}
 
+void	shift_test(void);
+// {{{
 // Test whether or not LSL, LSR, and ASR instructions work, together with their
 // carry flags
-void	shift_test(void);
 asm("\t.text\n\t.global\tshift_test\n"
 	"\t.type\tshift_test,@function\n"
 "shift_test:\n"
@@ -419,7 +439,7 @@ asm("\t.text\n\t.global\tshift_test\n"
 	"\tLDI\t-1,R2\n"
 	"\tLSL\t32,R2\n"
 	"\tOR.Z\t4096,R3\n"
-	"\tOR.C\t8192,R3\n"	
+	"\tOR.C\t8192,R3\n"
 	"\tCMP\t0,R2\n"
 	"\tOR.Z\t16384,R3\n"
 // How about shifting by zero?
@@ -429,7 +449,7 @@ asm("\t.text\n\t.global\tshift_test\n"
 	"\tOR\t32768,R3\n"
 	"\tCMP\t-1,R2\n"
 	"\tOR.Z\t1,R4\n"
-// 
+//
 	"\tLSR\t0,R2\n"
 	"\tLDI\t131072,R5\n"
 	"\tOR.C\tR5,R1\n"
@@ -448,8 +468,10 @@ asm("\t.text\n\t.global\tshift_test\n"
 	"\tOR\tR4,R3\n"
 	"\tOR\tR3,R1\n"
 	"\tJMP\tR0");
+// }}}
 
 int	sw_brev(int v);
+// {{{
 asm("\t.text\n\t.global\tsw_brev\n"
 	"\t.type\tsw_brev,@function\n"
 "sw_brev:\n"
@@ -471,8 +493,10 @@ asm("\t.text\n\t.global\tsw_brev\n"
 	"\tLW\t4(SP),R3\n"
 	"\tADD\t8,SP\n"
 	"\tJMP\tR0");
+// }}}
 
 void	pipeline_stack_test(void);
+// {{{
 asm("\t.text\n\t.global\tpipeline_stack_test\n"
 	"\t.type\tpipeline_stack_test,@function\n"
 "pipeline_stack_test:\n"
@@ -513,8 +537,10 @@ asm("\t.text\n\t.global\tpipeline_stack_test\n"
 	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n"
 	);
+// }}}
 
 void	pipeline_stack_test_component(void);
+// {{{
 asm("\t.text\n\t.global\tpipeline_stack_test_component\n"
 	"\t.type\tpipeline_stack_test_component,@function\n"
 "pipeline_stack_test_component:\n"
@@ -560,9 +586,10 @@ asm("\t.text\n\t.global\tpipeline_stack_test_component\n"
 	"\tLW\t48(SP),R12\n"
 	"\tADD\t52,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
-//mpy_test
 void	mpy_test(void);
+// {{{
 asm("\t.text\n\t.global\tmpy_test\n"
 	"\t.type\tmpy_test,@function\n"
 "mpy_test:\n"
@@ -594,33 +621,46 @@ asm("\t.text\n\t.global\tmpy_test\n"
 "end_mpy_137_test_loop:\n"
 	// Second test ... whatever that might be
 	"\tJMP\tR0\n");
+// }}}
 
 unsigned	soft_mpyuhi(unsigned, unsigned);
 int		soft_mpyshi(int,int);
 
 unsigned	hard_mpyuhi(unsigned, unsigned);
+// {{{
 asm("\t.text\n\t.global\thard_mpyuhi\n"
 	"\t.type\thard_mpyuhi,@function\n"
 "hard_mpyuhi:\n"
 	"\tMPYUHI\tR2,R1\n"
 	"\tRETN\n");
+// }}}
 
 int	hard_mpyshi(int, int);
+// {{{
 asm("\t.text\n\t.global\thard_mpyshi\n"
 	"\t.type\thard_mpyshi,@function\n"
 "hard_mpyshi:\n"
 	"\tMPYSHI\tR2,R1\n"
 	"\tRETN\n");
+// }}}
 
 void	debugmpy(char *str, int a, int b, int s, int r) {
+	// {{{
+#ifdef	HAVE_SCOPE
+	// Trigger the scope, if it hasn't been triggered yet
+	// but ... dont reset it if it has been.
+	SCOPEc = TRIGGER_SCOPE_NOW;
+#endif
 	txstr("\r\n"); txstr(str); txhex(a);
 	txstr(" x "); txhex(b);
 	txstr(" = "); txhex(s);
 	txstr("(Soft) = "); txhex(r);
 	txstr("(Hard)\r\n");
 }
+// }}}
 
 int	mpyhi_test(void) {
+	// {{{
 	int	a = 0xf97e27ab, b = 0;
 
 	while(b<0x6fffffff) {
@@ -652,8 +692,10 @@ int	mpyhi_test(void) {
 
 	return 0;
 }
+// }}}
 
 unsigned	soft_mpyuhi(unsigned a, unsigned b) {
+	// {{{
 	unsigned	alo, ahi;
 	unsigned	rhi, rlhi, rllo;
 
@@ -707,8 +749,10 @@ unsigned	soft_mpyuhi(unsigned a, unsigned b) {
 
 	return rhi;
 }
+// }}}
 
 int	soft_mpyshi(int a, int b) {
+	// {{{
 	unsigned	sgn, r, p;
 
 	sgn = ((a^b)>>31)&0x01;
@@ -728,27 +772,79 @@ int	soft_mpyshi(int a, int b) {
 		r += 1;
 	return r;
 }
+// }}}
 
-int	div_test(void);
-asm("\t.text\n\t.global\tdiv_test\n"
-	"\t.type\tdiv_test,@function\n"
-"div_test:\n"
+int	divu_test(void);
+// {{{
+asm("\t.text\n\t.global\tdivu_test\n"
+	"\t.type\tdivu_test,@function\n"
+"divu_test:\n"
 	"\tLDI\t0x4881a7,R4\n"
 	"\tLDI\t0x2d5108b,R2\n"
 	"\tLDI\t10,R3\n"
-	"\tDIVU\tR3,R2\n"
-	"\tCMP\tR4,R2\n"
+	"\tDIVU\tR3,R2\n"	// R3 = 0x2d5108b /= 10
+	"\tCMP\tR4,R2\n"	// Compare DIVU result to 0x4881a7
 	"\tLDILO.NZ\t1,R1\n"
 	"\tRETN.NZ\n"
 	"\tLDI\t0x2d5108b,R2\n"
-	"\tDIVU\t10,R2\n"
-	"\tCMP\tR4,R2\n"
+	"\tDIVU\t10,R2\n"	// R2 = 0x2d5108b /= 10
+	"\tCMP\tR4,R2\n"	// Compare R2 to 0x4881a7
 	"\tLDILO.NZ\t1,R1\n"
 	"\tRETN\n");
+// }}}
 
-//brev_test
-//pipeline_test -- used to be called pipeline memory race conditions
+int	divs_test(void);
+// {{{
+asm("\t.text\n\t.global\tdivs_test\n"
+	"\t.type\tdivs_test,@function\n"
+"divs_test:\n"
+	"\tLDI\t-26,R4\n"	// Expected result
+	"\tLDI\t131,R2\n"
+	"\tLDI\t-5,R3\n"
+	"\tDIVS\tR3,R2\n"	// 131 / -5
+	"\tCMP\tR4,R2\n"
+	"\tLDILO.NZ\t1,R1\n"
+	"\tRETN.NZ\n"
+	// 0x2653 * 0x098953d = 0x16d79_f70c7
+	// -883 * -999671 = -882709493
+	//
+	"\tLDI\t883,R2\n"	// R2 = A
+	"\tLDI\t999671,R3\n"	// R3 = B
+	"\tMOV\tR3,R4\n"
+	"\tMPY\tR2,R4\n"	// R4 = A*B
+	//
+	"\tMOV\tR4,R5\n"	// R5 = R4 = A*B
+	"\tDIVS\tR2,R5\n"	// R5 = A * B / A
+	"\tCMP\tR3,R5\n"
+	"\tLDILO.NZ\t3,R1\n"
+	"\tRETN.NZ\n"
+	//
+	//	-(A*B) / B
+	"\tMOV\tR4,R5\n"	// R5 =  R4 = A*B
+	"\tNEG\tR5\n"		// R5 = -R4 = -A*B
+	"\tMOV\tR3,R6\n"	// R6 = B
+	"\tNEG\tR6\n"		// R6 = -B
+	"\tDIVS\tR2,R5\n"	// R5 = A * B / A
+	"\tCMP\tR6,R5\n"
+	"\tLDILO.NZ\t5,R1\n"
+	"\tRETN.NZ\n"
+	//
+	//	-(A*B) / -B
+	"\tMOV\tR4,R5\n"	// R5 =  R4 = A*B
+	"\tNEG\tR5\n"		// R5 = -R4 = -A*B
+	"\tMOV\tR2,R6\n"	// R6 = B
+	"\tNEG\tR6\n"		// R6 = -B
+	"\tDIVS\tR6,R5\n"	// R5 = A * B / A
+	"\tCMP\tR3,R5\n"
+	"\tLDILO.NZ\t7,R1\n"
+	// "\tRETN.NZ\n"
+	//
+	"\tRETN\n");
+// }}}
+
 void	pipeline_test(void);
+// {{{
+//pipeline_test -- used to be called pipeline memory race conditions
 asm("\t.text\n\t.global\tpipeline_test\n"
 	"\t.type\tpipeline_test,@function\n"
 "pipeline_test:\n"
@@ -796,9 +892,11 @@ asm("\t.text\n\t.global\tpipeline_test\n"
 	//
 	"\tADD\t12,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
-//mempipe_test
 void	mempipe_test(void);
+// {{{
+//mempipe_test
 asm("\t.text\n\t.global\tmempipe_test\n"
 	"\t.type\tmempipe_test,@function\n"
 "mempipe_test:\n"
@@ -833,9 +931,11 @@ asm("\t.text\n\t.global\tmempipe_test\n"
 	"\tLW\t(SP),R0\n"
 	"\tADD\t16,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
-//cexec_test
 void	cexec_test(void);
+// {{{
+//cexec_test
 asm("\t.text\n\t.global\tcexec_test\n"
 	"\t.type\tcexec_test,@function\n"
 "cexec_test:\n"
@@ -851,15 +951,16 @@ asm("\t.text\n\t.global\tcexec_test\n"
 	"\tLW\t(SP),R0\n"
 	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
+void	nowaitpipe_test(void);
+// {{{
 // Pipeline stalls have been hideous problems for me.  The CPU has been modified
 // with special logic to keep stages from stalling.  For the most part, this
 // means that ALU and memory results may be accessed either before or as they
 // are written to the register file.  This set of code is designed to test
 // whether this bypass logic works.
 //
-//nowaitpipe_test
-void	nowaitpipe_test(void);
 asm("\t.text\n\t.global\tnowaitpipe_test\n"
 	"\t.type\tnowaitpipe_test,@function\n"
 "nowaitpipe_test:\n"
@@ -932,9 +1033,10 @@ asm("\t.text\n\t.global\tnowaitpipe_test\n"
 	//
 	"\tADD\t8,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
-//bcmem_test
 void	bcmem_test(void);
+// {{{
 asm("\t.text\n\t.global\tbcmem_test\n"
 	"\t.type\tbcmem_test,@function\n"
 "bcmem_test:\n"
@@ -965,7 +1067,76 @@ asm("\t.text\n\t.global\tbcmem_test\n"
 //
 	"\tADD\t4,SP\n"
 	"\tJMP\tR0\n");
+// }}}
 
+void	membyte_test(void);
+// {{{
+unsigned	memword;
+
+asm("\t.text\n\t.global\tmembyte_test\n"
+	"\t.type\tmembyte_test,@function\n"
+"membyte_test:\n"
+	"\tCLR\tR1\n"		// Return result
+	"\tLDI\tmemword,R2\n"	// Data pointer
+	"\tMOV\tR2,R3\n"	// Byte pointer
+	"\tCLR\tR4\n"		// Zero word
+	"\tCLR\tR6\n"		// Memory return value
+"membyte_addr:\n"
+	"\tCLR\tR5\n"		// Clear the Loop index
+"membyte_loop:\n"
+	"\tSW\tR4,(R2)\n"	// Clear the full word
+	"\tSB\tR5,(R3)\n"	// Store a byte
+	"\tLB\t(R3),R6\n"	// Read the byte back
+	"\tCMP\tR5,R6\n"
+	"\tBNZ\tmembyte_fail\n"
+	"\tADD\t1,R5\n"
+	"\tTEST\t0x0100,R5\n"	// This will force a signedness test as well
+	"\tBZ\tmembyte_loop\n"
+	//
+	"\tADD\t1,R3\n"
+	"\tMOV\tR3,R6\n"
+	"\tTEST\t3,R6\n"
+	"\tBNZ\tmembyte_addr\n"
+	"\tRTN\n"
+"membyte_fail:\n"
+	"\tLDI\t1,R1\n"
+	"\tRTN\n");
+// }}}
+
+void	memhalf_test(void);
+// {{{
+asm("\t.text\n\t.global\tmemhalf_test\n"
+	"\t.type\tmemhalf_test,@function\n"
+"memhalf_test:\n"
+	"\tCLR\tR1\n"		// Return result
+	"\tLDI\tmemword,R2\n"	// Data pointer
+	"\tMOV\tR2,R3\n"	// Byte pointer
+	"\tCLR\tR4\n"		// Zero word
+	"\tCLR\tR6\n"		// Memory return value
+"memhalf_addr:\n"
+	"\tCLR\tR5\n"		// Loop index
+"memhalf_loop:\n"
+	"\tSW\tR4,(R2)\n"	// Clear the full word
+	"\tSH\tR5,(R3)\n"	// Store a half-word
+	"\tLH\t(R3),R6\n"	// Read the half-word back
+	"\tXOR\tR5,R6\n"
+	"\tBNZ\tmemhalf_fail\n"
+	"\tADD\t5,R5\n"
+	"\tTEST\t0x010000,R5\n"	//
+	"\tBZ\tmemhalf_loop\n"
+	//
+	"\tADD\t2,R3\n"
+	"\tMOV\tR3,R6\n"
+	"\tTEST\t3,R6\n"
+	"\tBNZ\tmemhalf_addr\n"
+	"\tRTN\n"
+"memhalf_fail:\n"
+	"\tLDI\t1,R1\n"
+	"\tRTN\n");
+// }}}
+
+void	ill_test(void);
+// {{{
 // The illegal instruction test.  Specifically, illegal instructions cannot be
 // allowed to execute.  The PC must, upon completion, point to the illegal
 // instruction that caused the exception.
@@ -973,32 +1144,37 @@ asm("\t.text\n\t.global\tbcmem_test\n"
 // To create our illegal instruction, we assume that the only the three
 // operations without arguments are NOOP, BREAK, LOCK, and so we envision a
 // fourth instruction to create.
-void	ill_test(void);
 asm("\t.text\n\t.global\till_test\n"
 	"\t.type\till_test,@function\n"
 "ill_test:\n"	// 0.111_1.110_11......
 	"\t.int\t0x7ec00000\n"
 	"\tJMP\tR0\n");
+// }}}
 
+void	sim_test(void);
+// {{{
 // Are sim instructions considered valid?  Just hit the illegal instruction
 // so we can report the result
-void	sim_test(void);
 asm("\t.text\n\t.global\tsim_test\n"
 	"\t.type\tsim_test,@function\n"
 "sim_test:\n"	// 0.111_1.111_10......
 	"\t.int\t0x7f800000\n"
 	"\tJMP\tR0\n");
+// }}}
 
-// Are CIS instructions considered valid?  Try two compare instructions to
-// see if they are built into our CPU.
 void	cis_test(void);
+// {{{
+// Are CIS (Compound Instruction Set) instructions considered valid?  Try two
+// compare instructions to see if CIS instruction support is built into our CPU.
 asm("\t.text\n\t.global\tcis_test\n"
 	"\t.type\tcis_test,@function\n"
 "cis_test:\n"	// 1.000_0.011._1.101_0.000 ... 1.000_1.011._1.110_0.000
 	"\t.int\t0x83d08be0\n"
 	"\tJMP\tR0\n");
+// }}}
 
 void	cmpeq_test(void);
+// {{{
 asm("\t.text\n\t.global\tcmpeq_test\n"
 	"\t.type\tcmpeq_test,@function\n"
 "cmpeq_test:\n"
@@ -1006,8 +1182,10 @@ asm("\t.text\n\t.global\tcmpeq_test\n"
 	"\tCMP.Z\tR3,R4\n"
 	"\tLDILO.NZ\t1,R1\n"
 	"\tJMP\tR0\n");
+// }}}
 
 void	cmpneq_test(void);
+// {{{
 asm("\t.text\n\t.global\tcmpneq_test\n"
 	"\t.type\tcmpneq_test,@function\n"
 "cmpneq_test:\n"
@@ -1016,7 +1194,10 @@ asm("\t.text\n\t.global\tcmpneq_test\n"
 	"\tCMP.Z\tR3,R4\n"
 	"\tLDILO.Z\t1,R0\n"
 	"\tJMP\tR0\n");
-//
+// }}}
+
+void	ccreg_test(void);
+// {{{
 // The CC register has some ... unique requirements associated with it.
 // Particularly, flags are unavailable until after an ALU operation completes,
 // and they can't really be bypassed for the CC register.  After writeback,
@@ -1029,7 +1210,6 @@ asm("\t.text\n\t.global\tcmpneq_test\n"
 // Here, let's see if our pipeline can successfully navigate any of these
 // issues.
 //
-void	ccreg_test(void);
 asm("\t.text\n\t.global\tccreg_test\n"
 	"\t.type\tccreg_test,@function\n"
 "ccreg_test:\n"
@@ -1044,7 +1224,7 @@ asm("\t.text\n\t.global\tccreg_test\n"
 	"\tMOV\tCC,R5\n"	// See if the pipeline makes them take
 	"\tXOR\tR4,R5\n"	// Let's look for anything that has changed
 	"\tOR.NZ\t1,R1\n"	// If anything has changed, then we fail the tst
-	// 
+	//
 	// Test #2: Can we set the flags?
 	"\tMOV\tCC,R6\n"
 	"\tOR\t15,R6\n"
@@ -1063,10 +1243,12 @@ asm("\t.text\n\t.global\tccreg_test\n"
 	// Test #4: Can we load the CC plus a value into a register?
 	//	I don't think so ...
 	"\tJMP\tR0\n");
+// }}}
 
-// Multiple argument test
 __attribute__((noinline))
 int	multiarg_subroutine(int a, int b, int c, int d, int e, int f, int g) {
+// {{{
+// Multiple argument test
 	if (a!=0)	return 1;
 	if (b!=1)	return 2;
 	if (c!=2)	return 4;
@@ -1076,58 +1258,207 @@ int	multiarg_subroutine(int a, int b, int c, int d, int e, int f, int g) {
 	if (g!=6)	return 64;
 	return 0;
 }
+// }}}
 
 int	multiarg_test(void) {
+	// {{{
 	return multiarg_subroutine(0,1,2,3,4,5,6);
 }
+// }}}
+
+int	step_alu_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_mpy_test\n"
+	"\t.type\tstep_alu_test,@function\n"
+"step_alu_test:\n"
+	"\tXOR	R1,R0\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_cis_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_cis_test\n"
+	"\t.type\tstep_cis_test,@function\n"
+"step_cis_test:\n"
+	"\tADD	1,R1\n"
+	"\tADD	1,R2\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_break_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_break_test\n"
+	"\t.type\tstep_break_test,@function\n"
+"step_break_test:\n"
+	"\tBREAK\n"
+	"\tSW	R1,(R1)\n"	// Should generate a bus error, if ever executed
+);
+// }}}
+
+int	step_mpy_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_mpy_test\n"
+	"\t.type\tstep_mpy_test,@function\n"
+"step_mpy_test:\n"
+	"\tMPY	R6,R7\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_div_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_div_test\n"
+	"\t.type\tstep_div_test,@function\n"
+"step_div_test:\n"
+	"\tDIVU	R6,R5\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_diverr_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_diverr_test\n"
+	"\t.type\tstep_diverr_test,@function\n"
+"step_diverr_test:\n"
+	"\tDIVU	R0,R5\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_lod_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_lod_test\n"
+	"\t.type\tstep_lod_test,@function\n"
+"step_lod_test:\n"
+	"\tLW	(R4),R0\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_sto_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_sto_test\n"
+	"\t.type\tstep_sto_test,@function\n"
+"step_sto_test:\n"
+	"\tSW	R0,(R4)\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_loderr_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_loderr_test\n"
+	"\t.type\tstep_loderr_test,@function\n"
+"step_loderr_test:\n"
+	"\tLW	(R1),R0\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_stoerr_test(void);
+// {{{
+asm("\t.text\n\t.global\tstep_stoerr_test\n"
+	"\t.type\tstep_stoerr_test,@function\n"
+"step_stoerr_test:\n"
+	"\tSW	R0,(R1)\n"
+	"\tBREAK\n"
+);
+// }}}
+
+int	step_word = 0;
+
+extern	int	step_test(void *pc, void *stack);
+// {{{
+asm("\t.text\n\t.global\tstep_test\n"
+	"\t.type\tstep_test,@function\n"
+"step_test:\n"
+	"\tCLR\tR3\n"
+	"\tMOV\tR3,uR0\n"
+	"\tMOV\tR3,uR1\n"
+	"\tMOV\tR3,uR2\n"
+	"\tMOV\tR3,uR3\n"
+	"\tMOV\tR3,uR5\n"
+	"\tMOV\tR3,uR6\n"
+	"\tMOV\tR3,uR7\n"
+	"\tMOV\tR3,uR8\n"
+	"\tMOV\tR3,uR9\n"
+	"\tMOV\tR3,uR10\n"
+	"\tMOV\tR3,uR11\n"
+	"\tMOV\tR3,uR12\n"
+	// Put a some useful multiply values into uR5, uR6, and uR7
+	// (Implied) CLR R3
+	"\tMOV\t15+R3,uR5\n"	// uR5 = 15
+	"\tMOV\t5+R3,uR6\n"	// uR6 = 5
+	"\tMOV\t3+R3,uR7\n"	// uR7 = 3
+	//
+	// Put a valid address into uR4
+	"\tLDI\tstep_word,R3\n"
+	"\tMOV\tR3,uR4\n"
+	//
+	"\tMOV\tR2,uSP\n"	// uSP = stack
+	"\tLDI\t0x60,R3\n"
+	"\tMOV\tR3,uCC\n"	// Set the STEP ang GIE bits of uCC
+	"\tMOV\tR1,uPC\n"	// uPC = pc
+	"\tRTU\n"
+	// Return from running "a single" instruction
+	"\tLDI\t0,R1\n"
+	// If we step more or less than one word, it's an error
+	"\tMOV\tuPC,R3\n"
+	"\tSUB\tR1,R3\n"
+	"\tCMP\t4,R3\n"
+	"\tLDI.NZ\t1,R3\n"
+	// If we hit break, it's an error
+	"\tMOV\tuCC,R2\n"
+	"\tTEST\t0x80,R2\n"
+	"\tOR.NZ\t2,R1\n"
+	//
+	"\tRTN\n");
+// }}}
 
 __attribute__((noinline))
 void	wait(unsigned int msk) {
+	// {{{
 	PIC = 0x7fff0000|msk;
 	asm("MOV\tidle_task(PC),uPC\n");
 	PIC = 0x80000000|(msk<<16);
 	asm("WAIT\n");
 	PIC = 0; // Turn interrupts back off, lest they confuse the test
 }
+// }}}
 
 asm("\n\t.text\nidle_task:\n\tWAIT\n\tBRA\tidle_task\n");
 
-#ifdef	_BOARD_HAS_BUSCONSOLE
-#define	_ZIP_HAS_WBUART
-#endif
-
 __attribute__((noinline))
 void	txchr(char v) {
-#ifdef	_ZIP_HAS_WBUART
-#define	TXBUSY	((_uart->u_fifo & 0x010000)==0)
+	// {{{
 	while(TXBUSY)
 		;
 	uint8_t c = v;
 	_uart->u_tx = (unsigned)c;
-#else
-#error "No uart defined"
-#endif
-	// asm("\tNOUT %0\n" : : "r"(v));
 }
+// }}}
 
 void	wait_for_uart_idle(void) {
-#ifdef	_ZIP_HAS_WBUART
-	while(TXBUSY)	// While the FIFO is non-empty
+	// {{{
+	while(TXBUSY)	// While the transmitter is non-idle
 		;
-#else
-#error "No uart defined"
-#endif
 }
+// }}}
 
 __attribute__((noinline))
 void	txstr(const char *str) {
+	// {{{
 	const char *ptr = str;
 	while(*ptr)
 		txchr(*ptr++);
 }
+// }}}
 
 __attribute__((noinline))
 void	txhex(int num) {
+	// {{{
 	for(int ds=28; ds>=0; ds-=4) {
 		int	ch;
 		ch = (num >> ds)&0x0f;
@@ -1138,9 +1469,11 @@ void	txhex(int num) {
 		txchr(ch);
 	}
 }
+// }}}
 
 __attribute__((noinline))
 void	tx4hex(int num) {
+	// {{{
 	if (num & 0xffff0000){
 		txhex(num);
 		return;
@@ -1154,22 +1487,55 @@ void	tx4hex(int num) {
 		txchr(ch);
 	}
 }
+// }}}
 
 __attribute__((noinline))
 void	txreg(const char *name, int val) {
+	// {{{
 	txstr(name);	// 4 characters
 	txstr("0x");	// 2 characters
 	txhex(val);	// 8 characters
 	txstr("    ");	// 4 characters
 }
+// }}}
+
+void	txunsigned(unsigned uv) {
+	// {{{
+	unsigned	i, d;
+	char		str[32];
+
+	if (uv == 0)
+		txchr('0');
+	else {
+		for(i=0; i<31 && (d = (uv % 10)); i++) {
+			str[i] = '0'+d;
+			uv /= 10;
+		} for(d=0; d<i; d++)
+			txchr(str[i-d-1]);
+	}
+}
+// }}}
+
+void	txdecimal(int val) {
+	// {{{
+	if (val < 0) {
+		txchr('-');
+		txunsigned((unsigned)-val);
+	} else
+		txunsigned((unsigned)val);
+}
+// }}}
 
 __attribute__((noinline))
 void	save_context(int *context) {
+	// {{{
 	zip_save_context(context);
 }
+// }}}
 
 __attribute__((noinline))
 void	test_fails(int start_time, int *listno) {
+	// {{{
 	int	context[16], stop_time;
 
 	// Trigger the scope, if it hasn't already triggered.  Otherwise,
@@ -1180,9 +1546,6 @@ void	test_fails(int start_time, int *listno) {
 
 	MARKSTOP;
 	save_context(context);
-	*listno++ = context[1];
-	*listno++ = context[14];
-	*listno++ = context[15];
 #ifdef	HAVE_COUNTER
 	*listno   = stop_time;
 #endif
@@ -1219,13 +1582,15 @@ void	test_fails(int start_time, int *listno) {
 	asm("NEXIT -1");
 	// While previous versions of cputest.c called zip_busy(), here we
 	// reject that notion for the simple reason that zip_busy may not
-	// necessarily halt any Verilator simulation.  Instead, we try to 
+	// necessarily halt any Verilator simulation.  Instead, we try to
 	// halt the CPU.
 	while(1)
 		zip_halt();
 }
+// }}}
 
 void	testid(const char *str) {
+	// {{{
 	const int	WIDTH=32;
 	txstr(str);
 	const char *ptr = str;
@@ -1236,16 +1601,20 @@ void	testid(const char *str) {
 	while(i-- > 0)
 		txchr(' ');
 }
+// }}}
 
-int	testlist[32];
+#define	MAXTESTS	40
+int	testlist[MAXTESTS];
 
 void entry(void) {
-	int	context[16];
-	int	user_stack[256], *user_stack_ptr = &user_stack[256];
-	int	start_time, i;
-	int	cc_fail, cis_insns = 0;
+	int		context[16];
+	int		user_stack[256], *user_stack_ptr = &user_stack[256];
+	int		start_time, i;
+	int		cc_fail, cis_insns = 0;
+	unsigned	cc;
 
-	for(i=0; i<32; i++)
+
+	for(i=0; i<MAXTESTS; i++)
 		testlist[i] = -1;
 
 #ifdef	TIMER
@@ -1258,7 +1627,6 @@ void entry(void) {
 	SCOPEc = PREPARE_SCOPE;
 #endif
 
-
 	// UART_CTRL = 82;	// 1MBaud, given n 82.5MHz clock
 	// UART_CTRL = 705; // 115200 Baud, given n 81.25MHz clock
 	// *UART_CTRL = 8333; // 9600 Baud, 8-bit chars, no parity, one stop bit
@@ -1266,7 +1634,6 @@ void entry(void) {
 	//
 
 	txstr("\r\n");
-
 	txstr("Running CPU self-test\r\n");
 	txstr("-----------------------------------\r\n");
 
@@ -1294,6 +1661,8 @@ void entry(void) {
 		cis_insns = 1;
 	}
 
+	// Break instructions
+	// {{{
 	// Test break instruction in user mode
 	// Make sure the break works as designed
 	testid("Break test #1"); MARKSTART;
@@ -1308,7 +1677,7 @@ void entry(void) {
 
 
 	// Test break instruction in user mode
-	// Make sure that a decision on the clock prior won't still cause a 
+	// Make sure that a decision on the clock prior won't still cause a
 	// break condition
 	cc_fail = CC_MMUERR|CC_FPUERR|CC_DIVERR|CC_BUSERR|CC_ILL|CC_BREAK|CC_STEP|CC_SLEEP;
 	testid("Break test #2"); MARKSTART;
@@ -1317,7 +1686,7 @@ void entry(void) {
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #2
 
 	// Test break instruction in user mode
-	// Make sure that a decision on the clock prior won't still cause a 
+	// Make sure that a decision on the clock prior won't still cause a
 	// break condition
 	cc_fail = (CC_FAULT)|CC_MMUERR|CC_TRAP|CC_STEP|CC_SLEEP;
 	testid("Break test #3"); MARKSTART;
@@ -1328,17 +1697,22 @@ void entry(void) {
 			||(zip_ucc()&cc_fail))	// set, and no other excpt flags
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #3
+	// }}}
 
 	// LJMP test ... not (yet) written
 
+	// Branch testing
+	// {{{
 	// Test the early branching capability
 	//	Does it successfully clear whatever else is in the pipeline?
 	testid("Early Branch test"); MARKSTART;
 	if ((run_test(early_branch_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #4
+	// }}}
 
 	// TRAP test
+	// {{{
 	testid("Trap test/AND"); MARKSTART;
 	if ((run_test(trap_test_and, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
@@ -1352,6 +1726,7 @@ void entry(void) {
 	if ((zip_ucc() & 0x0200)==0)
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #6
+	// }}}
 
 	// Overflow test
 	testid("Overflow test"); MARKSTART;
@@ -1413,6 +1788,8 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #15
 
+	// Illegal instruction testing
+	// {{{
 	// Illegal Instruction test
 	testid("Ill Instruction test, NULL PC"); MARKSTART;
 	if ((run_test(NULL, user_stack_ptr))||((zip_ucc()^CC_ILL)&CC_EXCEPTION))
@@ -1428,29 +1805,33 @@ void entry(void) {
 	if (context[15] != (int)&ill_test)
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #17
+	// }}}
 
+	// Comparison instruction testing
+	// {{{
 	// Compare EQuals test
-	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
 	testid("Comparison test, =="); MARKSTART;
 	if ((run_test(cmpeq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #18
 
 	// Compare !EQuals test
-	cc_fail = CC_BUSERR|CC_DIVERR|CC_FPUERR|CC_BREAK|CC_MMUERR|CC_ILL;
 	testid("Comparison test, !="); MARKSTART;
 	if ((run_test(cmpneq_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #19
+	// }}}
 
 	// Pipeline memory race condition test
 	// DIVIDE test
 
 	// CC Register test
+	// {{{
 	testid("CC Register test"); MARKSTART;
 	if ((run_test(ccreg_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #20
+	// }}}
 
 	// Multiple argument test
 	testid("Multi-Arg test"); MARKSTART;
@@ -1458,27 +1839,150 @@ void entry(void) {
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #21
 
-	// MPY_TEST
-	testid("Multiply test"); MARKSTART;
-	if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+	// Load/store testing
+	// {{{
+	// Memory byte-level access test
+	testid("LB/SB test"); MARKSTART;
+	if ((run_test(membyte_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #22
 
-	// MPYxHI_TEST
-	testid("Multiply HI-word test"); MARKSTART;
-	if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+	// Memory half-word-level access test
+	testid("LH/SH test"); MARKSTART;
+	if ((run_test(memhalf_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
 	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #23
+	// }}}
+
+	// Step testing
+	// {{{
+	// Step test: ALU
+	testid("Step ALU test"); MARKSTART;
+	if ((step_test(step_alu_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #24
+
+	if (cis_insns!=0) {
+	// Step test: 2 CIS Add Insns
+	testid("Step CIS test"); MARKSTART;
+	if ((step_test(step_cis_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #25
+	}
+
+	// Step test: BREAK
+	testid("Step BREAK test"); MARKSTART;
+	step_test(step_break_test, user_stack_ptr);	// Ignore the return
+	if ((zip_ucc()^CC_BREAK)&CC_EXCEPTION)
+		test_fails(start_time, &testlist[tnum]);
+	else {
+		unsigned	upc;
+		GETUREG(upc, "uPC");
+		upc = upc - (unsigned)step_break_test;
+		if (upc != 0)
+			test_fails(start_time, &testlist[tnum]);
+	}
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #26
+
+
+	if ((zip_cc() & 0x40000000)!=0) {
+	// Step test: MPY
+	testid("Step MPY test"); MARKSTART;
+	if ((step_test(step_mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #27
+	}
+
+	if ((zip_cc() & 0x20000000)!=0) {
+	// Step test: Divide
+	testid("Step DIV test"); MARKSTART;
+	if ((step_test(step_div_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #28
+	}
+
+	// Step test: Divide by zero
+	if ((zip_cc() & 0x20000000)!=0) {
+	testid("Step DIVERR test"); MARKSTART;
+	if ((step_test(step_diverr_test, user_stack_ptr))
+					||((zip_ucc()^CC_DIVERR)&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #29
+	}
+
+	// Step test: Load
+	testid("Step LOD test"); MARKSTART;
+	if ((step_test(step_lod_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #30
+
+	// Step test: Store
+	testid("Step STO test"); MARKSTART;
+	if ((step_test(step_sto_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #31
+
+	// Step test: Load, bus err
+	testid("Step LOD/ERR test"); MARKSTART;
+	if ((step_test(step_loderr_test, user_stack_ptr))
+					||((zip_ucc()^CC_BUSERR)&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #32
+
+	// Step test: Store, bus err
+	testid("Step STO/ERR test"); MARKSTART;
+	if ((step_test(step_stoerr_test, user_stack_ptr))
+					||((zip_ucc()^CC_BUSERR)&CC_EXCEPTION))
+		test_fails(start_time, &testlist[tnum]);
+	txstr("Pass\r\n"); testlist[tnum++] = 0;	// #33
+	// }}}
+
+	// Multiply
+	// {{{
+	if ((zip_cc() & 0x40000000)==0) {
+		testid("Multiply test"); MARKSTART;
+		if ((run_test(mpy_test, user_stack_ptr))
+				|| (zip_ucc()&CC_ILL))
+			txstr("Pass (No MPY, MPY traps)\r\n");
+		else
+			test_fails(start_time, &testlist[tnum]);
+	} else {
+		// MPY_TEST
+		testid("Multiply test"); MARKSTART;
+		if ((run_test(mpy_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+			test_fails(start_time, &testlist[tnum]);
+		txstr("Pass\r\n"); testlist[tnum++] = 0;	// #34
+
+		// MPYxHI_TEST
+		testid("Multiply HI-word test"); MARKSTART;
+		if ((run_test(mpyhi_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+			test_fails(start_time, &testlist[tnum]);
+		txstr("Pass\r\n"); testlist[tnum++] = 0;	// #35
+	}
+	// }}}
 
 	// DIV_TEST
-	testid("Divide test");
+	// {{{
+	testid("(Unsigned) Divide test");
 	if ((zip_cc() & 0x20000000)==0) {
 		txstr("No divide unit installed\r\n");
 	} else { MARKSTART;
-	if ((run_test(div_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
+	if ((run_test(divu_test, user_stack_ptr))||(zip_ucc()&CC_EXCEPTION))
 		test_fails(start_time, &testlist[tnum]);
-	} txstr("Pass\r\n"); testlist[tnum++] = 0;	// #24
+	} txstr("Pass\r\n"); testlist[tnum++] = 0;	// #36
 
+	testid("(Signed)   Divide test");
+	MARKSTART;
+	if ((run_test(divs_test, user_stack_ptr))
+			||((cc = zip_ucc())&CC_EXCEPTION)) {
+		if ((zip_cc() & 0x20000000) && (cc & CC_ILL))
+			txstr("Pass (No div, Divide traps)\r\n");
+		else
+			test_fails(start_time, &testlist[tnum]);
+	} else
+		txstr("Pass\r\n");
+	testlist[tnum++] = 0;	// #37
+	// }}}
 
 	txstr("\r\n");
 	txstr("-----------------------------------\r\n");
@@ -1486,8 +1990,8 @@ void entry(void) {
 	wait_for_uart_idle();
 	txstr("\r\n");
 	wait_for_uart_idle();
-	for(int k=0; k<50000; k++)
-		asm("NOOP");
+	// for(int k=0; k<50000; k++)
+	//	asm("NOOP");
 	asm("NEXIT 0");
 	zip_halt();
 }

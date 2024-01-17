@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename:	Makefile
-##
+## {{{
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	To coordinate the build of a cycle accurate, Verilator based,
@@ -14,15 +14,16 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
+## }}}
+## Copyright (C) 2015-2024, Gisselquist Technology, LLC
+## {{{
+## This file is part of the OpenArty project.
 ##
-## Copyright (C) 2015-2019, Gisselquist Technology, LLC
+## The OpenArty project is free software and gateware, licensed under the terms
+## of the 3rd version of the GNU General Public License as published by the
+## Free Software Foundation.
 ##
-## This program is free software (firmware): you can redistribute it and/or
-## modify it under the terms of  the GNU General Public License as published
-## by the Free Software Foundation, either version 3 of the License, or (at
-## your option) any later version.
-##
-## This program is distributed in the hope that it will be useful, but WITHOUT
+## This project is distributed in the hope that it will be useful, but WITHOUT
 ## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
@@ -31,14 +32,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
-##
 ##
 ################################################################################
 ##
-##
+## }}}
 .PHONY: all
 # Make certain the "all" target is the first and therefore the default target
 all:
@@ -71,7 +72,7 @@ HEADERS := ddrsdramsim.h enetctrlsim.h memsim.h			\
 	oledsim.h port.h sdspisim.h testb.h uartsim.h zipelf.h \
 	flashsim.h
 VOBJDR	:= $(RTLD)/obj_dir
-VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o
+VOBJS   := $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o $(OBJDIR)/verilated_threads.o
 VMAIN	:= $(VOBJDR)/Vmain__ALL.a
 SIMSRCS := enetctrlsim.cpp zipelf.cpp dbluartsim.cpp flashsim.cpp	\
 	memsim.cpp sdspisim.cpp uartsim.cpp oledsim.cpp byteswap.cpp
@@ -105,7 +106,7 @@ $(OBJDIR)/main_tb.o: automaster_tb.cpp
 
 
 main_tb: $(OBJDIR)/main_tb.o $(OBJDIR)/zipelf.o $(SIMOBJS) $(VMAIN) $(VOBJS)
-	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) $^ $(GFXLIBS) -lelf -o $@
+	$(CXX) $(FLAGS) $(GFXFLAGS) $(INCS) $^ $(GFXLIBS) -lelf -lpthread -o $@
 
 #
 # The "clean" target, removing any and all remaining build products

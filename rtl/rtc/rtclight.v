@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtclight.v
-//
-// Project:	A Wishbone Controlled Real--time Clock Core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Implement a real time clock, including alarm, count--down
 //		timer, stopwatch, variable time frequency, and more.
@@ -17,15 +17,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -34,44 +35,46 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	rtclight(i_clk, i_reset,
+// }}}
+module	rtclight #(
+		// {{{
+		parameter	DEFAULT_SPEED = 32'd2814750,	// 100 Mhz
+		parameter [0:0]	OPT_TIMER       = 1'b1,
+		parameter [0:0]	OPT_STOPWATCH   = 1'b1,
+		parameter [0:0]	OPT_ALARM       = 1'b1,
+		parameter [0:0]	OPT_FIXED_SPEED = 1'b1
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
 		// Wishbone interface
-		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
-			o_wb_stall, o_wb_ack, o_wb_data,
+		input	wire		i_wb_cyc, i_wb_stb, i_wb_we,
+		input	wire	[2:0]	i_wb_addr,
+		input	wire	[31:0]	i_wb_data,
+		input	wire	[3:0]	i_wb_sel,
+		//
+		output	wire		o_wb_stall,
+		output	reg		o_wb_ack,
+		output	reg	[31:0]	o_wb_data,
 		// Output controls
-		o_interrupt,
+		output	wire		o_interrupt,
 		// A once-per-second strobe
-		o_pps,
+					o_pps,
 		// A once-per-day strobe on the last clock of the day
-		o_ppd);
-	parameter	DEFAULT_SPEED = 32'd2814750;	// 100 Mhz
-	parameter	[0:0]	OPT_TIMER       = 1'b1;
-	parameter	[0:0]	OPT_STOPWATCH   = 1'b1;
-	parameter	[0:0]	OPT_ALARM       = 1'b1;
-	parameter	[0:0]	OPT_FIXED_SPEED = 1'b1;
+					o_ppd
+		// }}}
+	);
 
-	input	wire		i_clk, i_reset;
-	//
-	input	wire		i_wb_cyc, i_wb_stb, i_wb_we;
-	input	wire	[2:0]	i_wb_addr;
-	input	wire	[31:0]	i_wb_data;
-	input	wire	[3:0]	i_wb_sel;
-	//
-	output	reg		o_wb_ack;
-	output	wire		o_wb_stall;
-	output	reg	[31:0]	o_wb_data;
-	output	wire		o_interrupt, o_pps, o_ppd;
-
+	// Signal declarations
+	// {{{
 	reg	[31:0]	ckspeed;
 
 	wire	[21:0]	clock_data;
@@ -82,7 +85,18 @@ module	rtclight(i_clk, i_reset,
 	reg		ck_wr, tm_wr, al_wr, wr_zero;
 	reg	[31:0]	wr_data;
 	reg	[2:0]	wr_valid;
+	wire		tm_int, al_int;
 
+	reg		ck_carry;
+	reg	[39:0]	ck_counter;
+	wire		ck_pps, ck_ppd;
+	reg		ck_prepps;
+	reg	[7:0]	ck_sub;
+	wire		sp_sel;
+	// }}}
+
+	// ck_wr, tm_wr, al_wr
+	// {{{
 	initial	ck_wr = 1'b0;
 	initial	tm_wr = 1'b0;
 	initial	al_wr = 1'b0;
@@ -98,7 +112,10 @@ module	rtclight(i_clk, i_reset,
 		//sw_wr<=((i_wb_stb)&&(i_wb_addr==3'b010)&&(i_wb_we));
 		al_wr <= ((i_wb_stb)&&(i_wb_addr==3'b011)&&(i_wb_we));
 	end
+	// }}}
 
+	// wr_data, wr_valid, wr_zero
+	// {{{
 	always @(posedge i_clk)
 	begin
 		wr_data <= i_wb_data;
@@ -110,31 +127,46 @@ module	rtclight(i_clk, i_reset,
 				&&(i_wb_data[21:16] <= 6'h23);
 		wr_zero     <= (i_wb_data[23:0]==0);
 	end
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Sub-clock handling, PPS generation
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 
-	wire	tm_int, al_int;
-
-	reg		ck_carry;
-	reg	[39:0]	ck_counter;
 	initial		ck_carry = 1'b0;
 	initial		ck_counter = 40'h00;
 	always @(posedge i_clk)
 		{ ck_carry, ck_counter } <= ck_counter + { 8'h00, ckspeed };
 
-	wire		ck_pps, ck_ppd;
-	reg		ck_prepps;
-	reg	[7:0]	ck_sub;
 	assign	ck_pps = (ck_carry)&&(ck_prepps);
 	assign	o_pps  = ck_pps;
+
 	always @(posedge i_clk)
 	begin
 		if (ck_carry)
 			ck_sub <= ck_sub + 8'h1;
 		ck_prepps <= (ck_sub == 8'hff);
 	end
-
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Bare clock
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 	rtcbare	clock(i_clk, i_reset, ck_pps,
 			ck_wr, wr_data[21:0], wr_valid, clock_data, ck_ppd);
-
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Timer
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 	generate if (OPT_TIMER)
 	begin
 		rtctimer #(.LGSUBCK(8))
@@ -150,6 +182,14 @@ module	rtclight(i_clk, i_reset,
 		assign	unused_timer = tm_wr;
 		// Verilator lint_on  UNUSED
 	end endgenerate
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Stopwatch
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	generate if (OPT_STOPWATCH)
 	begin
@@ -174,6 +214,14 @@ module	rtclight(i_clk, i_reset,
 		assign sw_running = 0;
 
 	end endgenerate
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Alarm
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	generate if (OPT_ALARM)
 	begin
@@ -191,6 +239,14 @@ module	rtclight(i_clk, i_reset,
 		assign	unused_alarm = al_wr;
 		// Verilator lint_on  UNUSED
 	end endgenerate
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Clock speedx control
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	//
 	// The ckspeed register is equal to 2^48 divded by the number of
@@ -200,7 +256,6 @@ module	rtclight(i_clk, i_reset,
 	// device.  Further, because this is only the lower 32 bits of a
 	// 48 bit counter per seconds, the clock jitter is kept below
 	// 1 part in 65 thousand.
-	wire	sp_sel;
 	generate if (!OPT_FIXED_SPEED)
 	begin : ADJUSTABLE_CLOCK_RATE
 
@@ -218,13 +273,14 @@ module	rtclight(i_clk, i_reset,
 			ckspeed = DEFAULT_SPEED;
 
 	end endgenerate
-
-	assign	o_interrupt = tm_int || al_int;
-
-	// A once-per day strobe, on the last second of the day so that the
-	// the next clock is the first clock of the day.  This is useful for
-	// connecting this module to a year/month/date date/calendar module.
-	assign	o_ppd = (ck_ppd);
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Bus returns
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	assign	o_wb_stall = 1'b0;
 
@@ -236,21 +292,34 @@ module	rtclight(i_clk, i_reset,
 		o_wb_ack <= i_wb_stb;
 
 	always @(posedge i_clk)
-		case(i_wb_addr[2:0])
-		3'b000: o_wb_data <= { 10'h0, clock_data };
-		3'b001: o_wb_data <= timer_data;
-		3'b010: o_wb_data <= { sw_running, stopwatch_data };
-		3'b011: o_wb_data <= alarm_data;
-		3'b100: o_wb_data <= ckspeed;
-		default: o_wb_data <= 32'h000;
-		endcase
+	case(i_wb_addr[2:0])
+	3'b000: o_wb_data <= { 10'h0, clock_data };
+	3'b001: o_wb_data <= timer_data;
+	3'b010: o_wb_data <= { sw_running, stopwatch_data };
+	3'b011: o_wb_data <= alarm_data;
+	3'b100: o_wb_data <= ckspeed;
+	default: o_wb_data <= 32'h000;
+	endcase
+	// }}}
+
+	// o_ppd
+	// {{{
+	// A once-per day strobe, on the last second of the day so that the
+	// the next clock is the first clock of the day.  This is useful for
+	// connecting this module to a year/month/date date/calendar module.
+	assign	o_ppd = (ck_ppd);
+	// }}}
+
+	assign	o_interrupt = tm_int || al_int;
+
 
 	// Make verilator hapy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = &{ 1'b0, sp_sel, i_wb_cyc, wr_data[31:25], i_wb_sel[3] };
 	// verilator lint_on UNUSED
-
+	// }}}
 `ifdef	FORMAL
 //
 `ifdef	RTCLIGHT

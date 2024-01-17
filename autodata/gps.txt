@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	gps.txt
-##
+## {{{
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	This file describes the three interfaces created by the GPS:
@@ -14,15 +14,16 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
+## }}}
+## Copyright (C) 2017-2024, Gisselquist Technology, LLC
+## {{{
+## This file is part of the OpenArty project.
 ##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+## The OpenArty project is free software and gateware, licensed under the terms
+## of the 3rd version of the GNU General Public License as published by the
+## Free Software Foundation.
 ##
-## This program is free software (firmware): you can redistribute it and/or
-## modify it under the terms of  the GNU General Public License as published
-## by the Free Software Foundation, either version 3 of the License, or (at
-## your option) any later version.
-##
-## This program is distributed in the hope that it will be useful, but WITHOUT
+## This project is distributed in the hope that it will be useful, but WITHOUT
 ## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
@@ -31,14 +32,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
-##
 ##
 ################################################################################
 ##
-##
+## }}}
 @$GPSPORT_OFFSET=2
 @PREFIX=gck
 @DEVID=GPSTRK
@@ -60,10 +61,12 @@
 	//The GPS Clock
 	input	wire		i_gps_pps;
 @MAIN.DEFNS=
+	// Verilator lint_off UNUSED
 	wire	gps_pps, gps_led, gps_locked, gps_tracking;
 	wire	[63:0]	gps_now, gps_err, gps_step;
 	wire	[1:0]	gps_dbg_tick;
 	wire	[31:0]	gps_dbg;
+	// Verilator lint_on  UNUSED
 @MAIN.INSERT=
 	// Verilator lint_off UNUSED
 	wire	[1:0]	ck_dbg;
@@ -75,9 +78,7 @@
 			gps_tracking, gps_now, gps_step, gps_err, gps_locked,
 			ck_dbg);
 
-	// Verilator lint_off UNUSED
 	assign	gps_dbg = { 29'b0, gps_now[63], gps_pps, i_gpsu_rx };
-	// Verilator lint_on  UNUSED
 @MAIN.ALT=
 	wire	[31:0]	pre_step;
 	assign	pre_step = { 16'h00, (({GPSCLOCK_DEFAULT_STEP[27:0],20'h00})
@@ -118,7 +119,9 @@ static volatile @$(BDEF.IOTYPE) *const @$(BDEF.IONAME) = ((@$BDEF.IOTYPE *)@$[0x
 @SLAVE.BUS=wb
 @CLOCK.NAME=clk
 @MAIN.DEFNS=
+	// Verilator lint_off UNUSED
 	wire	tb_pps;
+	// Verilator lint_on  UNUSED
 @MAIN.INSERT=
 `ifdef	GPSTRK_ACCESS
 	gpsclock_tb #(.CLOCK_FREQUENCY_HZ(@$(CLOCK.FREQUENCY)))
@@ -194,7 +197,10 @@ typedef	struct	GPSTB_S	{
 	input	wire		i_@$(PREFIX)_rx;
 	output	wire		o_@$(PREFIX)_tx;
 @MAIN.DEFNS=
-	wire	w_@$(PREFIX)_cts_n, w_@$(PREFIX)_rts_n;
+	// Verilator lint_off UNUSED
+	wire	w_@$(PREFIX)_rts_n;
+	// Verilator lint_on  UNUSED
+	wire	w_@$(PREFIX)_cts_n;
 	assign	w_@$(PREFIX)_cts_n=1'b1;
 @RTS=w_@$(PREFIX)_rts_n
 @CTS=w_@$(PREFIX)_cts_n

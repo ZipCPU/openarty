@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	wbpriarbiter.v
-//
-// Project:	Zip CPU -- a small, lightweight, RISC CPU soft core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This is a priority bus arbiter.  It allows two separate wishbone
 //		masters to connect to the same bus, while also guaranteeing
@@ -25,15 +25,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015,2018-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -42,69 +43,80 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	wbpriarbiter(i_clk,
-	// Bus A
-	i_a_cyc, i_a_stb, i_a_we, i_a_adr, i_a_dat, i_a_sel, o_a_stall, o_a_ack, o_a_err,
-	// Bus B
-	i_b_cyc, i_b_stb, i_b_we, i_b_adr, i_b_dat, i_b_sel, o_b_stall, o_b_ack, o_b_err,
-	// Both buses
-	o_cyc, o_stb, o_we, o_adr, o_dat, o_sel, i_stall, i_ack, i_err);
-	parameter			DW=32, AW=32;
-	//
-	// ZERO_ON_IDLE uses more logic than the alternative.  It should be
-	// useful for reducing power, as these circuits tend to drive wires
-	// all the way across the design, but it may also slow down the master
-	// clock.  I've used it as an option when using VERILATOR, 'cause
-	// zeroing things on idle can make them stand out all the more when
-	// staring at wires and dumps and such.
-	parameter	[0:0]		OPT_ZERO_ON_IDLE = 1'b0;
-	//
-	input	wire			i_clk;
-	// Bus A
-	input	wire			i_a_cyc, i_a_stb, i_a_we;
-	input	wire	[(AW-1):0]	i_a_adr;
-	input	wire	[(DW-1):0]	i_a_dat;
-	input	wire	[(DW/8-1):0]	i_a_sel;
-	output	wire			o_a_stall, o_a_ack, o_a_err;
-	// Bus B
-	input	wire			i_b_cyc, i_b_stb, i_b_we;
-	input	wire	[(AW-1):0]	i_b_adr;
-	input	wire	[(DW-1):0]	i_b_dat;
-	input	wire	[(DW/8-1):0]	i_b_sel;
-	output	wire			o_b_stall, o_b_ack, o_b_err;
-	//
-	output	wire			o_cyc, o_stb, o_we;
-	output	wire	[(AW-1):0]	o_adr;
-	output	wire	[(DW-1):0]	o_dat;
-	output	wire	[(DW/8-1):0]	o_sel;
-	input	wire			i_stall, i_ack, i_err;
+// }}}
+module	wbpriarbiter #(
+		// {{{
+		parameter			DW=32, AW=32,
+		// OPT_ZERO_ON_IDLE
+		// {{{
+		// ZERO_ON_IDLE uses more logic than the alternative.  It should
+		// be useful for reducing power, as these circuits tend to drive
+		// wires all the way across the design, but it may also slow
+		// down the master clock.  I've used it as an option when using
+		// VER1LATOR, 'cause zeroing things on idle can make them stand
+		// out all the more when staring at wires and dumps and such.
+		parameter	[0:0]		OPT_ZERO_ON_IDLE = 1'b0
+		// }}}
+		// }}}
+	) (
+		// {{{
+		input	wire			i_clk,
+		// Bus A
+		// {{{
+		input	wire			i_a_cyc, i_a_stb, i_a_we,
+		input	wire	[(AW-1):0]	i_a_adr,
+		input	wire	[(DW-1):0]	i_a_dat,
+		input	wire	[(DW/8-1):0]	i_a_sel,
+		output	wire			o_a_stall, o_a_ack, o_a_err,
+		// }}}
+		// Bus B
+		// {{{
+		input	wire			i_b_cyc, i_b_stb, i_b_we,
+		input	wire	[(AW-1):0]	i_b_adr,
+		input	wire	[(DW-1):0]	i_b_dat,
+		input	wire	[(DW/8-1):0]	i_b_sel,
+		output	wire			o_b_stall, o_b_ack, o_b_err,
+		// }}}
+		// Outgoing combined bus
+		// {{{
+		output	wire			o_cyc, o_stb, o_we,
+		output	wire	[(AW-1):0]	o_adr,
+		output	wire	[(DW-1):0]	o_dat,
+		output	wire	[(DW/8-1):0]	o_sel,
+		input	wire			i_stall, i_ack, i_err
+		// }}}
+		// }}}
+	);
 
+	reg	r_a_owner;
+
+	// r_a_owner
+	// {{{
 	// Go high immediately (new cycle) if ...
 	//	Previous cycle was low and *someone* is requesting a bus cycle
 	// Go low immadiately if ...
 	//	We were just high and the owner no longer wants the bus
 	// WISHBONE Spec recommends no logic between a FF and the o_cyc
 	//	This violates that spec.  (Rec 3.15, p35)
-	reg	r_a_owner;
-
 	initial	r_a_owner = 1'b1;
 	always @(posedge i_clk)
-		if (!i_b_cyc)
-			r_a_owner <= 1'b1;
-		// Allow B to set its CYC line w/o activating this interface
-		else if ((i_b_cyc)&&(i_b_stb)&&(!i_a_cyc))
-			r_a_owner <= 1'b0;
+	if (!i_b_cyc)
+		r_a_owner <= 1'b1;
+	// Allow B to set its CYC line w/o activating this interface
+	else if ((i_b_cyc)&&(i_b_stb)&&(!i_a_cyc))
+		r_a_owner <= 1'b0;
+	// }}}
 
+	// CYC, STB, and WE
+	// {{{
 	// Realistically, if neither master owns the bus, the output is a
 	// don't care.  Thus we trigger off whether or not 'A' owns the bus.
 	// If 'B' owns it all we care is that 'A' does not.  Likewise, if
@@ -114,8 +126,13 @@ module	wbpriarbiter(i_clk,
 	assign o_cyc = (r_a_owner) ? i_a_cyc : i_b_cyc;
 	assign o_we  = (r_a_owner) ? i_a_we  : i_b_we;
 	assign o_stb   = (r_a_owner) ? i_a_stb   : i_b_stb;
+	// }}}
+
+	// Everything else
+	// {{{
 	generate if (OPT_ZERO_ON_IDLE)
-	begin
+	begin : OPT_LOWPOWER
+		// {{{
 		assign	o_adr     = (o_stb)?((r_a_owner) ? i_a_adr  : i_b_adr):0;
 		assign	o_dat     = (o_stb)?((r_a_owner) ? i_a_dat  : i_b_dat):0;
 		assign	o_sel     = (o_stb)?((r_a_owner) ? i_a_sel  : i_b_sel):0;
@@ -125,7 +142,9 @@ module	wbpriarbiter(i_clk,
 		assign	o_b_stall = (o_cyc)&&(!r_a_owner) ? i_stall : 1'b1;
 		assign	o_a_err   = (o_cyc)&&( r_a_owner) ? i_err : 1'b0;
 		assign	o_b_err   = (o_cyc)&&(!r_a_owner) ? i_err : 1'b0;
-	end else begin
+		// }}}
+	end else begin : OPT_LOWLOGIC
+		// {{{
 		assign o_adr   = (r_a_owner) ? i_a_adr   : i_b_adr;
 		assign o_dat   = (r_a_owner) ? i_a_dat   : i_b_dat;
 		assign o_sel   = (r_a_owner) ? i_a_sel   : i_b_sel;
@@ -145,8 +164,18 @@ module	wbpriarbiter(i_clk,
 		//
 		assign	o_a_err = ( r_a_owner) ? i_err : 1'b0;
 		assign	o_b_err = (!r_a_owner) ? i_err : 1'b0;
+		// }}}
 	end endgenerate
-
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 // Formal properties for this module are maintained elsewhere
 `endif

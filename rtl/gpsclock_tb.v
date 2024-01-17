@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	gpsclock_tb.v
-//		
-// Project:	A GPS Schooled Clock Core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Provide a test bench, internal to an FPGA, whereby the GPS
 //		clock module can be tested.
@@ -12,15 +12,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2016,2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -29,47 +30,51 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	gpsclock_tb(i_clk, i_lcl_pps, o_pps, 
-		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
-			o_wb_stall, o_wb_ack, o_wb_data,
-		i_err, i_count, i_step);
-	parameter	DW=32, RW=64;
-	parameter	CLOCK_FREQUENCY_HZ = 81_250_000;
-	input	wire			i_clk, i_lcl_pps;
-	output	reg			o_pps;	// To our local circuitry
-	// Wishbone Configuration interface
-	input	wire			i_wb_cyc, i_wb_stb, i_wb_we;
-	input	wire	[2:0]		i_wb_addr;
-	input	wire	[(DW-1):0]	i_wb_data;
-	input	wire	[(DW/8-1):0]	i_wb_sel;
-	output	wire			o_wb_stall;
-	output	reg			o_wb_ack;
-	output	reg	[(DW-1):0]	o_wb_data;
-	// Status and timing outputs
-	input	wire [(RW-1):0]	i_err, // Fraction of a second err
-				i_count, // Fraction of a second
-				i_step; // 2^RW / clock speed (in Hz)
+// }}}
+module	gpsclock_tb #(
+		parameter	DW=32, RW=64,
+		parameter	CLOCK_FREQUENCY_HZ = 81_250_000
+	) (
+		// {{{
+		input	wire			i_clk, i_lcl_pps,
+		output	reg			o_pps,	// To our lcl circuitry
+		// Wishbone Configuration interface
+		input	wire			i_wb_cyc, i_wb_stb, i_wb_we,
+			input	wire	[2:0]		i_wb_addr,
+		input	wire	[(DW-1):0]	i_wb_data,
+		input	wire	[(DW/8-1):0]	i_wb_sel,
+		output	wire			o_wb_stall,
+		output	reg			o_wb_ack,
+		output	reg	[(DW-1):0]	o_wb_data,
+		// Status and timing outputs
+		input	wire [(RW-1):0]	i_err, // Fraction of a second err
+					i_count, // Fraction of a second
+					i_step // 2^RW / clock speed (in Hz)
+		// }}}
+	);
 
-
+	// Local declarations
+	// {{{
 	reg	[31:0]	r_jump, r_maxcount;
 	reg		r_halt;
-
-
-	//
-	//
+	reg	[31:0]	r_err, r_lcl;
+	reg	[63:0]	r_count, r_step;
+	reg	[31:0]	r_ctr;
+	reg	[31:0]	lcl_counter;
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Wishbone access ...
-	//
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	//
 	initial	r_jump = 0; 
@@ -86,9 +91,6 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 			endcase
 		end else
 			r_jump <= 32'h00;
-
-	reg	[31:0]	r_err, r_lcl;
-	reg	[63:0]	r_count, r_step;
 
 	initial	r_lcl = 32'h000;
 	initial	r_halt = 1'b0;
@@ -110,14 +112,14 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 		o_wb_ack <= i_wb_stb;
 
 	assign	o_wb_stall = 1'b0;
-	
-
-	//
+	// }}}
+	////////////////////////////////////////////////////////////////////////
 	//
 	// Generate a PPS signal
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 	//
 	//
-	reg	[31:0]	r_ctr;
 	always @(posedge i_clk)
 	if (r_ctr >= r_maxcount-1)
 		r_ctr <= r_ctr+1-r_maxcount+r_jump;
@@ -129,7 +131,6 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 	else
 		o_pps <= 1'b0;
 
-	reg	[31:0]	lcl_counter;
 	always @(posedge i_clk)
 	lcl_counter <= lcl_counter + 32'h001;
 
@@ -141,11 +142,14 @@ module	gpsclock_tb(i_clk, i_lcl_pps, o_pps,
 		r_step  <= i_step;
 		r_lcl   <= lcl_counter;
 	end
+	// }}}
 
 	// Make Verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = &{ 1'b0, i_wb_cyc, i_wb_sel };
 	// verilator lint_on UNUSED
+	// }}}
 endmodule
 

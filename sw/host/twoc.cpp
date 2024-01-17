@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	twoc.cpp
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Some various two's complement related C++ helper routines.
@@ -13,15 +13,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -30,18 +31,20 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <assert.h>
 #include "twoc.h"
 
+// sbits
+// {{{
 long	sbits(const long val, const int bits) {
 	long	r;
 
@@ -50,15 +53,15 @@ long	sbits(const long val, const int bits) {
 		r |= (-1l << bits);
 	return r;
 }
+// }}}
 
-bool	sfits(const long val, const int bits) {
-	return (sbits(val, bits) == bits);
-}
-
+// ubits
+// {{{
 unsigned long	ubits(const long val, const int bits) {
 	unsigned long r = val & ((1l<<bits)-1);
 	return r;
 }
+// }}}
 
 unsigned long	rndbits(const long val, const int bits_in, const int bits_out) {
 	long	s = sbits(val, bits_in); // Signed input value

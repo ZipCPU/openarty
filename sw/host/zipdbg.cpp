@@ -1,27 +1,27 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	zipdbg.cpp
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Provide a debugger to step through the ZipCPU assembler,
 //		evaluate the ZipCPU's current state, modify registers as(if)
 //	needed, etc.  All of this through the UART port of the Arty board.
 //
-//
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -30,14 +30,14 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 // BUGS:
 //	- No ability to verify CPU functionality (3rd party simulator)
 //	- No ability to set/clear breakpoints
@@ -101,24 +101,30 @@ class	ZIPPY : public DEVBUS {
 	DEVBUS	*m_fpga;
 	int	m_cursor;
 	ZIPSTATE	m_state;
-	bool	m_user_break, m_show_users_timers, m_show_cc;
+	bool	m_show_users_timers, m_show_cc, m_stopped_at_break;
 public:
-	ZIPPY(DEVBUS *fpga) : m_fpga(fpga), m_cursor(0), m_user_break(false),
-		m_show_users_timers(false), m_show_cc(false) {}
+	ZIPPY(DEVBUS *fpga) : m_fpga(fpga), m_cursor(0),
+		m_show_users_timers(false),
+		m_show_cc(false),
+		m_stopped_at_break(false) {}
 
 	void	read_raw_state(void) {
+		// {{{
 		m_state.m_valid = false;
-		for(int i=0; i<16; i++)
-			m_state.m_sR[i] = cmd_read(i);
-		for(int i=0; i<16; i++)
-			m_state.m_uR[i] = cmd_read(i+16);
-		for(int i=0; i<20; i++)
-			m_state.m_p[i]  = cmd_read(i+32);
+
+		// Read registers and peripherals
+		// {{{
+		readi(R_ZIPREGS,   16, m_state.m_sR);
+		readi(R_ZIPUSER,   16, m_state.m_uR);
+		readi(R_ZIPSYSTEM, 20, m_state.m_p);
 
 		m_state.m_gie = (m_state.m_sR[14] & 0x020);
 		m_state.m_pc  = (m_state.m_gie) ? (m_state.m_uR[15]):(m_state.m_sR[15]);
 		m_state.m_sp  = (m_state.m_gie) ? (m_state.m_uR[13]):(m_state.m_sR[13]);
+		// }}}
 
+		// Read the instructions in memory
+		// {{{
 		if (m_state.m_last_pc_valid)
 			m_state.m_imem[0].m_a = m_state.m_last_pc;
 		else
@@ -126,8 +132,11 @@ public:
 		try {
 			m_state.m_imem[0].m_d = readio(m_state.m_imem[0].m_a);
 			m_state.m_imem[0].m_valid = true;
+
+			m_stopped_at_break = ((m_state.m_imem[0].m_d & 0xf7ffffff) == 0x77000000);
 		} catch(BUSERR be) {
 			m_state.m_imem[0].m_valid = false;
+			m_stopped_at_break = false;
 		}
 		m_state.m_imem[1].m_a = m_state.m_pc;
 		try {
@@ -153,22 +162,43 @@ public:
 				m_state.m_imem[i+1].m_valid = false;
 			}
 		}
+		// }}}
 
+		// Read the stack
+		// {{{
 		m_state.m_smem[0].m_a = m_state.m_sp;
-		for(int i=1; i<5; i++)
-			m_state.m_smem[i].m_a = m_state.m_smem[i-1].m_a+4;
-		for(int i=0; i<5; i++) {
-			m_state.m_smem[i].m_valid = true;
-			if (m_state.m_smem[i].m_valid)
-			try {
-				m_state.m_smem[i].m_d = readio(m_state.m_smem[i].m_a);
+
+		try { // Try a fast read.  Works if no bus errors
+			// {{{
+			unsigned int	buffer[5];
+			readi(m_state.m_sp, 5, buffer);
+			for(int i=0; i<5; i++) {
 				m_state.m_smem[i].m_valid = true;
-			} catch(BUSERR be) {
-				m_state.m_smem[i].m_valid = false;
+				m_state.m_smem[i].m_a = m_state.m_sp + 4*i;
+				m_state.m_smem[i].m_d = buffer[i];
 			}
+			// }}}
+		} catch(BUSERR be) {
+			// {{{
+			// Got a bus error.  Try reading each value
+			// from the stack individually.
+			for(int i=0; i<5; i++) {
+				m_state.m_smem[i].m_valid = true;
+				if (m_state.m_smem[i].m_valid)
+				try {
+					m_state.m_smem[i].m_d = readio(m_state.m_smem[i].m_a);
+					m_state.m_smem[i].m_valid = true;
+				} catch(BUSERR be) {
+					m_state.m_smem[i].m_valid = false;
+				}
+			}
+			// }}}
 		}
+		// }}}
+
 		m_state.m_valid = true;
 	}
+	// }}}
 
 	void	kill(void) { m_fpga->kill(); }
 	void	close(void) { m_fpga->close(); }
@@ -190,35 +220,62 @@ public:
 	void	clear(void) { m_fpga->clear(); }
 
 	void	reset(void) { writeio(R_ZIPCTRL, CPU_RESET|CPU_HALT); }
-	void	step(void) { writeio(R_ZIPCTRL, CPU_STEP); m_state.step(); }
+	void	step(void) {
+		// {{{
+		if (m_stopped_at_break) {
+			unsigned break_insn, insn_addr;
+			const unsigned noop_insn = 0x77c00000;
+
+			insn_addr  = m_state.m_imem[0].m_a;
+			break_insn = m_state.m_imem[0].m_d;
+
+			writeio(insn_addr, noop_insn);
+			writeio(R_ZIPCTRL, CPU_CLRCACHE);
+			writeio(R_ZIPCTRL, CPU_STEP); m_state.step();
+			writeio(insn_addr, break_insn);
+			writeio(R_ZIPCTRL, CPU_CLRCACHE);
+		} else {
+			writeio(R_ZIPCTRL, CPU_STEP); m_state.step();
+		}
+		// }}}
+	}
 	void	go(void) { writeio(R_ZIPCTRL, CPU_GO); }
 	void	halt(void) {	writeio(R_ZIPCTRL, CPU_HALT); }
 	bool	stalled(void) { return ((readio(R_ZIPCTRL)&CPU_STALL)==0); }
 
 	void	show_user_timers(bool v) {
+		// {{{
 		m_show_users_timers = v;
 	}
+	// }}}
 
 	void	toggle_cc(void) {
+		// {{{
 		m_show_cc = !m_show_cc;
 	}
+	// }}}
 
 	void	showval(int y, int x, const char *lbl, unsigned int v, bool c) {
+		// {{{
 		if (c)
 			mvprintw(y,x, ">%s> 0x%08x<", lbl, v);
 		else
 			mvprintw(y,x, " %s: 0x%08x ", lbl, v);
 	}
+	// }}}
 
 	void	dispreg(int y, int x, const char *n, unsigned int v, bool c) {
+		// {{{
 		// 4,4,8,1 = 17 of 20, +2 = 18
 		if (c)
 			mvprintw(y, x, ">%s> 0x%08x<", n, v);
 		else
 			mvprintw(y, x, " %s: 0x%08x ", n, v);
 	}
+	// }}}
 
 	int	showins(int y, const char *lbl, const unsigned int pcidx, bool ignore_a) {
+		// {{{
 		char	la[80], lb[80];
 		int	r = y-1, bln = r;
 
@@ -249,8 +306,10 @@ public:
 
 		return r;
 	}
+	// }}}
 
 	void	showstack(int y, const char *lbl, const unsigned int idx) {
+		// {{{
 		mvprintw(y, 27+26, "%s%08x ", lbl, m_state.m_smem[idx].m_a);
 
 		if (m_state.m_gie) attroff(A_BOLD);
@@ -262,65 +321,26 @@ public:
 			printw("(Bus Err)");
 		attroff(A_BOLD);
 	}
+	// }}}
 
+	// Routine is not used
+	/*
 	unsigned int	cmd_read(unsigned int a) {
-		int errcount = 0;
-		unsigned int	s;
-
-		writeio(R_ZIPCTRL, CMD_HALT|(a&0x3f));
-		while((((s=readio(R_ZIPCTRL))&CPU_STALL)== 0)&&(errcount<MAXERR)
-				&&(!m_user_break))
-			errcount++;
-		if (m_user_break) {
-			endwin();
-			exit(EXIT_SUCCESS);
-		} else if (errcount >= MAXERR) {
-			endwin();
-			printf("ERR: errcount(%d) >= MAXERR on cmd_read(a=%2x)\n", errcount, a);
-			printf("ZIPCTRL = 0x%08x", s);
-			if ((s & 0x0200)==0) printf(" STALL");
-			if  (s & 0x0400) printf(" HALTED");
-			if ((s & 0x03000)==0x01000)
-				printf(" SW-HALT");
-			else {
-				if (s & 0x01000) printf(" SLEEPING");
-				if (s & 0x02000) printf(" GIE(UsrMode)");
-			} printf("\n");
-			exit(EXIT_FAILURE);
-		}
-		return readio(R_ZIPDATA);
+		// {{{
+		return	readio(R_ZIPREGS + (4*a));
 	}
+	// }}}
+	*/
 
+	// Writes to the CPU are simpler with our newer cmd_write interface
 	void	cmd_write(unsigned int a, int v) {
-		int errcount = 0;
-		unsigned int	s;
-
-		writeio(R_ZIPCTRL, CMD_HALT|(a&0x3f));
-		while((((s=readio(R_ZIPCTRL))&CPU_STALL)== 0)&&(errcount<MAXERR)
-				&&(!m_user_break))
-			errcount++;
-		if (m_user_break) {
-			endwin();
-			exit(EXIT_SUCCESS);
-		} else if (errcount >= MAXERR) {
-			endwin();
-			printf("ERR: errcount(%d) >= MAXERR on cmd_read(a=%2x)\n", errcount, a);
-			printf("ZIPCTRL = 0x%08x", s);
-			if ((s & 0x0200)==0) printf(" STALL");
-			if  (s & 0x0400) printf(" HALTED");
-			if ((s & 0x03000)==0x01000)
-				printf(" SW-HALT");
-			else {
-				if (s & 0x01000) printf(" SLEEPING");
-				if (s & 0x02000) printf(" GIE(UsrMode)");
-			} printf("\n");
-			exit(EXIT_FAILURE);
-		}
-
-		writeio(R_ZIPDATA, (unsigned int)v);
+		// {{{
+		writeio(R_ZIPREGS+(4*a), (unsigned int)v);
 	}
+	// }}}
 
 	void	read_state(void) {
+		// {{{
 		int	ln= 0;
 		bool	gie;
 
@@ -331,6 +351,8 @@ public:
 		else if (m_cursor >= 44)
 			m_cursor = 43;
 
+		// Peripheral state
+		// {{{
 		mvprintw(ln,0, "Peripherals");
 		mvprintw(ln,30,"%-50s", "CPU State: ");
 		{
@@ -377,7 +399,10 @@ public:
 			showval(ln,40, "UPST", m_state.m_p[14], (m_cursor==10));
 			showval(ln,60, "UICT", m_state.m_p[15], (m_cursor==11));
 		}
+		// }}}
 
+		// Draw supervisor registers
+		// {{{
 		ln++;
 		ln++;
 		unsigned int cc = m_state.m_sR[14];
@@ -409,7 +434,7 @@ public:
 
 		if (m_show_cc) {
 			mvprintw(ln,40, " sCC :%16s", "");
-			dispreg(ln, 40, "sCC ", m_state.m_sR[14], (m_cursor==26));
+			dispreg(ln, 40, "sCC ", cc, (m_cursor==26));
 		} else {
 			mvprintw(ln,40, " sCC :%16s", "");
 			mvprintw(ln,40, "%ssCC :%s%s%s%s%s%s%s",
@@ -429,7 +454,10 @@ public:
 		}
 		dispreg(ln,60, "sPC ", m_state.m_sR[15], (m_cursor==27));
 		ln++;
+		// }}}
 
+		// Draw user registers
+		// {{{
 		if (gie)
 			attron(A_BOLD);
 		else
@@ -474,10 +502,13 @@ public:
 				(cc&1)?"Z":" ");
 		}
 		dispreg(ln,60, "uPC ", m_state.m_uR[15], (m_cursor==43));
+		// }}}
 
 		attroff(A_BOLD);
 		ln+=3;
 
+		// Show instruction pipe and top of stack
+		// {{{
 		showins(ln+4, " ", 0, true);
 		{
 			int	lclln = ln+3;
@@ -486,7 +517,9 @@ public:
 			for(int i=0; i<5; i++)
 				showstack(ln+i, (i==0)?">":" ", i);
 		}
+		// }}}
 	}
+	// }}}
 
 	void	cursor_up(void) {
 		if (m_cursor > 3)
@@ -512,21 +545,27 @@ const	int ZIPPY::MAXERR = 100000;
 FPGA	*m_fpga;
 
 void	get_value(ZIPPY *zip) {
+	// {{{
 	int	wy, wx, ra;
 	int	c = zip->cursor();
 
-	wx = (c & 0x03) * 20 + 9 + 1;
+	wx = (c & 0x03) * 20 + 9;
 	wy = (c >> 2);
 	if (wy >= 3+4)
 		wy++;
-	if (wy > 3)
+	if (wy >= 3)
 		wy += 2;
 	wy++;
 
+	// Get the register address from the cursor position
+	// {{{
 	if (c >= 12)
+		// ZipCPU registers have an offset of 12 from the cursor
+		// address
 		ra = c - 12;
 	else
 		ra = c + 32;
+	// }}}
 
 	bool	done = false;
 	char	str[16];
@@ -534,8 +573,11 @@ void	get_value(ZIPPY *zip) {
 	attron(A_NORMAL | A_UNDERLINE);
 	mvprintw(wy, wx, "%-8s", "");
 	while(!done) {
+		// Get a keypress
 		int	chv = getch();
-		switch(chv) {
+
+		switch(chv) {	// Process the keypress
+		// {{{
 		case KEY_ESCAPE:
 			pos = 0; str[pos] = '\0'; done = true;
 			break;
@@ -564,39 +606,53 @@ void	get_value(ZIPPY *zip) {
 		case 'D': case 'd': str[pos++] = 'D'; break;
 		case 'E': case 'e': str[pos++] = 'E'; break;
 		case 'F': case 'f': str[pos++] = 'F'; break;
+		// }}}
 		}
 
+		// Update the value on the screen
+		// {{{
 		if (pos > 8)
 			pos = 8;
 		str[pos] = '\0';
 
 		attron(A_NORMAL | A_UNDERLINE);
-		mvprintw(wy, wx, "%-8s", str);
+		mvprintw(wy, wx, "%8s", str);
+		/*
 		if (pos > 0) {
 			attron(A_NORMAL | A_UNDERLINE | A_BLINK);
-			mvprintw(wy, wx+pos-1, "%c", str[pos-1]);
+			mvprintw(wy, wx, "%s", str);
 		}
+		*/
 		attrset(A_NORMAL);
+		// }}}
 	}
 
+	// Update a register by writing a new value to it
+	// {{{
 	if (pos > 0) {
 		int	v;
 		v = strtoul(str, NULL, 16);
 		zip->cmd_write(ra, v);
 	}
+	// }}}
 }
+// }}}
 
 void	on_sigint(int v) {
+	// {{{
 	endwin();
 
 	fprintf(stderr, "Interrupted!\n");
 	exit(-2);
 }
+// }}}
 
 void	stall_screen(void) {
+	// {{{
 	erase();
 	mvprintw(0,0, "CPU is stalled.  (Q to quit)\n");
 }
+// }}}
 
 char	gbl_errstr[8192];
 void	eprintf(const char *fmt, ...) {
@@ -634,9 +690,11 @@ int	main(int argc, char **argv) {
 			zip->read_state();
 		else
 			stall_screen();
+
 		while((!done)&&(!gbl_err)) {
 			chv = getch();
-			switch(chv) {
+			switch(chv) { // Process a received character
+			// {{{
 			case 'c': case 'C':
 				zip->toggle_cc();
 				break;
@@ -686,6 +744,7 @@ int	main(int argc, char **argv) {
 			default:
 				;
 			}
+			// }}}
 
 			if ((done)||(gbl_err))
 				break;

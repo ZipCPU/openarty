@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	txuart.v
-//
-// Project:	wbuart32, a full featured UART with simulator
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Transmit outputs over a single UART line.
 //
@@ -68,15 +68,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -85,53 +86,56 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-//
-module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
-		i_cts_n, o_uart_tx, o_busy);
-	parameter	[30:0]	INITIAL_SETUP = 31'd868;
-	//
-	localparam 	[3:0]	TXU_BIT_ZERO  = 4'h0;
-	localparam 	[3:0]	TXU_BIT_ONE   = 4'h1;
-	localparam 	[3:0]	TXU_BIT_TWO   = 4'h2;
-	localparam 	[3:0]	TXU_BIT_THREE = 4'h3;
-	localparam 	[3:0]	TXU_BIT_FOUR  = 4'h4;
-	localparam 	[3:0]	TXU_BIT_FIVE  = 4'h5;
-	localparam 	[3:0]	TXU_BIT_SIX   = 4'h6;
-	localparam 	[3:0]	TXU_BIT_SEVEN = 4'h7;
-	localparam 	[3:0]	TXU_PARITY    = 4'h8;
-	localparam 	[3:0]	TXU_STOP      = 4'h9;
-	localparam 	[3:0]	TXU_SECOND_STOP = 4'ha;
-	//
-	localparam 	[3:0]	TXU_BREAK     = 4'he;
-	localparam 	[3:0]	TXU_IDLE      = 4'hf;
-	//
-	//
-	input	wire		i_clk, i_reset;
-	input	wire	[30:0]	i_setup;
-	input	wire		i_break;
-	input	wire		i_wr;
-	input	wire	[7:0]	i_data;
-	// Hardware flow control Ready-To-Send bit.  Set this to one to use
-	// the core without flow control.  (A more appropriate name would be
-	// the Ready-To-Receive bit ...)
-	input	wire		i_cts_n;
-	// And the UART input line itself
-	output	reg		o_uart_tx;
-	// A line to tell others when we are ready to accept data.  If
-	// (i_wr)&&(!o_busy) is ever true, then the core has accepted a byte
-	// for transmission.
-	output	wire		o_busy;
+// }}}
+module txuart #(
+		// {{{
+		parameter	[30:0]	INITIAL_SETUP = 31'd868,
+		//
+		localparam 	[3:0]	TXU_BIT_ZERO  = 4'h0,
+		localparam 	[3:0]	TXU_BIT_ONE   = 4'h1,
+		localparam 	[3:0]	TXU_BIT_TWO   = 4'h2,
+		localparam 	[3:0]	TXU_BIT_THREE = 4'h3,
+		// localparam 	[3:0]	TXU_BIT_FOUR  = 4'h4,
+		// localparam 	[3:0]	TXU_BIT_FIVE  = 4'h5,
+		// localparam 	[3:0]	TXU_BIT_SIX   = 4'h6,
+		localparam 	[3:0]	TXU_BIT_SEVEN = 4'h7,
+		localparam 	[3:0]	TXU_PARITY    = 4'h8,
+		localparam 	[3:0]	TXU_STOP      = 4'h9,
+		localparam 	[3:0]	TXU_SECOND_STOP = 4'ha,
+		//
+		localparam 	[3:0]	TXU_BREAK     = 4'he,
+		localparam 	[3:0]	TXU_IDLE      = 4'hf
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
+		input	wire	[30:0]	i_setup,
+		input	wire		i_break,
+		input	wire		i_wr,
+		input	wire	[7:0]	i_data,
+		// Hardware flow control Ready-To-Send bit.  Set this to one to
+		// use the core without flow control.  (A more appropriate name
+		// would be the Ready-To-Receive bit ...)
+		input	wire		i_cts_n,
+		// And the UART input line itself
+		output	reg		o_uart_tx,
+		// A line to tell others when we are ready to accept data.  If
+		// (i_wr)&&(!o_busy) is ever true, then the core has accepted a
+		// byte for transmission.
+		output	wire		o_busy
+		// }}}
+	);
 
+	// Signal declarations
+	// {{{
 	wire	[27:0]	clocks_per_baud, break_condition;
 	wire	[1:0]	i_data_bits, data_bits;
 	wire		use_parity, parity_odd, dblstop, fixd_parity,
@@ -153,14 +157,17 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 	reg	[3:0]	state;
 	reg	[7:0]	lcl_data;
 	reg		calc_parity, r_busy, zero_baud_counter, last_state;
+	reg		q_cts_n, qq_cts_n, ck_cts;
+	// }}}
 
-
+	// CTS: ck_cts
+	// {{{
 	// First step ... handle any hardware flow control, if so enabled.
 	//
 	// Clock in the flow control data, two clocks to avoid metastability
 	// Default to using hardware flow control (uart_setup[30]==0 to use it).
 	// Set this high order bit off if you do not wish to use it.
-	reg	q_cts_n, qq_cts_n, ck_cts;
+	//
 	// While we might wish to give initial values to q_rts and ck_cts,
 	// 1) it's not required since the transmitter starts in a long wait
 	// state, and 2) doing so will prevent the synthesizer from optimizing
@@ -171,11 +178,19 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 	// initial	qq_cts_n = 1'b1;
 	// initial	ck_cts   = 1'b0;
 	always	@(posedge i_clk)
+	if (i_reset)
+		{ qq_cts_n, q_cts_n } <= 2'b11;
+	else
 		{ qq_cts_n, q_cts_n } <= { q_cts_n, i_cts_n };
 	always	@(posedge i_clk)
+	if (i_reset)
+		ck_cts <= 1'b0;
+	else
 		ck_cts <= (!qq_cts_n)||(!hw_flow_control);
+	// }}}
 
-	initial	o_uart_tx = 1'b1;
+	// r_busy, state
+	// {{{
 	initial	r_busy = 1'b1;
 	initial	state  = TXU_IDLE;
 	always @(posedge i_clk)
@@ -235,18 +250,19 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 			// out this last bit.
 		end
 	end 
+	// }}}
 
 	// o_busy
-	//
+	// {{{
 	// This is a wire, designed to be true is we are ever busy above.
 	// originally, this was going to be true if we were ever not in the
 	// idle state.  The logic has since become more complex, hence we have
 	// a register dedicated to this and just copy out that registers value.
 	assign	o_busy = (r_busy);
-
+	// }}}
 
 	// r_setup
-	//
+	// {{{
 	// Our setup register.  Accept changes between any pair of transmitted
 	// words.  The register itself has many fields to it.  These are
 	// broken out up top, and indicate what 1) our baud rate is, 2) our
@@ -256,9 +272,10 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 	always @(posedge i_clk)
 	if (!o_busy)
 		r_setup <= i_setup;
+	// }}}
 
 	// lcl_data
-	//
+	// {{{
 	// This is our working copy of the i_data register which we use
 	// when transmitting.  It is only of interest during transmit, and is
 	// allowed to be whatever at any other time.  Hence, if r_busy isn't
@@ -272,9 +289,10 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 		lcl_data <= i_data;
 	else if (zero_baud_counter)
 		lcl_data <= { 1'b0, lcl_data[7:1] };
+	// }}}
 
 	// o_uart_tx
-	//
+	// {{{
 	// This is the final result/output desired of this core.  It's all
 	// centered about o_uart_tx.  This is what finally needs to follow
 	// the UART protocol.
@@ -288,6 +306,8 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 	//		not the parity bit is fixed, then what it's fixed to,
 	//		or changing, and hence what it's calculated value is.
 	//	1'b1 at all other times (stop bits, idle, etc)
+
+	initial	o_uart_tx = 1'b1;
 	always @(posedge i_clk)
 	if (i_reset)
 		o_uart_tx <= 1'b1;
@@ -299,10 +319,10 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 		TXU_PARITY:	o_uart_tx <= calc_parity;
 		default:	o_uart_tx <= 1'b1;
 		endcase
-
+	// }}}
 
 	// calc_parity
-	//
+	// {{{
 	// Calculate the parity to be placed into the parity bit.  If the
 	// parity is fixed, then the parity bit is given by the fixed parity
 	// value (r_setup[24]).  Otherwise the parity is given by the GF2
@@ -321,9 +341,12 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 			calc_parity <= parity_odd;
 	end else if (!r_busy)
 		calc_parity <= parity_odd;
+	// }}}
 
-
+	// baud_counter, zero_baud_counter
+	// {{{
 	// All of the above logic is driven by the baud counter.  Bits must last
+	// {{{
 	// clocks_per_baud in length, and this baud counter is what we use to
 	// make certain of that.
 	//
@@ -363,17 +386,24 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 	// The logic is a bit twisted here, in that it will only check for the
 	// above condition when zero_baud_counter is false--so as to make
 	// certain the STOP bit is complete.
+	// }}}
 	initial	zero_baud_counter = 1'b0;
 	initial	baud_counter = 28'h05;
 	always @(posedge i_clk)
+	if (i_reset)
 	begin
+		// Give ourselves 16 bauds before being ready
+		baud_counter <= { INITIAL_SETUP[23:0], 4'h0 };
+		zero_baud_counter <= 1'b0;
+	end else if (i_break)
+	begin
+		// Give ourselves 16 bauds before being ready
+		baud_counter <= break_condition;
+		zero_baud_counter <= 1'b0;
+	end else begin
 		zero_baud_counter <= (baud_counter == 28'h01);
-		if ((i_reset)||(i_break))
-		begin
-			// Give ourselves 16 bauds before being ready
-			baud_counter <= break_condition;
-			zero_baud_counter <= 1'b0;
-		end else if (!zero_baud_counter)
+
+		if (!zero_baud_counter)
 			baud_counter <= baud_counter - 28'h01;
 		else if (state == TXU_BREAK)
 		begin
@@ -393,21 +423,39 @@ module txuart(i_clk, i_reset, i_setup, i_break, i_wr, i_data,
 		else
 			baud_counter <= clocks_per_baud - 28'h01;
 	end
+	// }}}
 
+	// last_state
+	// {{{
 	initial	last_state = 1'b0;
 	always @(posedge i_clk)
-	if (dblstop)
+	if (i_reset)
+		last_state <= 1'b0;
+	else if (dblstop)
 		last_state <= (state == TXU_SECOND_STOP);
 	else
 		last_state <= (state == TXU_STOP);
+	// }}}
 
+	// Make Verilator happy
+	// {{{
 	// Verilator lint_off UNUSED
-	wire	[2:0]	unused;
-	assign	unused = { i_parity_odd, data_bits };
+	wire	unused;
+	assign	unused = &{ 1'b0, i_parity_odd, data_bits };
 	// Verilator lint_on  UNUSED
-
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 // Formal properties for this module are maintained elsewhere
-`endif
+`endif	// FORMAL
+// }}}
 endmodule
 

@@ -1,25 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtcalarm.v
-//
-// Project:	A Wishbone Controlled Real--time Clock Core, w/ GPS synch
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Implement an alarm for a real time clock.
-//
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -28,38 +28,47 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
+// }}}
 // set, clear, turn on, turn off
-module	rtcalarm(i_clk, i_reset, i_now,
+module	rtcalarm #(
+		// {{{
+		parameter [0:0]		OPT_PREVALIDATED_INPUT = 1'b0,
+		parameter [21:0]	OPT_INITIAL_ALARM_TIME = 0,
+		parameter [0:0]		OPT_START_ENABLED = 0,
+		parameter [0:0]		OPT_FIXED_ALARM_TIME = 0
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
 		//
-		i_wr, i_clear, i_enable, i_alarm_time, i_valid,
+		input	wire	[21:0]	i_now,
 		//
-		o_data, o_alarm);
-	parameter [0:0]		OPT_PREVALIDATED_INPUT = 1'b0;
-	parameter [21:0]	OPT_INITIAL_ALARM_TIME = 0;
-	parameter [0:0]		OPT_START_ENABLED = 0;
-	parameter [0:0]		OPT_FIXED_ALARM_TIME = 0;
-	//
-	input	wire		i_clk, i_reset;
-	//
-	input	wire	[21:0]	i_now;
-	//
-	input	wire		i_wr;
-	input	wire		i_enable, i_clear;
-	input	wire	[21:0]	i_alarm_time;
-	input	wire	[2:0]	i_valid;
-	//
-	output	wire	[31:0]	o_data;
-	output	wire		o_alarm;
+		input	wire		i_wr,
+		input	wire		i_clear, i_enable,
+		input	wire	[21:0]	i_alarm_time,
+		input	wire	[2:0]	i_valid,
+		//
+		output	wire	[31:0]	o_data,
+		output	wire		o_alarm
+		// }}}
+	);
+
+	// Signal declarations
+	// {{{
+	reg	[2:0]	pre_valid;
+	reg	[21:0]	validated_alarm_time;
+	reg	[21:0]		alarm_time, past_time;
+	reg			enabled,	// Whether the alarm is enabled
+				tripped;	// Whether the alarm has tripped
+	// }}}
 
 	//
 	// The alarm code
@@ -70,20 +79,22 @@ module	rtcalarm(i_clk, i_reset, i_now,
 	// can come and see that the alarm tripped.
 	//
 	//
-	reg	[21:0]		alarm_time, past_time;
-	reg			enabled,	// Whether the alarm is enabled
-				tripped;	// Whether the alarm has tripped
 
+	// enabled
+	// {{{
 	initial	enabled = OPT_START_ENABLED;
 	always @(posedge i_clk)
 	if (i_reset)
 		enabled <= OPT_START_ENABLED;
 	else if (i_wr)
 		enabled <= i_enable;
+	// }}}
 
 	always @(posedge i_clk)
 		past_time <= i_now;
 
+	// tripped
+	// {{{
 	initial	tripped= 1'b0;
 	always @(posedge i_clk)
 	if (i_reset)
@@ -92,21 +103,22 @@ module	rtcalarm(i_clk, i_reset, i_now,
 		tripped <= 1'b1;
 	else if ((i_wr)&&(i_clear))
 		tripped <= 1'b0;
+	// }}}
 
-	reg	[2:0]	pre_valid;
-	reg	[21:0]	validated_alarm_time;
+	// pre_valid, validated_alarm_time
+	// {{{
 	generate if (OPT_PREVALIDATED_INPUT)
 	begin : INPUT_IS_VALID
-
+		// {{{
 		always @(*)
 			pre_valid = ((!OPT_FIXED_ALARM_TIME)&&(i_wr))
 					? i_valid : 0;
 
 		always @(*)
 			validated_alarm_time = i_valid;
-
+		// }}}
 	end else begin : CHECK_INPUT_VALIDITY
-
+		// {{{
 		initial	pre_valid = 0;
 		always @(posedge i_clk)
 		if ((i_reset)||(!i_wr)||(OPT_FIXED_ALARM_TIME))
@@ -128,9 +140,12 @@ module	rtcalarm(i_clk, i_reset, i_now,
 
 		always @(posedge i_clk)
 			validated_alarm_time <= i_alarm_time;
-
+		// }}}
 	end endgenerate
+	// }}}
 
+	// alarm_time
+	// {{{
 	initial	alarm_time = OPT_INITIAL_ALARM_TIME;
 	always @(posedge i_clk)
 	if (i_reset)
@@ -147,16 +162,27 @@ module	rtcalarm(i_clk, i_reset, i_now,
 		if (pre_valid[2]) // Hours
 			alarm_time[21:16] <= validated_alarm_time[21:16];
 	end
+	// }}}
 
 	assign	o_data  = { 6'h0, tripped, enabled, 2'b00, alarm_time };
 	assign	o_alarm = tripped;
 
 	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
-	// wire	[6:0] unused;
-	// assign	unused = { i_wb_cyc, i_wb_data[31:26] };
+	// wire		unused;
+	// assign	unused = &{ 1'b0, i_wb_cyc, i_wb_data[31:26] };
 	// verilator lint_on  UNUSED
-
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	RTCALARM
 `define	ASSUME	assume
@@ -247,6 +273,12 @@ module	rtcalarm(i_clk, i_reset, i_now,
 	if ((f_past_valid)&&($past(i_wr))&&(!$past(i_reset)))
 		`ASSERT(enabled == $past(i_enable));
 
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Cover checks
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	always @(posedge i_clk)
 	if ((f_past_valid)&&(!$past(tripped)))
 		cover(tripped);
@@ -254,6 +286,7 @@ module	rtcalarm(i_clk, i_reset, i_now,
 	always @(posedge i_clk)
 	if ((f_past_valid)&&($past(tripped)))
 		cover(!tripped);
-
+	// }}}
 `endif
+// }}}
 endmodule

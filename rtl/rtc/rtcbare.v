@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtcbare.v
-//
-// Project:	A Wishbone Controlled Real--time Clock Core, w/ GPS synch
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This is the bare RTC clock logic.  It accepts an (optional)
 // 		1pps signal input, and has a write interface for setting
@@ -24,15 +24,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -41,50 +42,62 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	rtcbare(i_clk, i_reset,
+// }}}
+module	rtcbare #(
+		// {{{
+		// Set OPT_PREVALIDATED_INPUT to 1'b1 if the instantiating
+		// module will never set i_wr true with invalid BCD data in
+		// i_data.  Otherwise, setting it to zero will cause a
+		// validation check, and ignore any incoming values that are
+		// not valid BCD on a bytewise level.
+		parameter [0:0]	OPT_PREVALIDATED_INPUT = 1'b0
+		// }}}
+	) (	
+		// {{{
+		input	wire		i_clk, i_reset,
 		// Wishbone interface
-		i_pps, i_wr, i_data, i_valid,
+		input	wire		i_pps, i_wr,
+		input	wire	[21:0]	i_data,
+		input	wire	[2:0]	i_valid,
 		// Output registers
-		o_data, // multiplexed based upon i_wb_addr
+		output	wire	[21:0]	o_data, // multiplexed based on i_wb_adr
 		// A once-per-day strobe on the last clock of the day
-		o_ppd);
-	//
-	// Set OPT_PREVALIDATED_INPUT to 1'b1 if the instantiating module
-	// will never set i_wr true with invalid BCD data in i_data.
-	// Otherwise, setting it to zero will cause a validation check,
-	// and ignore any incoming values that are not valid BCD on a bytewise
-	// level.
-	parameter [0:0]	OPT_PREVALIDATED_INPUT = 1'b0;
-	//
-	input	wire		i_clk, i_reset;
-	//
-	input	wire		i_pps, i_wr;
-	input	wire	[21:0]	i_data;
-	input	wire	[2:0]	i_valid;
-	output	wire	[21:0]	o_data;
-	output	wire		o_ppd;
+		output	wire		o_ppd
+		// }}}
+	);
 
+	// Signal declarations
+	// {{{
 	reg	[21:0]	bcd_clock, next_clock;
 	reg	[5:0]	carry;
 	reg		pre_ppd;
 
+	reg	[2:0]	pre_valid;
+	reg	[21:0]	pre_bcd_clock;
+
+	reg	[2:0]	suppressed, suppress_count;
+	// }}}
+
+	// pre_ppd
+	// {{{
 	initial	pre_ppd = 1'b0;
 	always @(posedge i_clk)
 	if (i_reset)
 		pre_ppd <= 1'b0;
 	else
 		pre_ppd <= (bcd_clock == 22'h23_59_59);
+	// }}}
 
+	// carry, next_clock
+	// {{{
 	initial	carry = 0;
 	initial	next_clock = 22'h00_00_01;
 	always @(posedge i_clk)
@@ -148,18 +161,14 @@ module	rtcbare(i_clk, i_reset,
 		else
 			next_clock[21:20] <= bcd_clock[21:20];
 	end
+	// }}}
 
-	//
-	//
+	// pre_bcd_clock, pre_valid
+	// {{{
 	// Validate the input before setting the clock
-	//
-	//
-	reg	[2:0]	pre_valid;
-	reg	[21:0]	pre_bcd_clock;
-
 	generate if (OPT_PREVALIDATED_INPUT)
 	begin : NO_VALIDATION_REQUIRED
-
+		// {{{
 		// Write data through with no check
 		// This can be combinatorial, with no clock required.
 		//
@@ -171,9 +180,9 @@ module	rtcbare(i_clk, i_reset,
 
 		always @(*)
 			pre_bcd_clock = i_data;
-
+		// }}}
 	end else begin : VALIDATE_INPUT_BCD
-		//
+		// {{{
 		// Double check that the input contains valid BCD data
 		//
 		// We'll use this to prevent a write given invalid data
@@ -199,12 +208,12 @@ module	rtcbare(i_clk, i_reset,
 
 		always @(posedge i_clk)
 			pre_bcd_clock <= i_data;
-
+		// }}}
 	end endgenerate
+	// }}}
 
-
-	reg	[2:0]	suppressed, suppress_count;
-
+	// suprpressed, suppress_count
+	// {{{
 	initial	suppressed = 3'h7;
 	initial	suppress_count = 3'h5;
 	always @(posedge i_clk)
@@ -222,8 +231,10 @@ module	rtcbare(i_clk, i_reset,
 		suppress_count <= suppress_count - 1;
 	else
 		suppressed <= 0;
+	// }}}
 
-
+	// bcd_clock
+	// {{{
 	initial	bcd_clock = 0;
 	always @(posedge i_clk)
 	if (i_reset)
@@ -245,10 +256,19 @@ module	rtcbare(i_clk, i_reset,
 		if (pre_valid[2])
 			bcd_clock[21:16] <= pre_bcd_clock[21:16];
 	end
+	// }}}
 
 	assign	o_data = bcd_clock;
 	assign	o_ppd  = (pre_ppd)&&(i_pps);
-
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	RTCBARE
 `define	ASSUME	assume
@@ -357,7 +377,6 @@ module	rtcbare(i_clk, i_reset,
 	always @(*)
 	if (suppressed[1])
 		`ASSERT(suppressed[2]);
-
-
 `endif
+// }}}}
 endmodule

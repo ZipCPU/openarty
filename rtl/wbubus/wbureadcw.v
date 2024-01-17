@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	wbureadcw.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	Read bytes from a serial port (i.e. the jtagser) and translate
@@ -16,15 +16,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -33,26 +34,34 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
 //
-//
 ////////////////////////////////////////////////////////////////////////////////
-//
 //
 `default_nettype none
 //
 // Goal: single clock pipeline, 50 slices or less
-//
-module	wbureadcw(i_clk, i_stb, i_valid, i_hexbits,
-			o_stb, o_codword);
-	input	wire		i_clk, i_stb, i_valid;
-	input	wire	[5:0]	i_hexbits;
-	output	reg		o_stb;
-	output	reg	[35:0]	o_codword;
+// }}}
+module	wbureadcw #(
+		parameter	OPT_SKIDBUFFER = 1'b0
+	) (
+		// {{{
+		input	wire		i_clk, i_reset, i_stb,
+		output	wire		o_busy,
+		input	wire		i_valid,
+		input	wire	[5:0]	i_hexbits,
+		output	reg		o_stb,
+		input	wire		i_busy,
+		output	reg	[35:0]	o_codword,
+		output	wire		o_active
+		// }}}
+	);
 
-
+	// Local declarations
+	// {{{
 	// Timing:
 	//	Clock 0:	i_stb is high, i_valid is low
 	//	Clock 1:	shiftreg[5:0] is valid, cw_len is valid
@@ -64,74 +73,187 @@ module	wbureadcw(i_clk, i_stb, i_valid, i_hexbits,
 	//			cw_len = 0,
 	//			r_len = 0 (unless i_stb)
 	//			Ready for next word
-
 	reg	[2:0]	r_len, cw_len;
 	reg	[1:0]	lastcw;
 
 	wire	w_stb;
-	assign	w_stb = ((r_len == cw_len)&&(cw_len != 0))
-			||((i_stb)&&(!i_valid)&&(lastcw == 2'b01));
+	reg	[35:0]	shiftreg;
 
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// A quick skid buffer
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+	wire		skd_stb, skd_valid;
+	wire	[5:0]	skd_hexbits;
+	reg		skd_busy;
+
+	generate if (OPT_SKIDBUFFER)
+	begin : GEN_SKIDBUFFER
+		// {{{
+		reg		skd_full;
+		reg	[6:0]	skd_data, skd_result;
+
+		initial	skd_full = 1'b0;
+		always @(posedge i_clk)
+		if (i_reset)
+			skd_full <= 1'b0;
+		else if (i_stb && !o_busy && skd_stb && skd_busy)
+			skd_full <= 1'b1;
+		else if (!skd_busy)
+			skd_full <= 1'b0;
+
+		always @(posedge i_clk)
+		if (skd_stb && skd_busy)
+			skd_data <= { i_valid, i_hexbits };
+
+		always @(*)
+		if (skd_full)
+			skd_result = skd_data;
+		else
+			skd_result = { i_valid, i_hexbits };
+
+		assign	{ skd_valid, skd_hexbits } = skd_result;
+		assign	skd_stb = skd_full || i_stb;
+		assign	o_busy  = skd_full;
+		// }}}
+	end else begin : NO_SKIDBUFFER
+		// {{{
+		assign	skd_stb = i_stb;
+		assign	{ skd_valid, skd_hexbits } = { i_valid, i_hexbits };
+		assign	o_busy   = skd_busy;
+		// }}}
+	end endgenerate
+	// }}}
+
+	// w_stb will be true if o_stb is about to be true on the next clock
+	assign	w_stb = ((r_len == cw_len)&&(cw_len != 0))
+			||( skd_stb && !skd_busy && !skd_valid &&(lastcw == 2'b01));
+
+	always @(*)
+	begin
+		skd_busy = o_stb && i_busy && (r_len == cw_len && cw_len != 0);
+
+		if (o_stb && i_busy && !skd_valid && lastcw == 2'b01)
+			skd_busy = 1'b1;
+		if (!skd_valid && lastcw == 2'b01 && cw_len != 0 && r_len == cw_len)
+			skd_busy = 1'b1;
+	end
+
+	// r_len
+	// {{{
 	// r_len is the length of the codeword as it exists
 	// in our register
 	initial r_len = 3'h0;
 	always @(posedge i_clk)
-	if ((i_stb)&&(!i_valid)) // Newline reset
+	if (i_reset)
 		r_len <= 0;
-	else if (w_stb) // reset/restart w/o newline
-		r_len <= (i_stb)? 3'h1:3'h0;
-	else if (i_stb) //in middle of word
-		r_len <= r_len + 3'h1;
+	else if (!o_stb || !i_busy || !w_stb)
+	begin
+		if (skd_stb && !skd_busy && !skd_valid) // Newline reset
+			r_len <= 0;
+		else if (r_len == cw_len && cw_len != 0)
+			// We've achieved a full length code word.
+			// reset/restart or counter w/o the newline
+			r_len <= (skd_stb && !skd_busy) ? 3'h1 : 0;
+		else if (skd_stb && !skd_busy) //in middle of word
+			r_len <= r_len + 3'h1;
+	end
+	// }}}
 
-	reg	[35:0]	shiftreg;
-
+	// shiftreg -- assemble a code word, 6-bits at a time
+	// {{{
 	initial	shiftreg = 0;
 	always @(posedge i_clk)
-	if (w_stb)
-		shiftreg[35:30] <= i_hexbits;
-	else if (i_stb) case(r_len)
-	3'b000: shiftreg[35:30] <= i_hexbits;
-	3'b001: shiftreg[29:24] <= i_hexbits;
-	3'b010: shiftreg[23:18] <= i_hexbits;
-	3'b011: shiftreg[17:12] <= i_hexbits;
-	3'b100: shiftreg[11: 6] <= i_hexbits;
-	3'b101: shiftreg[ 5: 0] <= i_hexbits;
-	default: begin end
-	endcase
+	if (skd_stb && !skd_busy)
+	begin
+		if (r_len == cw_len && cw_len != 0)
+			shiftreg[35:30] <= skd_hexbits;
+		else case(r_len)
+		3'b000: shiftreg[35:30] <= skd_hexbits;
+		3'b001: shiftreg[29:24] <= skd_hexbits;
+		3'b010: shiftreg[23:18] <= skd_hexbits;
+		3'b011: shiftreg[17:12] <= skd_hexbits;
+		3'b100: shiftreg[11: 6] <= skd_hexbits;
+		3'b101: shiftreg[ 5: 0] <= skd_hexbits;
+		default: begin end
+		endcase
+	end
+	// }}}
 
+	// lastcw
+	// {{{
 	initial	lastcw = 2'b00;
 	always @(posedge i_clk)
-	if (o_stb)
+	if (i_reset)
+		lastcw <= 2'b00;
+	else if (o_stb && !i_busy)
 		lastcw <= o_codword[35:34];
+	// }}}
+
+	// o_codword
+	// {{{
 	always @(posedge i_clk)
-	if ((i_stb)&&(!i_valid)&&(lastcw == 2'b01))
-		o_codword[35:30] <= 6'h2e;
-	else
+	if (!o_stb || !i_busy)
+	begin
 		o_codword <= shiftreg;
 
+		if (skd_stb && !skd_busy && !skd_valid && lastcw == 2'b01)
+			// End of write signal
+			o_codword[35:30] <= 6'h2e;
+	end
+	// }}}
+
+	// cw_len
+	// {{{
 	// How long do we expect this codeword to be?
 	initial	cw_len = 3'b000;
 	always @(posedge i_clk)
-	if ((i_stb)&&(!i_valid))
+	if (i_reset)
 		cw_len <= 0;
-	else if ((i_stb)&&((cw_len == 0)||(w_stb)))
+	else if (skd_stb && !skd_busy && !skd_valid)
+		cw_len <= 0;
+	else if (skd_stb && !skd_busy && ((cw_len == 0)|| w_stb))
 	begin
-		if (i_hexbits[5:4] == 2'b11) // 2b vector read
+		if (skd_hexbits[5:4] == 2'b11) // 2b vector read
 			cw_len <= 3'h2;
-		else if (i_hexbits[5:4] == 2'b10) // 1b vector read
+		else if (skd_hexbits[5:4] == 2'b10) // 1b vector read
 			cw_len <= 3'h1;
-		else if (i_hexbits[5:3] == 3'b010) // 2b compressed wr
+		else if (skd_hexbits[5:3] == 3'b010) // 2b compressed wr
 			cw_len <= 3'h2;
-		else if (i_hexbits[5:3] == 3'b001) // 2b compressed addr
-			cw_len <= 3'b010 + { 1'b0, i_hexbits[2:1] };
+		else if (skd_hexbits[5:3] == 3'b001) // 2b compressed addr
+			cw_len <= 3'b010 + { 1'b0, skd_hexbits[2:1] };
 		else // long write or set address
 			cw_len <= 3'h6;
-	end else if (w_stb)
+	end else if ((!o_stb || !i_busy) && (r_len == cw_len) && (cw_len != 0))
 		cw_len <= 0;
+	// }}}
 
+	// o_stb
+	// {{{
 	initial	o_stb = 1'b0;
 	always @(posedge i_clk)
+	if (i_reset)
+		o_stb <= 1'b0;
+	else if (!o_stb || !i_busy)
 		o_stb <= w_stb;
+	// }}}
 
+	assign	o_active = skd_stb || r_len > 0;
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+`ifdef	FORMAL
+`endif
+// }}}
 endmodule
 

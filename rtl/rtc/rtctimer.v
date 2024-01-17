@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rtctimer.v
-//
+// {{{
 // Project:	A Wishbone Controlled Real--time Clock Core, w/ GPS synch
 //
 // Purpose:	Implements a count down timer
@@ -11,15 +11,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -28,34 +29,36 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	rtctimer(i_clk, i_reset,
-		i_sub_ck, i_wr, i_data, i_valid, i_zero,
-		o_data, o_interrupt);
-	parameter	LGSUBCK = 2;
-	parameter [0:0] 	OPT_PREVALIDATED_INPUT = 1'b0;
-	parameter [21:0]	OPT_FIXED_INTERVAL = 0;
-	//
-	input	wire		i_clk, i_reset;
-	//
-	input	wire		i_sub_ck;
-	//
-	input	wire		i_wr;
-	input	wire	[24:0]	i_data;
-	input	wire	[2:0]	i_valid;
-	input	wire		i_zero;
-	output	wire	[31:0]	o_data;
-	output	wire		o_interrupt;
+// }}}
+module	rtctimer #(
+		// {{{
+		parameter		LGSUBCK = 2
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
+		//
+		input	wire		i_sub_ck,
+		//
+		input	wire		i_wr,
+		input	wire	[24:0]	i_data,
+		input	wire	[2:0]	i_valid,
+		input	wire		i_zero,
+		output	wire	[31:0]	o_data,
+		output	wire		o_interrupt
+		// }}}
+	);
 
+	// Signal declarations
+	// {{{
 	reg	[23:0]	bcd_timer;
 	// wire	[6:0]	bcd_hours, bcd_minutes, bcd_seconds;
 	// assign	bcd_seconds = bcd_timer[ 6:0];
@@ -67,6 +70,13 @@ module	rtctimer(i_clk, i_reset,
 	reg	[4:0]	tmr_carry, pre_tmr_carry;
 	reg		last_tick;
 
+	reg	tm_pre_pps, tm_int, tm_running, tm_alarm;
+	wire	tm_stopped, tm_pps;
+	reg	[(LGSUBCK-1):0]		tm_sub;
+	// }}}
+
+	// pre_tmr_carry, tmr_carry, next_timer
+	// {{{
 	initial	tmr_carry = 0;
 	initial	next_timer = 0;
 	always @(posedge i_clk)
@@ -86,6 +96,7 @@ module	rtctimer(i_clk, i_reset,
 		// Keep unused bits at zero
 		next_timer <= 24'h00;
 		// Seconds
+		// {{{
 		if (tmr_carry[0])
 			next_timer[3:0] <= 4'h9;
 		else
@@ -97,8 +108,10 @@ module	rtctimer(i_clk, i_reset,
 			next_timer[ 6: 4] <= (bcd_timer[ 6: 4]-3'h1);
 		else
 			next_timer[6:4] <= bcd_timer[6:4];
+		// }}}
 
 		// Minutes
+		// {{{
 		if (tmr_carry[2])
 			next_timer[11:8] <= 4'h9;
 		else if (tmr_carry[1])
@@ -111,8 +124,10 @@ module	rtctimer(i_clk, i_reset,
 			next_timer[14:12] <= (bcd_timer[14:12]-3'h1);
 		else
 			next_timer[14:12] <= bcd_timer[14:12];
+		// }}}
 
 		// Hours
+		// {{{
 		if (tmr_carry[4])
 			next_timer[19:16] <= 4'h9;
 		else if (tmr_carry[3])
@@ -124,21 +139,24 @@ module	rtctimer(i_clk, i_reset,
 			next_timer[23:20] <= (bcd_timer[23:20]-4'h1);
 		else
 			next_timer[23:20] <= bcd_timer[23:20];
+		// }}}
 	end
+	// }}}
 
-	reg	tm_pre_pps, tm_int, tm_running, tm_alarm;
-	wire	tm_stopped, tm_pps;
 	assign	tm_stopped = !tm_running;
 
-	reg	[(LGSUBCK-1):0]		tm_sub;
-
+	// tm_sub
+	// {{{
 	initial	tm_sub     = 0;
 	always @(posedge i_clk)
 	if ((i_reset)||((i_wr)&&(!tm_running)&&(&i_valid)&&(!i_zero)))
 		tm_sub <= 0;
 	else if ((i_sub_ck)&&(tm_running))
 		tm_sub <= tm_sub + 1;
+	// }}}
 
+	// tm_pre_pps, tm_pps
+	// {{{
 	initial	tm_pre_pps     = 1'b0;
 	always @(posedge i_clk)
 	if ((i_reset)||((i_wr)&&(!tm_running)))
@@ -149,12 +167,14 @@ module	rtctimer(i_clk, i_reset,
 		tm_pre_pps <= (&tm_sub);
 
 	assign	tm_pps = (tm_pre_pps)&&(i_sub_ck);
+	// }}}
 
+	// bcd_timer, tm_int, tm_running, tm_alarm
+	// {{{
 	initial	bcd_timer      = 24'h00;
 	initial	tm_int     = 1'b0;
 	initial	tm_running = 1'b0;
 	initial	tm_alarm   = 1'b0;
-
 	always @(posedge i_clk)
 	if (i_reset)
 	begin
@@ -199,16 +219,27 @@ module	rtctimer(i_clk, i_reset,
 			tm_alarm <= 1'b0;
 		end
 	end
+	// }}}
 
 	assign	o_interrupt = tm_int;
 	assign	o_data = { 6'h00, tm_alarm, tm_running, bcd_timer };
 
 	// Make Verilator happy
+	// {{{
 	// verilator lint_off UNUSED
-	// wire	[6:0]	unused;
-	// assign	unused = i_data[31:25];
+	// wire		unused;
+	// assign	unused = &{ 1'b0, i_data[31:25] };
 	// verilator lint_on  UNUSED
-
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	RTCTIMER
 `define	ASSUME	assume
@@ -329,4 +360,5 @@ module	rtctimer(i_clk, i_reset,
 	if ((f_past_valid)&&(!$past(i_reset))&&($past(tm_alarm)))
 		cover(!tm_alarm);
 `endif
+// }}}
 endmodule

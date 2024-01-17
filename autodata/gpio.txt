@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	gpio.txt
-##
+## {{{
 ## Project:	OpenArty, an entirely open SoC based upon the Arty platform
 ##
 ## Purpose:	
@@ -10,15 +10,16 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
+## }}}
+## Copyright (C) 2017-2024, Gisselquist Technology, LLC
+## {{{
+## This file is part of the OpenArty project.
 ##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
+## The OpenArty project is free software and gateware, licensed under the terms
+## of the 3rd version of the GNU General Public License as published by the
+## Free Software Foundation.
 ##
-## This program is free software (firmware): you can redistribute it and/or
-## modify it under the terms of  the GNU General Public License as published
-## by the Free Software Foundation, either version 3 of the License, or (at
-## your option) any later version.
-##
-## This program is distributed in the hope that it will be useful, but WITHOUT
+## This project is distributed in the hope that it will be useful, but WITHOUT
 ## ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 ## FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ## for more details.
@@ -27,14 +28,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
-##
 ##
 ################################################################################
 ##
-##
+## }}}
 @PREFIX=gpio
 @DEVID=GPIO
 @NADDR=1
@@ -63,22 +64,30 @@
 @MAIN.IODECL=
 	localparam	NGPI = @$(NUMINPUT), NGPO=@$(NUMOUTPUT);
 	// @$(DEVID) ports
-	input		[(NGPI-1):0]	i_@$(PREFIX);
+	input	wire	[(NGPI-1):0]	i_@$(PREFIX);
 	output	wire	[(NGPO-1):0]	o_@$(PREFIX);
 @MAIN.INSERT=
+	////////////////////////////////////////////////////////////////////////
 	//
 	// @$(DEVID)
-	//
-	// This interface should allow us to control up to 16 @$(DEVID) inputs, and
-	// another 16 @$(DEVID) outputs.  The interrupt trips when any of the inputs
-	// changes.  (Sorry, which input isn't (yet) selectable.)
+	// {{{
+	// This interface should allow us to control up to 16 @$(DEVID) inputs,
+	// and another 16 @$(DEVID) outputs.  The interrupt trips when any of
+	// the inputs changes.  (Sorry, which input isn't (yet) selectable.)
 	//
 	localparam	INITIAL_@$(DEVID) = @$(NUMOUTPUT)'h0;
-	wbgpio	#(NGPI, NGPO, INITIAL_@$(DEVID))
-		@$(PREFIX)i(i_clk, @$(SLAVE.PORTLIST),
-			i_@$(PREFIX), o_@$(PREFIX), @$(PREFIX)_int);
+
+	wbgpio	#(
+		.NIN(NGPI), .NOUT(NGPO), .DEFAULT(INITIAL_@$(DEVID))
+	) @$(PREFIX)i(
+		// {{{
+		i_clk, @$(SLAVE.PORTLIST),
+		i_@$(PREFIX), o_@$(PREFIX), @$(PREFIX)_int
+		// }}}
+	);
 
 	assign	sd_reset = o_@$(PREFIX)[6];
+	// }}}
 @REGS.N=1
 @REGS.0= 0 R_@$(DEVID) @$(DEVID) GPI GPO
 @BDEF.DEFN=
@@ -93,9 +102,9 @@
 #define	@$(DEVID)_CLR(WIRE)	 ((WIRE)<<16)
 //
 //
-@BDEF.IONAME=	i_@$(PREFIX)
+@BDEF.IONAME=	_@$(PREFIX)
 @BDEF.IOTYPE=	unsigned
 @BDEF.OSDEF=	_BOARD_HAS_@$(DEVID)
-@BDEF.OSVAL=	static volatile @$.BDEF.IOTYPE *const _@$(PREFIX) = ((@$.BDEF.IOTYPE *)@$[0x%08x](REGBASE));
+@BDEF.OSVAL=	static volatile @$(BDEF.IOTYPE) *const @$(BDEF.IONAME) = ((@$(BDEF.IOTYPE) *)@$[0x%08x](REGBASE));
 @RTL.MAKE.FILES=wbgpio.v
 @RTL.MAKE.GROUP=@$(DEVID)

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	ctrlspi.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	
@@ -10,33 +10,33 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
 // You should have received a copy of the GNU General Public License along
-// with this program.  (It's in the $(ROOT)/doc directory, run make with no
+// with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
+// }}}
 //
 // `define	QSPI_READ_ONLY
 //
@@ -100,12 +100,12 @@ module	ctrlspi(i_clk, i_req, i_wr, i_addr, i_data, i_sector_address,
 	reg		accepted;
 	reg	[3:0]	invalid_ack_pipe;
 
+	reg	r_ctdat_len, ctbus_ack;
 
 	initial	accepted = 1'b0;
 	always @(posedge i_clk)
 		accepted <= (~i_spi_busy)&&(i_grant)&&(o_spi_wr)&&(~accepted);
 
-	reg	r_ctdat_len, ctbus_ack;
 	assign	ctdat_len = { 1'b0, r_ctdat_len };
 
 	// First step, calculate the values for our state machine
@@ -289,8 +289,10 @@ module	ctrlspi(i_clk, i_req, i_wr, i_addr, i_data, i_sector_address,
 	assign	o_spi_spd  = 1'b0;
 
 	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	[22:0]	unused;
 	assign	unused = { i_data[31], i_data[29:8] };
 	// verilator lint_on  UNUSED
+	// }}}
 endmodule

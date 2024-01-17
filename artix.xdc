@@ -62,14 +62,14 @@ set_property -dict { PACKAGE_PIN B8 IOSTANDARD LVCMOS33 } [get_ports {i_btn[3]}]
 
 ##Pmod Header JB: OLEDrgb
 
-set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_cs_n]
-set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_mosi]
+# set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_cs_n]
+# set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_mosi]
 #set_property -dict { PACKAGE_PIN D15   IOSTANDARD LVCMOS33 } [get_ports { i_oled_nc }]; #IO_L12P_T1_MRCC_15 Sch=jb_p[2], no connection
-set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_sck]
-set_property -dict { PACKAGE_PIN J17 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_dcn]
-set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_reset_n]
-set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_vccen]
-set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_pmoden]
+# set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_sck]
+# set_property -dict { PACKAGE_PIN J17 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_dcn]
+# set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_reset_n]
+# set_property -dict { PACKAGE_PIN K15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_vccen]
+# set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports o_oledrgb_pmoden]
 
 ##Pmod Header JA + JB: WB HyperRAM
 
@@ -104,12 +104,12 @@ set_property -dict { PACKAGE_PIN V11 IOSTANDARD LVCMOS33 } [get_ports i_gps_pps]
 
 ##Pmod Header JD: SD-Card
 
-# set_property -dict { PACKAGE_PIN D4 IOSTANDARD LVCMOS33 } [get_ports {io_sd[3]}]
-# set_property -dict { PACKAGE_PIN D3 IOSTANDARD LVCMOS33 } [get_ports io_sd_cmd]
-# set_property -dict { PACKAGE_PIN F4 IOSTANDARD LVCMOS33 } [get_ports {io_sd[0]}]
-# set_property -dict { PACKAGE_PIN F3 IOSTANDARD LVCMOS33 } [get_ports o_sd_sck]
-# set_property -dict { PACKAGE_PIN E2 IOSTANDARD LVCMOS33 } [get_ports {io_sd[1]}]
-# set_property -dict { PACKAGE_PIN D2 IOSTANDARD LVCMOS33 } [get_ports {io_sd[2]}]
+set_property -dict { PACKAGE_PIN D4 IOSTANDARD LVCMOS33 } [get_ports {io_sd[3]}]
+set_property -dict { PACKAGE_PIN D3 IOSTANDARD LVCMOS33 } [get_ports io_sd_cmd]
+set_property -dict { PACKAGE_PIN F4 IOSTANDARD LVCMOS33 } [get_ports {io_sd[0]}]
+set_property -dict { PACKAGE_PIN F3 IOSTANDARD LVCMOS33 } [get_ports o_sd_sck]
+set_property -dict { PACKAGE_PIN E2 IOSTANDARD LVCMOS33 } [get_ports {io_sd[1]}]
+set_property -dict { PACKAGE_PIN D2 IOSTANDARD LVCMOS33 } [get_ports {io_sd[2]}]
 # set_property -dict { PACKAGE_PIN H2 IOSTANDARD LVCMOS33 } [get_ports i_sd_cs]
 # set_property -dict { PACKAGE_PIN G2 IOSTANDARD LVCMOS33 } [get_ports i_sd_wp]
 
@@ -367,6 +367,14 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]
 
 ## Adding in any XDC_INSERT tags
 
+## No XDC.INSERT tag in mem_sdram_bkram
+## No XDC.INSERT tag in mem_full
+## No XDC.INSERT tag in sdcard
+## No XDC.INSERT tag in GPSPORT_OFFSET
+## No XDC.INSERT tag in spio
+## No XDC.INSERT tag in pwrcount
+## No XDC.INSERT tag in alt
+## No XDC.INSERT tag in buserr
 ## From netp
 create_clock -period 40.000 -name eth_tx_pin -add [get_ports {i_eth_tx_clk}]
 create_clock -period 40.000 -name eth_rx_pin -add [get_ports {i_eth_rx_clk}]
@@ -396,6 +404,17 @@ set_max_delay -datapath_only -from [get_cells -hier -filter {NAME=~ *netctrl/n_r
 
 
 
+## No XDC.INSERT tag in mem_bkram_only
+## No XDC.INSERT tag in rtcdate
+## No XDC.INSERT tag in cfg
+## No XDC.INSERT tag in version
+## No XDC.INSERT tag in LGPKTBUFSZB
+## No XDC.INSERT tag in zip_alt_mpc
+## No XDC.INSERT tag in clrled
+## No XDC.INSERT tag in wb
+## No XDC.INSERT tag in KEYS
+## No XDC.INSERT tag in crystal_oscillator
+## No XDC.INSERT tag in DEFAULT
 ## From flash
 set_property SLEW FAST [get_ports o_qspi_cs_n]
 set_property SLEW FAST [get_ports o_qspi_sck]
@@ -403,3 +422,41 @@ set_property SLEW FAST [get_ports io_qspi_dat[0]]
 set_property SLEW FAST [get_ports io_qspi_dat[1]]
 set_property SLEW FAST [get_ports io_qspi_dat[2]]
 set_property SLEW FAST [get_ports io_qspi_dat[3]]
+## No XDC.INSERT tag in subseconds
+## No XDC.INSERT tag in eth_tx_clk_p
+## No XDC.INSERT tag in REGDEFS
+## No XDC.INSERT tag in zip_alt_mtc
+## No XDC.INSERT tag in sysclk
+## No XDC.INSERT tag in XDC
+## No XDC.INSERT tag in zip
+## No XDC.INSERT tag in eth_rx_clk_p
+## No XDC.INSERT tag in allclocks
+## No XDC.INSERT tag in SIM
+## No XDC.INSERT tag in uart
+## No XDC.INSERT tag in altpic
+## No XDC.INSERT tag in wbu_arbiter
+## No XDC.INSERT tag in zip_alt_uic
+## No XDC.INSERT tag in wbu
+## No XDC.INSERT tag in flashcfg
+## No XDC.INSERT tag in sdram
+## No XDC.INSERT tag in syspic
+## No XDC.INSERT tag in zip_alt_mic
+## No XDC.INSERT tag in zip_alt_moc
+## No XDC.INSERT tag in zip_alt_utc
+## No XDC.INSERT tag in zip_tmb
+## No XDC.INSERT tag in zip_tmc
+## No XDC.INSERT tag in gpsu
+## No XDC.INSERT tag in REGISTER
+## No XDC.INSERT tag in zip_dmac
+## No XDC.INSERT tag in bkram
+## No XDC.INSERT tag in TMA
+## No XDC.INSERT tag in rtc
+## No XDC.INSERT tag in zip_jiffies
+## No XDC.INSERT tag in zip_alt_uoc
+## No XDC.INSERT tag in zip_alt_upc
+## No XDC.INSERT tag in gck
+## No XDC.INSERT tag in buildtime
+## No XDC.INSERT tag in mdio
+## No XDC.INSERT tag in buspic
+## No XDC.INSERT tag in netb
+## No XDC.INSERT tag in gtb

@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	fwb_slave.v
-//
-// Project:	Zip CPU -- a small, lightweight, RISC CPU soft core
+// {{{
+// Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	This file describes the rules of a wishbone interaction from the
 //		perspective of a wishbone slave.  These formal rules may be used
@@ -36,15 +36,16 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2017-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2017-2019, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -53,16 +54,15 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype none
-//
+// }}}
 module	fwb_slave(i_clk, i_reset,
 		// The Wishbone bus
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
@@ -74,6 +74,9 @@ module	fwb_slave(i_clk, i_reset,
 				F_MAX_ACK_DELAY = 0;
 	parameter		F_LGDEPTH = 4;
 	parameter [(F_LGDEPTH-1):0] F_MAX_REQUESTS = 0;
+	// OPT_BUS_ABORT: If true, the master can drop CYC at any time and
+	// must drop CYC following any bus error
+	parameter [0:0]		OPT_BUS_ABORT = 1'b1;
 	//
 	// If true, allow the bus to be kept open when there are no outstanding
 	// requests.  This is useful for any master that might execute a
@@ -94,11 +97,6 @@ module	fwb_slave(i_clk, i_reset,
 	parameter	[0:0]	F_OPT_MINCLOCK_DELAY = 0;
 	//
 	//
-	// F_OPT_CLK2FFLOGIC needs to be set to true any time the clk2fflogic
-	// command is present in the yosys script.  If clk2fflogic isn't used,
-	// then setting this parameter to zero will eliminate some formal
-	// tests which would then be inappropriate.
-	parameter	[0:0]	F_OPT_CLK2FFLOGIC = 1'b0;
 	//
 	localparam [(F_LGDEPTH-1):0] MAX_OUTSTANDING = {(F_LGDEPTH){1'b1}};
 	localparam	MAX_DELAY = (F_MAX_STALL > F_MAX_ACK_DELAY)
@@ -170,7 +168,7 @@ module	fwb_slave(i_clk, i_reset,
 	initial	`SLAVE_ASSERT(!i_wb_err);
 
 	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(i_reset)))
+	if ((!f_past_valid)||($past(i_reset)))
 	begin
 		`SLAVE_ASSUME(!i_wb_cyc);
 		`SLAVE_ASSUME(!i_wb_stb);
@@ -178,30 +176,6 @@ module	fwb_slave(i_clk, i_reset,
 		`SLAVE_ASSERT(!i_wb_ack);
 		`SLAVE_ASSERT(!i_wb_err);
 	end
-
-	// Things can only change on the positive edge of the clock
-`ifdef	VERIFIC
-	(* gclk *) wire gbl_clock;
-	global clocking @(posedge gbl_clock);
-	endclocking
-`endif
-
-	generate if (F_OPT_CLK2FFLOGIC)
-	begin : FORCE_POSEDGE_CLK
-		always @($global_clock)
-		if ((f_past_valid)&&(!$rose(i_clk)))
-		begin
-			assert($stable(i_reset));
-			`SLAVE_ASSUME($stable(i_wb_cyc));
-			`SLAVE_ASSUME($stable(f_request)); // The entire request should b stabl
-			//
-			`SLAVE_ASSERT($stable(i_wb_ack));
-			`SLAVE_ASSERT($stable(i_wb_stall));
-			`SLAVE_ASSERT($stable(i_wb_idata));
-			`SLAVE_ASSERT($stable(i_wb_err));
-		end
-
-	end endgenerate
 
 	always @(*)
 	if (!f_past_valid)
@@ -216,8 +190,17 @@ module	fwb_slave(i_clk, i_reset,
 	// Following any bus error, the CYC line should be dropped to abort
 	// the transaction
 	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(i_wb_err))&&($past(i_wb_cyc)))
+	if (f_past_valid && OPT_BUS_ABORT && $past(i_wb_err)&& $past(i_wb_cyc))
 		`SLAVE_ASSUME(!i_wb_cyc);
+
+	always @(*)
+	if (!OPT_BUS_ABORT && !i_reset && (f_nreqs != f_nacks))
+		`SLAVE_ASSUME(i_wb_cyc);
+
+	always @(posedge i_clk)
+	if (f_past_valid && !OPT_BUS_ABORT
+			&& $past(!i_reset && i_wb_stb && i_wb_stall))
+		`SLAVE_ASSUME(i_wb_cyc);
 
 	// STB can only be true if CYC is also true
 	always @(*)
@@ -252,9 +235,18 @@ module	fwb_slave(i_clk, i_reset,
 		`SLAVE_ASSUME(i_wb_we == $past(i_wb_we));
 
 	// Write requests must also set one (or more) of i_wb_sel
-	always @(*)
-	if ((i_wb_stb)&&(i_wb_we))
-		`SLAVE_ASSUME(|i_wb_sel);
+	//
+	// This test has been removed since down-sizers (taking bus from width
+	// DW to width dw < DW) might actually create empty requests that this
+	// would prevent.  Re-enabling it would also complicate AXI to WB
+	// transfers, since AXI explicitly allows WSTRB == 0.  Finally, this
+	// criteria isn't found in the WB spec--so while it might be a good
+	// idea to check, in hind sight there are too many exceptions to be
+	// dogmatic about it.
+	//
+	// always @(*)
+	// if ((i_wb_stb)&&(i_wb_we))
+	//	`SLAVE_ASSUME(|i_wb_sel);
 
 
 	//
@@ -272,6 +264,30 @@ module	fwb_slave(i_clk, i_reset,
 		`SLAVE_ASSERT(!i_wb_err);
 		// Stall may still be true--such as when we are not
 		// selected at some arbiter between us and the slave
+	end
+
+	//
+	// Any time the CYC line drops, it is possible that there may be a
+	// remaining (registered) ACK or ERR that hasn't yet been returned.
+	// Restrict such out of band returns so that they are *only* returned
+	// if there is an outstanding operation.
+	//
+	// Update: As per spec, WB-classic to WB-pipeline conversions require
+	// that the ACK|ERR might come back on the same cycle that STB
+	// is low, yet also be registered.  Hence, if STB & STALL are true on
+	// one cycle, then CYC is dropped, ACK|ERR might still be true on the
+	// cycle when CYC is dropped
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_wb_cyc))&&(!i_wb_cyc))
+	begin
+		// Note that, unlike f_outstanding, f_nreqs and f_nacks are both
+		// registered.  Hence, we can check here if a response is still
+		// pending.  If not, no response should be returned.
+		if (f_nreqs == f_nacks)
+		begin
+			`SLAVE_ASSERT(!i_wb_ack);
+			`SLAVE_ASSERT(!i_wb_err);
+		end
 	end
 
 	// ACK and ERR may never both be true at the same time
@@ -382,6 +398,10 @@ module	fwb_slave(i_clk, i_reset,
 			// created before the request gets through
 			`SLAVE_ASSERT((!i_wb_err)||((i_wb_stb)&&(!i_wb_stall)));
 		end
+	end else if (!i_wb_cyc && f_nacks == f_nreqs)
+	begin
+		`SLAVE_ASSERT(!i_wb_ack);
+		`SLAVE_ASSERT(!i_wb_err);
 	end
 
 	generate if (!F_OPT_RMW_BUS_OPTION)
@@ -415,3 +435,5 @@ module	fwb_slave(i_clk, i_reset,
 	end endgenerate
 
 endmodule
+`undef	SLAVE_ASSUME
+`undef	SLAVE_ASSERT

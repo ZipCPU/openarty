@@ -1,24 +1,33 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	migsdram.v
-//
+// {{{
 // Project:	OpenArty, an entirely open SoC based upon the Arty platform
 //
 // Purpose:	To interface the Arty to a MIG Generated SDRAM
+//
+//	This implementation depends upon the existence of a MIG generated
+//	core, named "mig_axis", and illustrates how such a core might be
+//	connected to the wbm2axip bridge.  Specific options of the mig_axis
+//	setup include 6 identifier bits, and a full-sized bus width of 128
+//	bits.   These two settings are both appropriate for driving a DDR3
+//	memory (whose minimum transfer size is 128 bits), but may need to be
+//	adjusted to support other memories.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
+// }}}
+// Copyright (C) 2015-2024, Gisselquist Technology, LLC
+// {{{
+// This file is part of the OpenArty project.
 //
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
+// The OpenArty project is free software and gateware, licensed under the terms
+// of the 3rd version of the GNU General Public License as published by the
+// Free Software Foundation.
 //
-// This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT
+// This project is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTIBILITY or
 // FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
@@ -27,16 +36,15 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
+// }}}
 module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 	// Wishbone components
 		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
@@ -157,8 +165,7 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 	mig_axis	mig_sdram(
 		.ddr3_ck_p(o_ddr_ck_p),		.ddr3_ck_n(o_ddr_ck_n),
 		.ddr3_reset_n(o_ddr_reset_n),	.ddr3_cke(o_ddr_cke),
-		.ddr3_cs_n(o_ddr_cs_n),
-		.ddr3_ras_n(o_ddr_ras_n),
+		.ddr3_cs_n(o_ddr_cs_n),	.ddr3_ras_n(o_ddr_ras_n),
 		.ddr3_we_n(o_ddr_we_n),		.ddr3_cas_n(o_ddr_cas_n),
 		.ddr3_ba(o_ddr_ba),		.ddr3_addr(o_ddr_addr),
 		.ddr3_odt(o_ddr_odt),
@@ -219,6 +226,8 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 				.i_clk(o_sys_clk),
 				// .i_reset(i_rst), // internally unused
 				// Write address channel signals
+				.o_axi_awvalid(	s_axi_awvalid), 
+				.i_axi_awready(	s_axi_awready), 
 				.o_axi_awid(	s_axi_awid),
 				.o_axi_awaddr(	s_axi_awaddr),
 				.o_axi_awlen(	s_axi_awlen),
@@ -228,20 +237,19 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 				.o_axi_awcache(	s_axi_awcache),
 				.o_axi_awprot(	s_axi_awprot),  // s_axi_awqos
 				.o_axi_awqos(	s_axi_awqos),  // s_axi_awqos
-				.o_axi_awvalid(	s_axi_awvalid),
-				.i_axi_awready(	s_axi_awready),
 			//
+				.o_axi_wvalid(	s_axi_wvalid),
 				.i_axi_wready(	s_axi_wready),
 				.o_axi_wdata(	s_axi_wdata),
 				.o_axi_wstrb(	s_axi_wstrb),
 				.o_axi_wlast(	s_axi_wlast),
-				.o_axi_wvalid(	s_axi_wvalid),
 			//
+				.i_axi_bvalid(	s_axi_bvalid),
 				.o_axi_bready(	s_axi_bready),
 				.i_axi_bid(	s_axi_bid),
 				.i_axi_bresp(	s_axi_bresp),
-				.i_axi_bvalid(	s_axi_bvalid),
 			//
+				.o_axi_arvalid(	s_axi_arvalid),
 				.i_axi_arready(	s_axi_arready),
 				.o_axi_arid(	s_axi_arid),
 				.o_axi_araddr(	s_axi_araddr),
@@ -252,14 +260,13 @@ module	migsdram(i_clk, i_clk_200mhz, o_sys_clk, i_rst, o_sys_reset,
 				.o_axi_arcache(	s_axi_arcache),
 				.o_axi_arprot(	s_axi_arprot),
 				.o_axi_arqos(	s_axi_arqos),
-				.o_axi_arvalid(	s_axi_arvalid),
 			//
+				.i_axi_rvalid(	s_axi_rvalid),
 				.o_axi_rready(	s_axi_rready),
 				.i_axi_rid(	s_axi_rid),
 				.i_axi_rdata(	s_axi_rdata),
 				.i_axi_rresp(	s_axi_rresp),
 				.i_axi_rlast(	s_axi_rlast),
-				.i_axi_rvalid(	s_axi_rvalid),
 			//
 				.i_wb_cyc(	i_wb_cyc),
 				.i_wb_stb(	i_wb_stb),

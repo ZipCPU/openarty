@@ -1,3 +1,6 @@
 debug.txt
 eqspidump.bin
 .*.swp
+/img/
+/dev/
+/zipos/
